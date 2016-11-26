@@ -11,63 +11,11 @@ constellation boundary data as these are defined in J1875 coordinates.
 import sqlite3
 import datetime
 
+from geometry import HourAngle, DMSAngle
 
 GREEK_LETTERS = ["alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta", "iota", "kappa", "lambda", "mu", "nu", "ksi", "omicron", "pi", "rho", "sigma", "tau", "upsilon", "phi", "chi", "psi", "omega"]
 
-class HourAngle(object):
-    def __init__(self, hours=0, minutes=0, seconds=0):
-        self.hours = hours
-        self.minutes = minutes
-        self.seconds = seconds
 
-    def to_degrees(self):
-        return 15.0*self.hours + 0.25*self.minutes + 0.25*self.seconds/60.0
-
-    def from_degrees(self, degrees):
-        while degrees < 0:
-            degrees += 360.0
-
-        hours, rest = divmod(degrees, 15.0)
-        minutes, rest = divmod(60.0*rest/15.0, 1)
-        self.hours = int(round(hours))
-        self.minutes = int(round(minutes))
-        self.seconds = 60*rest
-
-    def __repr__(self):
-        return "HA {0}h {1}m {2}s".format(self.hours, self.minutes, self.seconds)
-
-    def __str__(self):
-        return self.__repr__()
-
-
-class DMSAngle(object):
-    def __init__(self, degrees=0, minutes=0, seconds=0):
-        self.degrees = degrees
-        self.minutes = minutes
-        self.seconds = seconds
-
-    def from_degrees(self, degrees):
-        sign = degrees>=0
-        degrees = abs(degrees)
-        degrees, rest = divmod(degrees, 1)
-        minutes, rest = divmod(60.0*rest, 1)
-        seconds = 60.0*rest
-        if sign:
-            self.sign = 1
-        else:
-            self.sign = -1
-        self.degrees = int(degrees)
-        self.minutes = int(minutes)
-        self.seconds = seconds
-
-    def __repr__(self):
-        result =  "{0}d {1}' {2}\"".format(self.degrees, self.minutes, self.seconds)
-        if self.sign < 0:
-            result = "-" + result
-        return result
-
-    def __str__(self):
-        return self.__repr__()
 
 
 class HipparcosStar(object):
@@ -103,8 +51,45 @@ class HipparcosStar(object):
         return float(self.data["Vmag"])
 
     @property
+    def visual_magnitude_max(self):
+        return self.median_magnitude_max-self.median_magnitude + self.visual_magnitude
+
+    @property
+    def visual_magnitude_min(self):
+        return self.median_magnitude_min-self.median_magnitude + self.visual_magnitude
+
+    @property
     def absolute_magnitude(self):
         return float(self.data["absolute_Vmag"])
+
+    @property
+    def median_magnitude_max(self):
+        try:
+            return float(self.data['median_magnitude_max'])
+        except ValueError:
+            return self.median_magnitude
+
+    @property
+    def median_magnitude_min(self):
+        try:
+            return float(self.data['median_magnitude_min'])
+        except ValueError:
+            return self.median_magnitude
+
+    @property
+    def variability_type(self):
+        return self.data['variability_type']
+
+    @property
+    def is_variable(self):
+        if self.variability_type.lower() != "c":
+            if self.median_magnitude_max - self.median_magnitude_min <= -0.5:
+                return True
+        return False
+
+    @property
+    def is_double(self):
+        return False
 
     @property
     def constellation(self):
@@ -143,6 +128,20 @@ class HipparcosStar(object):
             if part.isdigit():
                 return part
         return ""
+
+    @property
+    def common_name(self):
+        import re
+        m = re.search("\((.+)\)", self.name)
+        if m:
+            common_name = m.groups()[0]
+        else:
+            common_name = ''
+        for s in ['Wolf', 'HR', 'Lalande', 'Ross']:
+            if common_name.startswith(s):
+                common_name = ''
+                break
+        return common_name
 
     @property
     def identifier_string(self):
@@ -301,7 +300,7 @@ def parse_hipparcos(main=True, photo=True, biblio=True):
                       median_magnitude real,
                       se_median_magnitude real,
                       reference_flag_median_magnitude text,
-                      median_maginitude_max real,
+                      median_magnitude_max real,
                       median_magnitude_min real,
                       variability_period real,
                       variability_type text,

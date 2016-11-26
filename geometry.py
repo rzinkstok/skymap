@@ -1,6 +1,62 @@
 import math
 
 
+class HourAngle(object):
+    def __init__(self, hours=0, minutes=0, seconds=0):
+        self.hours = hours
+        self.minutes = minutes
+        self.seconds = seconds
+
+    def to_degrees(self):
+        return 15.0*self.hours + 0.25*self.minutes + 0.25*self.seconds/60.0
+
+    def from_degrees(self, degrees):
+        while degrees < 0:
+            degrees += 360.0
+
+        hours, rest = divmod(degrees, 15.0)
+        minutes, rest = divmod(60.0*rest/15.0, 1)
+        self.hours = int(round(hours))
+        self.minutes = int(round(minutes))
+        self.seconds = 60*rest
+
+    def __repr__(self):
+        return "HA {0}h {1}m {2}s".format(self.hours, self.minutes, self.seconds)
+
+    def __str__(self):
+        return self.__repr__()
+
+
+class DMSAngle(object):
+    def __init__(self, degrees=0, minutes=0, seconds=0):
+        self.degrees = degrees
+        self.minutes = minutes
+        self.seconds = seconds
+
+    def from_degrees(self, degrees):
+        sign = degrees>=0
+        degrees = abs(degrees)
+        degrees, rest = divmod(degrees, 1)
+        minutes, rest = divmod(60.0*rest, 1)
+        seconds = 60.0*rest
+        if sign:
+            self.sign = 1
+        else:
+            self.sign = -1
+        self.degrees = int(degrees)
+        self.minutes = int(minutes)
+        self.seconds = seconds
+
+    def __repr__(self):
+        result =  "{0}d {1}' {2}\"".format(self.degrees, self.minutes, self.seconds)
+        if self.sign < 0:
+            result = "-" + result
+        return result
+
+    def __str__(self):
+        return self.__repr__()
+
+
 class Point(object):
     def __init__(self, a, b=None):
         if b is None:
