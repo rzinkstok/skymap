@@ -7,7 +7,7 @@ import time
 
 
 def connect(wipe=False):
-    dbpath = "data/constellation_boundaries.db"
+    dbpath = "data/constellation_boundaries/constellation_boundaries.db"
     if wipe and os.path.exists(dbpath):
         os.remove(dbpath)
     conn = sqlite3.connect(dbpath)
@@ -185,12 +185,8 @@ def get_constellation_boundaries_for_area(min_longitude, max_longitude, min_lati
         date = datetime.date(2000, 1, 1)
 
     # Inverse precession to 1875
-    print "Long:", min_longitude, max_longitude
-    print "Lat:", min_latitude, max_latitude
     min_longitude, min_latitude = herget_precession(min_longitude, min_latitude, fractional_year(date), 1875.0)
     max_longitude, max_latitude = herget_precession(max_longitude, max_latitude, fractional_year(date), 1875.0)
-    print "Long:", min_longitude, max_longitude
-    print "Lat:", min_latitude, max_latitude
 
     conn, cursor = connect()
     q = "SELECT * FROM constellation_boundaries WHERE"
@@ -209,7 +205,6 @@ def get_constellation_boundaries_for_area(min_longitude, max_longitude, min_lati
 
     q += " AND dec2>{0} AND dec2<{1})".format(min_latitude, max_latitude)
 
-    print q
     res = cursor.execute(q)
 
     result = []
@@ -276,7 +271,7 @@ def herget_precession(ra1, dec1, epoch1, epoch2):
 
 
 def build_database():
-    with open("data/bound_18.dat", "r") as fp:
+    with open("data/constellation_boundaries/bound_18.dat", "r") as fp:
         lines = fp.readlines()
 
     point_data = {}

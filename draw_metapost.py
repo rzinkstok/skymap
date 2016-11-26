@@ -17,6 +17,8 @@ class MetaPostFigure(object):
         self.fp.write("verbatimtex\n")
         self.fp.write("%&latex\n")
         self.fp.write("\\documentclass{article}\n")
+        self.fp.write("\\usepackage[default]{sourcesanspro}\n")
+        self.fp.write("\\usepackage[T1]{fontenc}\n")
         self.fp.write("\\begin{document}\n")
         self.fp.write("etex\n\n")
         self.fp.write("beginfig(1);\n")
@@ -94,7 +96,7 @@ class MetaPostFigure(object):
 
         s = "label.{0}(btex \\{1} {2} etex".format(pos, size, text)
         if scale:
-            s += " scaled {1}".format(scale)
+            s += " scaled {0}".format(scale)
         s += ", {0})".format(o)
 
         if angle:

@@ -1,21 +1,48 @@
 import math
 
-from hipparcos import HourAngle, select_stars
+from hyg import select_stars
 from projection import StereographicCylinder, LambertConformalConic, InvertedLambertConformalConic
 from draw_metapost import MetaPostFigure
-from geometry import Point
+from geometry import Point, HourAngle
 from constellations import get_constellation_boundaries, get_constellation_boundaries_for_area
+
+FAINTEST_MAGNITUDE = 99 #6.5
+
+def magnitude_to_size(magnitude):
+    if magnitude < -0.5:
+        magnitude = -0.5
+    return 3.7*math.exp(-0.3*magnitude)
 
 
 def draw_star(mp, star, map_projection):
+    # if star.constellation == 'Cet':
+    #     if 'alpha' in star.name.lower() or 'beta' in star.name.lower():
+    #         print star.name, star.visual_magnitude, magnitude_to_size(star.visual_magnitude)
+    #     if 'omicron' in star.name.lower():
+    #         print star.name, star.visual_magnitude_max, star.visual_magnitude_min, magnitude_to_size(star.visual_magnitude_max), magnitude_to_size(star.visual_magnitude_min)
     p = map_projection.project_to_map(*star.propagate_position())
     if not map_projection.inside_viewport(p):
         return
-    size = 0.5*math.exp(math.log(10)*0.125*(6.5-star.visual_magnitude))
-    mp.draw_point(p, size+0.1, color="white")
-    mp.draw_point(p, size)
+    if star.is_variable:
+        print "VARIABLE", star.identifier_string, star.proper
+        min_size = magnitude_to_size(star.var_min)
+        max_size = magnitude_to_size(star.var_max)
+        mp.draw_point(p, max_size+0.15, color="white")
+        mp.draw_circle(p, 0.5*max_size, linewidth=0.15)
+        if star.var_min < FAINTEST_MAGNITUDE:
+            mp.draw_point(p, min_size)
+        size = max_size
+    else:
+        size = magnitude_to_size(star.mag)
+        mp.draw_point(p, size+0.15, color="white")
+        if star.is_multiple:
+            print "MULTIPLE", star.identifier_string, star.proper
+            mp.draw_line(Point(p[0]-0.5*size-0.2, p[1]), Point(p[0]+0.5*size+0.2, p[1]), linewidth=0.25)
+        mp.draw_point(p, size)
     if star.identifier_string.strip():
-        mp.draw_text(Point(p.x - 0.8 + 0.5 * size, p.y), star.identifier_string, "rt", "tiny", delay_write=True)
+        mp.draw_text(Point(p.x + 0.5 * size - 0.9, p.y), star.identifier_string, "rt", "tiny", scale=0.75, delay_write=True)
+    if star.proper:
+        mp.draw_text(Point(p.x, p.y - 0.5 * size + 0.8), star.proper, "bot", "tiny", scale=0.75, delay_write=True)
 
 
 def draw_constellation_borders(mp, map_projection, color="black"):
@@ -44,7 +71,7 @@ def draw_constellation_border(mp, map_projection, constellation, drawn_edges, co
 
 
 def draw_equatorial_map(start_longitude, stop_longitude, start_latitude, stop_latitude, filename=None, im_width=290, im_height=223):
-    sc = StereographicCylinder(standard_parallel=30, source_distance_scale=1)
+    sc = StereographicCylinder(standard_parallel=0.7*stop_latitude, source_distance_scale=1)
     sc.set_longitude_limits(start_longitude, stop_longitude)
     sc.set_latitude_limits(start_latitude, stop_latitude)
     sc.set_map_size(im_width-40, im_height-40)
@@ -96,9 +123,9 @@ def draw_equatorial_map(start_longitude, stop_longitude, start_latitude, stop_la
         tickp2 = p2 + Point(-1, 0)
 
         if latitude > 0:
-            marker = "$+{0}^{{\\circ}}$".format(latitude)
+            marker = "+{0}$^{{\\circ}}$".format(latitude)
         else:
-            marker = "${0}^{{\\circ}}$".format(latitude)
+            marker = "--{0}$^{{\\circ}}$".format(abs(latitude))
 
         if not latitude % 10:
             mp.draw_line(p1, p2)
@@ -116,7 +143,7 @@ def draw_equatorial_map(start_longitude, stop_longitude, start_latitude, stop_la
     mp.draw_rectange(Point(0, 0), Point(im_width, im_height), linewidth=0)
 
     mp.comment("Stars")
-    bs = select_stars(magnitude=6.5, constellation=None, ra_range=(start_longitude, stop_longitude), dec_range=(start_latitude, stop_latitude))
+    bs = select_stars(magnitude=FAINTEST_MAGNITUDE, constellation=None, ra_range=(start_longitude, stop_longitude), dec_range=(start_latitude, stop_latitude))
     for s in bs:
         draw_star(mp, s, sc)
 
@@ -124,7 +151,7 @@ def draw_equatorial_map(start_longitude, stop_longitude, start_latitude, stop_la
     mp.render(filename)
 
 
-def draw_intermediate_map(start_longitude, stop_longitude, start_latitude, stop_latitude, filename, im_width=290, im_height=223):
+def draw_intermediate_map(start_longitude, stop_longitude, start_latitude, stop_latitude, filename, im_width=330, im_height=223):
     if start_latitude > stop_latitude:
         raise ValueError("Invalid start and stop latitudes!")
 
@@ -133,12 +160,23 @@ def draw_intermediate_map(start_longitude, stop_longitude, start_latitude, stop_
     else:
         origin_longitude = 0.5*(start_longitude+stop_longitude) - 180.0
 
+    if stop_latitude == 90.0:
+        sp1 = start_latitude
+        sp2 = 90.0
+    elif start_latitude == -90.0:
+        sp1 = -90.0
+        sp2 = stop_latitude
+    else:
+        central_latitude = 0.5*(start_latitude+stop_latitude)
+        sp1 = central_latitude - (stop_latitude-start_latitude)/3.0
+        sp2 = central_latitude + 0.4*(stop_latitude-start_latitude)/3.0
+
     if start_latitude > 0:
         hemisphere = "N"
-        sc = LambertConformalConic(standard_parallel1=start_latitude, standard_parallel2=stop_latitude, origin_longitude=origin_longitude, origin_latitude=start_latitude-3)
+        sc = LambertConformalConic(standard_parallel1=sp1, standard_parallel2=sp2, origin_longitude=origin_longitude, origin_latitude=start_latitude-3)
     elif stop_latitude < 0:
         hemisphere = "S"
-        sc = InvertedLambertConformalConic(standard_parallel1=start_latitude, standard_parallel2=stop_latitude, origin_longitude=origin_longitude, origin_latitude=stop_latitude+3)
+        sc = InvertedLambertConformalConic(standard_parallel1=sp1, standard_parallel2=sp2, origin_longitude=origin_longitude, origin_latitude=stop_latitude+3)
     else:
         raise ValueError("Invalid start or stop latitudes!")
 
@@ -198,10 +236,10 @@ def draw_intermediate_map(start_longitude, stop_longitude, start_latitude, stop_
     for i in range(8):
         if hemisphere == "N":
             latitude = 10 + i*10
-            marker = "$+{0}^{{\\circ}}$".format(latitude)
+            marker = "+{0}$^{{\\circ}}$".format(latitude)
         else:
             latitude = -10 - i*10
-            marker = "${0}^{{\\circ}}$".format(latitude)
+            marker = "--{0}$^{{\\circ}}$".format(abs(latitude))
 
         center = sc.map_pole
         radius, intersections = sc.radius_for_parallel(latitude)
@@ -229,7 +267,7 @@ def draw_intermediate_map(start_longitude, stop_longitude, start_latitude, stop_
     else:
         dec_range = (sc.max_latitude, sc.lowest_latitude)
 
-    bs = select_stars(magnitude=6.5, constellation=None, ra_range=(sc.min_longitude, sc.max_longitude), dec_range=dec_range)
+    bs = select_stars(magnitude=FAINTEST_MAGNITUDE, constellation=None, ra_range=(sc.min_longitude, sc.max_longitude), dec_range=dec_range)
 
     for s in bs:
         draw_star(mp, s, sc)
@@ -239,6 +277,7 @@ def draw_intermediate_map(start_longitude, stop_longitude, start_latitude, stop_
 
 
 if __name__ == "__main__":
-    #draw_equatorial_map(30, 120, -28, 28, "maps/skymap1.pdf")
+    #draw_equatorial_map(0, 60, -20, 20, "maps/skymap1.pdf") # Cetus
+    draw_equatorial_map(45, 105, -20, 20, "maps/skymap1.pdf") # Orion
     #draw_intermediate_map(300, 60, -70, -20, "maps/skymap2.pdf")
-    draw_intermediate_map(-60, 60, 20, 70, "maps/skymap2.pdf")
+    #draw_intermediate_map(240, 0, 20, 70, "maps/skymap2.pdf")
