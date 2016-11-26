@@ -34,13 +34,10 @@ class StereographicCylinder(object):
             self.orig_longitude = 0.5*(min_longitude+max_longitude)
         else:
             self.orig_longitude = 0.5*(min_longitude+max_longitude) - 180
-        print "Origin longitude:", self.orig_longitude
         self.orig_longitude_rad = math.radians(self.orig_longitude)
         self.min_x, dummy = self._project(self.min_longitude, 0)
         self.max_x, dummy = self._project(self.max_longitude, 0)
         self.extent_x = self.max_x - self.min_x
-        print "Min x:", self.min_x
-        print "Max x:", self.max_x
 
     def set_latitude_limits(self, min_latitude, max_latitude):
         self.min_latitude = min_latitude
@@ -103,7 +100,6 @@ class StereographicCylinder(object):
 
 class LambertConformalConic(object):
     def __init__(self, standard_parallel1, standard_parallel2, origin_longitude, origin_latitude):
-        print standard_parallel1, standard_parallel2, origin_latitude
         if standard_parallel1 < 0 or standard_parallel2 < 0 or origin_latitude < 0:
             raise ValueError("Only positive latitudes are allowed!")
         self.standard_parallel1 = standard_parallel1
@@ -112,6 +108,7 @@ class LambertConformalConic(object):
         self.origin_latitude = origin_latitude
 
         self.map_pole = None
+        self.map_scale_factor = 190.0
 
         self.min_longitude = None
         self.max_longitude = None
@@ -132,7 +129,7 @@ class LambertConformalConic(object):
 
     @property
     def min_latitude(self):
-        return self.min_latitude
+        return self._min_latitude
 
     @property
     def max_latitude(self):
@@ -151,6 +148,8 @@ class LambertConformalConic(object):
         self.map_offset_y = offset_y
 
     def calculate_map_pole(self):
+        dummy, current_max_lat_pos = self.project_to_map(self.origin_longitude, self.max_latitude)
+        self.map_scale_factor *= (self.map_offset_y+self.map_size_y)/current_max_lat_pos
         self.map_pole = self.project_to_map(0, 90)
         dummy, self._lowest_latitude = self.project_from_map(self.map_offset_x, self.map_offset_y)
         self.min_longitude, dummy = self.project_from_map(self.map_offset_x + self.map_size_x, self.map_offset_y + self.map_size_y)
@@ -161,12 +160,17 @@ class LambertConformalConic(object):
         if self.max_longitude < 0:
             self.max_longitude += 360.0
 
+    def dummy(self):
+        print self.project_from_map(self.map_offset_x+0.5*self.map_size_x, self.map_offset_y)[1]
+        print self.project_from_map(self.map_offset_x+0.5*self.map_size_x, self.map_offset_y+self.map_size_y)[1]
+
+
     def to_map_coordinates(self, x, y):
-        m = 200.0
+        m = self.map_scale_factor
         return -m*x + 0.5*self.map_size_x + self.map_offset_x, m*y + self.map_offset_y
 
     def from_map_coordinates(self, map_x, map_y):
-        m = 200.0
+        m = self.map_scale_factor
         return -(map_x - 0.5*self.map_size_x - self.map_offset_x)/m, (map_y-self.map_offset_y)/m
 
     def _project(self, longitude, latitude):
@@ -327,9 +331,6 @@ class InvertedLambertConformalConic(LambertConformalConic):
         new_standard_parallel1 = -standard_parallel2
         new_standard_parallel2 = -standard_parallel1
         origin_latitude = -origin_latitude
-        print "SP1:", new_standard_parallel1
-        print "SP2:", new_standard_parallel2
-        print "OrigLat:", origin_latitude
         LambertConformalConic.__init__(self, new_standard_parallel1, new_standard_parallel2, origin_longitude, origin_latitude)
 
     def set_latitude_limits(self, min_latitude, max_latitude):
