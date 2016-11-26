@@ -1,12 +1,31 @@
 import math
 
-from geometry import distance, intersection_line_circle
+from geometry import Point, distance, intersection_line_circle, intersection_line_line
 
 
 class StereographicCylinder(object):
     def __init__(self, standard_parallel, source_distance_scale):
         self.standard_parallel_rad = math.radians(standard_parallel)
         self.source_distance_scale = source_distance_scale
+
+        self.min_longitude = None
+        self.max_longitude = None
+        self.orig_longitude = None
+        self.orig_longitude_rad = None
+        self.min_latitude = None
+        self.max_latitude = None
+
+        self.min_x = None
+        self.max_x = None
+        self.extent_x = None
+        self.min_y = None
+        self.max_y = None
+        self.extent_y = None
+
+        self.map_offset_x = None
+        self.map_offset_y = None
+        self.map_size_x = None
+        self.map_size_y = None
 
     def set_longitude_limits(self, min_longitude, max_longitude):
         self.min_longitude = min_longitude
@@ -29,6 +48,10 @@ class StereographicCylinder(object):
         dummy, self.min_y = self._project(0, self.min_latitude)
         dummy, self.max_y = self._project(0, self.max_latitude)
         self.extent_y = self.max_y - self.min_y
+
+    @property
+    def lowest_latitude(self):
+        return self.min_latitude
 
     def set_map_size(self, size_x, size_y):
         self.map_size_x = size_x
@@ -59,7 +82,7 @@ class StereographicCylinder(object):
 
     def project_to_map(self, longitude, latitude):
         x, y = self._project(longitude, latitude)
-        return self.to_map_coordinates(x, y)
+        return Point(self.to_map_coordinates(x, y))
 
     def points_for_parallel(self, latitude):
         p1 = self.project_to_map(self.min_longitude, latitude)
@@ -71,8 +94,8 @@ class StereographicCylinder(object):
         p2 = self.project_to_map(longitude, self.max_latitude)
         return p1, p2, "bot", "top"
 
-    def inside_viewport(self, x, y):
-        if x < self.map_offset_x or x > self.map_offset_x+self.map_size_x or y < self.map_offset_y or y > self.map_offset_y+self.map_size_y:
+    def inside_viewport(self, p):
+        if p.x < self.map_offset_x or p.x > self.map_offset_x+self.map_size_x or p.y < self.map_offset_y or p.y > self.map_offset_y+self.map_size_y:
             return False
         else:
             return True
@@ -87,6 +110,19 @@ class LambertConformalConic(object):
         self.standard_parallel2 = standard_parallel2
         self.origin_longitude = origin_longitude
         self.origin_latitude = origin_latitude
+
+        self.map_pole = None
+
+        self.min_longitude = None
+        self.max_longitude = None
+        self._min_latitude = None
+        self._max_latitude = None
+        self._lowest_latitude = None
+
+        self.map_offset_x = None
+        self.map_offset_y = None
+        self.map_size_x = None
+        self.map_size_y = None
 
     def set_latitude_limits(self, min_latitude, max_latitude):
         if min_latitude < 0 or max_latitude < 0:
@@ -154,15 +190,15 @@ class LambertConformalConic(object):
         tan2_4 = math.tan(sp2r_4)
 
         n = math.log(cos1/cos2)/math.log(tan2_4/tan1_4)
-        F = cos1*pow(math.tan(sp1r_4), n)/n
-        rho0 = F/pow(math.tan(math.pi/4 + orig_latitude_rad/2), n)
+        f = cos1*pow(math.tan(sp1r_4), n)/n
+        rho0 = f/pow(math.tan(math.pi/4 + orig_latitude_rad/2), n)
 
         if longitude_rad-orig_longitude_rad > math.pi:
             theta = n*(longitude_rad-orig_longitude_rad - 2*math.pi)
         else:
             theta = n*(longitude_rad-orig_longitude_rad)
 
-        rho = F/pow(math.tan(math.pi/4 + latitude_rad/2), n)
+        rho = f/pow(math.tan(math.pi/4 + latitude_rad/2), n)
 
         x = rho*math.sin(theta)
         y = rho0 - rho * math.cos(theta)
@@ -171,7 +207,7 @@ class LambertConformalConic(object):
 
     def project_to_map(self, longitude, latitude, invert_latitude=False):
         x, y = self._project(longitude, latitude)
-        return self.to_map_coordinates(x, y)
+        return Point(self.to_map_coordinates(x, y))
 
     def project_from_map(self, map_x, map_y):
         x, y = self.from_map_coordinates(map_x, map_y)
@@ -192,90 +228,61 @@ class LambertConformalConic(object):
         tan2_4 = math.tan(sp2r_4)
 
         n = math.log(cos1/cos2)/math.log(tan2_4/tan1_4)
-        F = cos1*pow(math.tan(sp1r_4), n)/n
-        rho0 = F/pow(math.tan(math.pi/4 + orig_latitude_rad/2), n)
+        f = cos1*pow(math.tan(sp1r_4), n)/n
+        rho0 = f/pow(math.tan(math.pi/4 + orig_latitude_rad/2), n)
 
         rho = math.sqrt(x**2 + (rho0 - y)**2)
         rho = math.copysign(rho, n)
         theta = math.atan(x/(rho0-y))
 
-        latitude = 2*math.atan(pow(F/rho, 1/n)) - math.pi/2.0
+        latitude = 2*math.atan(pow(f/rho, 1/n)) - math.pi/2.0
         longitude = theta/n + orig_longitude_rad
 
         return math.degrees(longitude), math.degrees(latitude)
 
-
     def points_for_meridian(self, longitude):
-        p1 = self.project_to_map(longitude, self._min_latitude, invert_latitude=False)
-        p2 = self.project_to_map(longitude, self._max_latitude, invert_latitude=False)
-
-        # meridian (x1y2 - x2y1)
-        a1 = p1[1]-p2[1]
-        b1 = p2[0]-p1[0]
-        c1 = p1[0]*p2[1] - p2[0]*p1[1]
+        # meridian
+        lp1 = self.project_to_map(longitude, self._min_latitude, invert_latitude=False)
+        lp2 = self.project_to_map(longitude, self._max_latitude, invert_latitude=False)
 
         # lower border of map:
-        a2 = 0
-        b2 = 1
-        c2 = -self.map_offset_y
-
-        y1 = (c1*a2 - c2*a1)/(a1*b2 - a2*b1)
-        x1 = (c1*b2 - b1*c2)/(b1*a2 - a1*b2)
-        new_p1 = (x1, y1)
+        p1 = Point(self.map_offset_x, self.map_offset_y)
+        p2 = p1 + Point(1, 0)
+        new_p1 = intersection_line_line(lp1, lp2, p1, p2)
         pos1 = "bot"
 
-        if x1 > self.map_offset_x + self.map_size_x:
-            #right border of map
-            a2 = -1
-            b2 = 0
-            c2 = self.map_offset_x + self.map_size_x
-
-            y1 = (c1*a2 - c2*a1)/(a1*b2 - a2*b1)
-            x1 = (c1*b2 - b1*c2)/(b1*a2 - a1*b2)
-            new_p1 = (x1, y1)
+        if new_p1.x > self.map_offset_x + self.map_size_x:
+            # right border of map
+            p1 = Point(self.map_offset_x+self.map_size_x, self.map_offset_y)
+            p2 = p1 + Point(0, 1)
+            new_p1 = intersection_line_line(lp1, lp2, p1, p2)
             pos1 = None
 
-        if x1 < self.map_offset_x:
-            #left border of map
-            a2 = -1
-            b2 = 0
-            c2 = self.map_offset_x
-
-            y1 = (c1*a2 - c2*a1)/(a1*b2 - a2*b1)
-            x1 = (c1*b2 - b1*c2)/(b1*a2 - a1*b2)
-            new_p1 = (x1, y1)
+        if new_p1.x < self.map_offset_x:
+            # left border of map
+            p1 = Point(self.map_offset_x, self.map_offset_y)
+            p2 = p1 + Point(0, 1)
+            new_p1 = intersection_line_line(lp1, lp2, p1, p2)
             pos1 = None
 
         # upper border of map:
-        a2 = 0
-        b2 = 1
-        c2 = -self.map_offset_y-self.map_size_y
-
-        y2 = (c1*a2 - c2* a1)/(a1*b2 - a2*b1)
-        x2 = (c1*b2 - b1*c2)/(b1*a2 - a1*b2)
-        new_p2 = (x2, y2)
+        p1 = Point(self.map_offset_x, self.map_offset_y+self.map_size_y)
+        p2 = p1 + Point(1, 0)
+        new_p2 = intersection_line_line(lp1, lp2, p1, p2)
         pos2 = "top"
 
-        if x2 > self.map_offset_x + self.map_size_x:
-            #right border of map
-            a2 = -1
-            b2 = 0
-            c2 = self.map_offset_x + self.map_size_x
-
-            y2 = (c1*a2 - c2*a1)/(a1*b2 - a2*b1)
-            x2 = (c1*b2 - b1*c2)/(b1*a2 - a1*b2)
-            new_p2 = (x2, y2)
+        if new_p2.x > self.map_offset_x + self.map_size_x:
+            # right border of map
+            p1 = Point(self.map_offset_x + self.map_size_x, self.map_offset_y)
+            p2 = p1 + Point(0, 1)
+            new_p2 = intersection_line_line(lp1, lp2, p1, p2)
             pos2 = None
 
-        if x2 < self.map_offset_x:
-            #left border of map
-            a2 = -1
-            b2 = 0
-            c2 = self.map_offset_x
-
-            y2 = (c1*a2 - c2*a1)/(a1*b2 - a2*b1)
-            x2 = (c1*b2 - b1*c2)/(b1*a2 - a1*b2)
-            new_p2 = (x2, y2)
+        if new_p2.x < self.map_offset_x:
+            # left border of map
+            p1 = Point(self.map_offset_x, self.map_offset_y)
+            p2 = p1 + Point(0, 1)
+            new_p2 = intersection_line_line(lp1, lp2, p1, p2)
             pos2 = None
 
         return new_p1, new_p2, pos1, pos2
@@ -285,11 +292,10 @@ class LambertConformalConic(object):
         radius = distance(p1, self.map_pole)
 
         valid_intersections = []
-        label_positions = []
 
         # Left border
-        bp1 = (self.map_offset_x, self.map_offset_y)
-        bp2 = (self.map_offset_x, self.map_offset_y+self.map_size_y)
+        bp1 = Point(self.map_offset_x, self.map_offset_y)
+        bp2 = Point(self.map_offset_x, self.map_offset_y+self.map_size_y)
         intersections = intersection_line_circle(bp1, bp2, self.map_pole, radius)
         for i in intersections:
             if self.map_offset_y < i[1] < self.map_offset_y+self.map_size_y:
@@ -307,8 +313,8 @@ class LambertConformalConic(object):
 
         return radius, valid_intersections
 
-    def inside_viewport(self, x, y):
-        if x < self.map_offset_x or x > self.map_offset_x+self.map_size_x or y < self.map_offset_y or y > self.map_offset_y+self.map_size_y:
+    def inside_viewport(self, p):
+        if p.x < self.map_offset_x or p.x > self.map_offset_x+self.map_size_x or p.y < self.map_offset_y or p.y > self.map_offset_y+self.map_size_y:
             return False
         else:
             return True

@@ -2,9 +2,12 @@ import math
 
 
 class Point(object):
-    def __init__(self, x, y):
-        self.x = x
-        self.y = y
+    def __init__(self, a, b=None):
+        if b is None:
+            self.x, self.y = a
+        else:
+            self.x = a
+            self.y = b
 
     def __str__(self):
         return "Point({0}, {1})".format(self.x, self.y)
@@ -44,7 +47,25 @@ def rotate_point(p, center, angle):
     dy = p[1]-center[1]
     new_dx = dx*math.cos(angle) - dy*math.sin(angle)
     new_dy = dx*math.sin(angle) + dy*math.cos(angle)
-    return (center[0] + new_dx, center[1] + new_dy)
+    return Point(center[0] + new_dx, center[1] + new_dy)
+
+
+def intersection_line_line(l1p1, l1p2, l2p1, l2p2):
+    a1 = l1p1.y - l1p2.y
+    b1 = l1p2.x - l1p1.x
+    c1 = l1p1.x * l1p2.y - l1p2.x * l1p1.y
+
+    a2 = l2p1.y - l2p2.y
+    b2 = l2p2.x - l2p1.x
+    c2 = l2p1.x * l2p2.y - l2p2.x * l2p1.y
+
+    den = (a1*b2 - a2*b1)
+    if abs(den) == 0.0:
+        return None
+
+    y = (c1*a2 - c2*a1)/den
+    x = (b1*c2 - c1*b2)/den
+    return Point(x, y)
 
 
 def intersection_line_circle(p1, p2, center, r):
@@ -71,8 +92,8 @@ def intersection_line_circle(p1, p2, center, r):
     y1 = center[1] + eta1
     y2 = center[1] + eta2
 
-    ip1 = (x1, y1)
-    ip2 = (x2, y2)
+    ip1 = Point(x1, y1)
+    ip2 = Point(x2, y2)
 
     return ip1, ip2
 

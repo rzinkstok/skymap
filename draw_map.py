@@ -2,20 +2,45 @@ import math
 
 from hipparcos import HourAngle, select_stars
 from projection import StereographicCylinder, LambertConformalConic, InvertedLambertConformalConic
-from draw_metapost import *
-from geometry import rotate_point
+from draw_metapost import MetaPostFigure
+from geometry import Point
+from constellations import get_constellation_boundaries, get_constellation_boundaries_for_area
 
 
-def draw_star(fp, star, map_projection):
-    x, y = map_projection.project_to_map(star.right_ascension, star.declination)
-    if not map_projection.inside_viewport(x, y):
+def draw_star(mp, star, map_projection):
+    p = map_projection.project_to_map(*star.propagate_position())
+    if not map_projection.inside_viewport(p):
         return
     size = 0.5*math.exp(math.log(10)*0.125*(6.5-star.visual_magnitude))
-    draw_point(fp, x, y, size+0.1, color="white")
-    draw_point(fp, x, y, size)
+    mp.draw_point(p, size+0.1, color="white")
+    mp.draw_point(p, size)
     if star.identifier_string.strip():
-        return prepare_text(x - 0.8 + 0.5 * size, y, star.identifier_string, "rt", "tiny")
+        mp.draw_text(Point(p.x - 0.8 + 0.5 * size, p.y), star.identifier_string, "rt", "tiny", delay_write=True)
 
+
+def draw_constellation_borders(mp, map_projection, color="black"):
+    drawn_edges = []
+    edges = get_constellation_boundaries_for_area(map_projection.min_longitude, map_projection.max_longitude, map_projection.lowest_latitude, map_projection.max_latitude)
+    for e in edges:
+        if e.identifier in drawn_edges:
+            continue
+        points = [map_projection.project_to_map(*p) for p in e.interpolated_points]
+        mp.draw_polygon(points, closed=False, dotted=True, color=color)
+        drawn_edges.append(e.identifier)
+        drawn_edges.append(e.complement)
+    return
+
+
+def draw_constellation_border(mp, map_projection, constellation, drawn_edges, color="black"):
+    edges = get_constellation_boundaries(constellation)
+    for e in edges:
+        if e.identifier in drawn_edges:
+            continue
+        points = [map_projection.project_to_map(*p) for p in e.interpolated_points]
+        mp.draw_polygon(points, closed=False, dotted=True, color=color)
+        drawn_edges.append(e.identifier)
+        drawn_edges.append(e.complement)
+    return drawn_edges
 
 
 def draw_equatorial_map(start_longitude, stop_longitude, start_latitude, stop_latitude, filename=None, im_width=290, im_height=223):
@@ -25,100 +50,78 @@ def draw_equatorial_map(start_longitude, stop_longitude, start_latitude, stop_la
     sc.set_map_size(im_width-40, im_height-40)
     sc.set_map_offset(20, 20)
 
-    with open("mpost/map.mp", "w") as fp:
-        fp.write("% Equatorial star map\n\n")
-        fp.write("verbatimtex\n")
-        fp.write("%&latex\n")
-        fp.write("\\documentclass{article}\n")
-        fp.write("\\begin{document}\n")
-        fp.write("etex\n\n")
-        fp.write("beginfig(1);\n")
+    mp = MetaPostFigure("map", "Equatorial star map")
 
-        labels = []
-        ticks = []
+    mp.comment("Constellations")
+    draw_constellation_borders(mp, sc)
 
-        fp.flush()
-        fp.write("\n% Meridians\n")
-        for i in range(72):
-            longitude = i * 5
-            if start_longitude < stop_longitude:
-                if longitude < start_longitude or longitude > stop_longitude:
-                    continue
-            else:
-                if start_longitude > longitude > stop_longitude:
-                    continue
-            ha = HourAngle()
-            ha.from_degrees(longitude)
-            p1, p2, pos1, pos2 = sc.points_for_meridian(longitude)
-            tickp1 = (p1[0], p1[1]-1)
-            tickp2 = (p2[0], p2[1]+1)
-
-            if not longitude % 15:
-                marker = "\\textbf{{{0}\\textsuperscript{{h}}}}".format(ha.hours)
-                textsize = "small"
-                draw_line(fp, p1[0], p1[1], p2[0], p2[1], "black")
-
-            else:
-                marker = "{0}\\textsuperscript{{m}}".format(ha.minutes)
-                textsize = "scriptsize"
-
-            ticks.append((p1, tickp1))
-            ticks.append((p2, tickp2))
-            labels.append(prepare_text(tickp1[0], tickp1[1], marker, pos1, textsize))
-            labels.append(prepare_text(tickp2[0], tickp2[1], marker, pos2, textsize))
-
-        fp.flush()
-        fp.write("\n% Parallels\n")
-        for i in range(35):
-            latitude = -85 + i * 5
-            if latitude < start_latitude or latitude > stop_latitude:
+    mp.comment("Meridians")
+    for i in range(72):
+        longitude = i * 5
+        if start_longitude < stop_longitude:
+            if longitude < start_longitude or longitude > stop_longitude:
                 continue
+        else:
+            if start_longitude > longitude > stop_longitude:
+                continue
+        ha = HourAngle()
+        ha.from_degrees(longitude)
+        p1, p2, pos1, pos2 = sc.points_for_meridian(longitude)
+        tickp1 = p1 + Point(0, -1)
+        tickp2 = p2 + Point(0, 1)
 
-            p1, p2, pos1, pos2 = sc.points_for_parallel(latitude)
-            tickp1 = (p1[0]+1, p1[1])
-            tickp2 = (p2[0]-1, p2[1])
+        if not longitude % 15:
+            marker = "\\textbf{{{0}\\textsuperscript{{h}}}}".format(ha.hours)
+            textsize = "small"
+            mp.draw_line(p1, p2, "black")
 
-            if latitude > 0:
-                marker = "$+{0}^{{\\circ}}$".format(latitude)
-            else:
-                marker = "${0}^{{\\circ}}$".format(latitude)
+        else:
+            marker = "{0}\\textsuperscript{{m}}".format(ha.minutes)
+            textsize = "scriptsize"
 
-            if not latitude % 10:
-                draw_line(fp, p1[0], p1[1], p2[0], p2[1], "black")
+        mp.draw_line(p1, tickp1, delay_write=True)
+        mp.draw_line(p2, tickp2, delay_write=True)
 
-            ticks.append((p1, tickp1))
-            ticks.append((p2, tickp2))
+        mp.draw_text(tickp1, marker, pos1, textsize, delay_write=True)
+        mp.draw_text(tickp2, marker, pos2, textsize, delay_write=True)
 
-            if marker:
-                labels.append(prepare_text(tickp1[0], tickp1[1], marker, pos1, "scriptsize"))
-                labels.append(prepare_text(tickp2[0], tickp2[1], marker, pos2, "scriptsize"))
+    mp.comment("Parallels")
+    for i in range(35):
+        latitude = -85 + i * 5
+        if latitude < start_latitude or latitude > stop_latitude:
+            continue
 
-        fp.flush()
-        fp.write("\n% Bounding boxes\n")
-        clip_image(fp, (20, 20, im_width-20, im_height-20))
-        draw_rectange(fp, 20, 20, im_width-20, im_height-20)
-        draw_rectange(fp, 0, 0, im_width, im_height, linewidth=0)
+        p1, p2, pos1, pos2 = sc.points_for_parallel(latitude)
+        tickp1 = p1 + Point(1, 0)
+        tickp2 = p2 + Point(-1, 0)
 
-        fp.flush()
-        fp.write("\n% Stars\n")
-        bs = select_stars(magnitude=6.5, constellation=None, ra_range=(start_longitude, stop_longitude), dec_range=(start_latitude, stop_latitude))
-        for s in bs:
-            l = draw_star(fp, s, sc)
-            if l:
-                labels.append(l)
+        if latitude > 0:
+            marker = "$+{0}^{{\\circ}}$".format(latitude)
+        else:
+            marker = "${0}^{{\\circ}}$".format(latitude)
 
-        fp.flush()
-        fp.write("\n% Labels\n")
-        for l in labels:
-            fp.write(l)
-        for p1, p2 in ticks:
-            draw_line(fp, p1[0], p1[1], p2[0], p2[1])
+        if not latitude % 10:
+            mp.draw_line(p1, p2)
 
-        fp.flush()
-        fp.write("endfig;\n")
-        fp.write("end;\n")
+        mp.draw_line(p1, tickp1, delay_write=True)
+        mp.draw_line(p2, tickp2, delay_write=True)
 
-    render_map(filename)
+        if marker:
+            mp.draw_text(tickp1, marker, pos1, "scriptsize", delay_write=True)
+            mp.draw_text(tickp2, marker, pos2, "scriptsize", delay_write=True)
+
+    mp.comment("Bounding boxes")
+    mp.clip(Point(20, 20), Point(im_width-20, im_height-20))
+    mp.draw_rectange(Point(20, 20), Point(im_width-20, im_height-20))
+    mp.draw_rectange(Point(0, 0), Point(im_width, im_height), linewidth=0)
+
+    mp.comment("Stars")
+    bs = select_stars(magnitude=6.5, constellation=None, ra_range=(start_longitude, stop_longitude), dec_range=(start_latitude, stop_latitude))
+    for s in bs:
+        draw_star(mp, s, sc)
+
+    mp.end_figure()
+    mp.render(filename)
 
 
 def draw_intermediate_map(start_longitude, stop_longitude, start_latitude, stop_latitude, filename, im_width=290, im_height=223):
@@ -144,128 +147,98 @@ def draw_intermediate_map(start_longitude, stop_longitude, start_latitude, stop_
     sc.set_latitude_limits(start_latitude-3, stop_latitude+3)
     sc.calculate_map_pole()
 
-    print sc.min_longitude, sc.max_longitude
-    print sc.lowest_latitude, sc.max_latitude
-    print "LL:", sc.project_from_map(sc.map_offset_x, sc.map_offset_y)
-    print "LR:", sc.project_from_map(sc.map_offset_x+sc.map_size_x, sc.map_offset_y)
+    mp = MetaPostFigure("map", "Intermediate star map")
 
 
-    with open("mpost/map.mp", "w") as fp:
-        fp.write("% Intermediate star map\n\n")
-        fp.write("verbatimtex\n")
-        fp.write("%&latex\n")
-        fp.write("\\documentclass{article}\n")
-        fp.write("\\begin{document}\n")
-        fp.write("etex\n\n")
-        fp.write("beginfig(1);\n")
+    mp.comment("Constellations")
+    draw_constellation_borders(mp, sc)
 
-        labels = []
-        ticks = []
+    mp.comment("Meridians")
+    for i in range(72):
+        longitude = i * 5
+        start_longitude = sc.min_longitude
+        stop_longitude = sc.max_longitude
 
-        fp.flush()
-        fp.write("\n% Meridians\n")
-        for i in range(72):
-            longitude = i * 5
-            start_longitude = sc.min_longitude
-            stop_longitude = sc.max_longitude
+        if start_longitude < stop_longitude:
+            if longitude < start_longitude or longitude > stop_longitude:
+                continue
+        else:
+            if start_longitude > longitude > stop_longitude:
+                continue
 
-            if start_longitude < stop_longitude:
-                if longitude < start_longitude or longitude > stop_longitude:
-                    continue
-            else:
-                if start_longitude > longitude > stop_longitude:
-                    continue
+        ha = HourAngle()
+        ha.from_degrees(longitude)
+        p1, p2, pos1, pos2 = sc.points_for_meridian(longitude)
+        angle = math.degrees(math.atan2(p2[1]-p1[1], p2[0]-p1[0]))
+        tickp1 = p1 + Point(1, 0).rotate(angle+180)
+        tickp2 = p2 + Point(1, 0).rotate(angle)
+        mp.draw_line(p1, tickp1, delay_write=True)
+        mp.draw_line(p2, tickp2, delay_write=True)
 
-            ha = HourAngle()
-            ha.from_degrees(longitude)
-            p1, p2, pos1, pos2 = sc.points_for_meridian(longitude)
-            angle = math.degrees(math.atan2(p2[1]-p1[1], p2[0]-p1[0]))
-            tickp1 = rotate_point((p1[0]+1,p1[1]), p1, angle+180)
-            tickp2 = rotate_point((p2[0]+1,p2[1]), p2, angle)
-            ticks.append((p1, tickp1))
-            ticks.append((p2, tickp2))
-
-            if not longitude % 15:
-                color = "black"
-                marker = "\\textbf{{{0}\\textsuperscript{{h}}}}".format(ha.hours)
-                textsize = "small"
-                draw_line(fp, p1[0], p1[1], p2[0], p2[1], color)
-            else:
-                marker = "{0}\\textsuperscript{{m}}".format(ha.minutes)
-                textsize = "scriptsize"
-
-            if hemisphere == "N":
-                all_label_pos = "bot"
-            else:
-                all_label_pos = "top"
-
-            if pos1 and (pos1 == all_label_pos or textsize == "small"):
-                labels.append(prepare_text(tickp1[0], tickp1[1], marker, pos1, textsize))
-            if pos2 and (pos2 == all_label_pos or textsize == "small"):
-                labels.append(prepare_text(tickp2[0], tickp2[1], marker, pos2, textsize))
-
-        fp.flush()
-        fp.write("\n% Parallels\n")
-        for i in range(8):
-            if hemisphere == "N":
-                latitude = 10 + i*10
-                marker = "$+{0}^{{\\circ}}$".format(latitude)
-            else:
-                latitude = -10 - i*10
-                marker = "${0}^{{\\circ}}$".format(latitude)
-
-            center = sc.map_pole
-            radius, intersections = sc.radius_for_parallel(latitude)
+        if not longitude % 15:
             color = "black"
-
-            draw_circle(fp, center, radius, color)
-            for ip, pos, angle in intersections:
-                if pos == "lft":
-                    tickp = rotate_point((ip[0]-1, ip[1]), ip, angle)
-                elif pos == "rt":
-                    tickp = rotate_point((ip[0]+1, ip[1]), ip, angle)
-                ticks.append((ip, tickp))
-                labels.append(prepare_text(tickp[0], tickp[1], marker, pos, "scriptsize", angle=angle))
-
-        fp.flush()
-        fp.write("\n% Bounding boxes\n")
-        clip_image(fp, (20, 20, im_width-20, im_height-20))
-        draw_rectange(fp, 20, 20, im_width-20, im_height-20)
-        draw_rectange(fp, 0, 0, im_width, im_height, linewidth=0)
-
-        fp.flush()
-        fp.write("\n% Stars\n")
+            marker = "\\textbf{{{0}\\textsuperscript{{h}}}}".format(ha.hours)
+            textsize = "small"
+            mp.draw_line(p1, p2, color)
+        else:
+            marker = "{0}\\textsuperscript{{m}}".format(ha.minutes)
+            textsize = "scriptsize"
 
         if hemisphere == "N":
-            dec_range = (sc.lowest_latitude, sc.max_latitude)
+            all_label_pos = "bot"
         else:
-            dec_range = (sc.max_latitude, sc.lowest_latitude)
+            all_label_pos = "top"
 
-        bs = select_stars(magnitude=6.5, constellation=None, ra_range=(sc.min_longitude, sc.max_longitude), dec_range=dec_range)
+        if pos1 and (pos1 == all_label_pos or textsize == "small"):
+            mp.draw_text(tickp1, marker, pos1, textsize, delay_write=True)
+        if pos2 and (pos2 == all_label_pos or textsize == "small"):
+            mp.draw_text(tickp2, marker, pos2, textsize, delay_write=True)
 
-        maxstar = bs[0]
-        for s in bs:
-            if s.visual_magnitude < maxstar.visual_magnitude:
-                maxstar = s
-            l = draw_star(fp, s, sc)
-            if l:
-                labels.append(l)
+    mp.comment("Parallels")
+    for i in range(8):
+        if hemisphere == "N":
+            latitude = 10 + i*10
+            marker = "$+{0}^{{\\circ}}$".format(latitude)
+        else:
+            latitude = -10 - i*10
+            marker = "${0}^{{\\circ}}$".format(latitude)
 
-        fp.flush()
-        fp.write("\n% Labels\n")
-        for l in labels:
-            fp.write(l)
-        for p1, p2 in ticks:
-            draw_line(fp, p1[0], p1[1], p2[0], p2[1])
+        center = sc.map_pole
+        radius, intersections = sc.radius_for_parallel(latitude)
+        color = "black"
 
-        fp.flush()
-        fp.write("endfig;\n")
-        fp.write("end;\n")
+        mp.draw_circle(center, radius, color)
+        for ip, pos, angle in intersections:
+            if pos == "lft":
+                tickp = ip + Point(-1, 0).rotate(angle)
+            elif pos == "rt":
+                tickp = ip + Point(1, 0).rotate(angle)
 
-    render_map(filename)
+            mp.draw_line(ip, tickp, delay_write=True)
+            mp.draw_text(tickp, marker, pos, "scriptsize", angle=angle, delay_write=True)
+
+    mp.comment("Bounding boxes")
+    mp.clip(Point(20, 20), Point(im_width-20, im_height-20))
+    mp.draw_rectange(Point(20, 20), Point(im_width-20, im_height-20))
+    mp.draw_rectange(Point(0, 0), Point(im_width, im_height), linewidth=0)
+
+    mp.comment("Stars")
+
+    if hemisphere == "N":
+        dec_range = (sc.lowest_latitude, sc.max_latitude)
+    else:
+        dec_range = (sc.max_latitude, sc.lowest_latitude)
+
+    bs = select_stars(magnitude=6.5, constellation=None, ra_range=(sc.min_longitude, sc.max_longitude), dec_range=dec_range)
+
+    for s in bs:
+        draw_star(mp, s, sc)
+
+    mp.end_figure()
+    mp.render(filename)
 
 
 if __name__ == "__main__":
     #draw_equatorial_map(30, 120, -28, 28, "maps/skymap1.pdf")
     #draw_intermediate_map(300, 60, -70, -20, "maps/skymap2.pdf")
-    draw_intermediate_map(120, 240, 20, 70, "maps/skymap2.pdf")
+    draw_intermediate_map(-60, 60, 20, 70, "maps/skymap2.pdf")

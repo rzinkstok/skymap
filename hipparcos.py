@@ -1,4 +1,15 @@
+"""
+Hipparcos data from the XHIP-catalog
+Position data is in the coordinate system ICRS, which is essentially J2000.0.
+The epoch (time for which the positions are valid) is J1991.25
+In order to get positions in J2000.0 coordinates at a certain date (epoch), just use proper motion to propagate the star's position.
+If a different coordinate system is needed, precession of the coordinate system is needed. In practice, this will only apply to
+constellation boundary data as these are defined in J1875 coordinates.
+"""
+
+
 import sqlite3
+import datetime
 
 
 GREEK_LETTERS = ["alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta", "iota", "kappa", "lambda", "mu", "nu", "ksi", "omicron", "pi", "rho", "sigma", "tau", "upsilon", "phi", "chi", "psi", "omega"]
@@ -76,12 +87,12 @@ class HipparcosStar(object):
         return float(self.data["declination"])
 
     @property
-    def ra_proper_motion(self):
-        return float(self.main_parts[7])
+    def proper_motion_ra(self):
+        return float(self.data['proper_motion_ra'])
 
     @property
-    def dec_proper_motion(self):
-        return float(self.main_parts[7])
+    def proper_motion_dec(self):
+        return float(self.data['proper_motion_dec'])
 
     @property
     def median_magnitude(self):
@@ -137,9 +148,38 @@ class HipparcosStar(object):
     def identifier_string(self):
         return self.greek_letter or self.numeral
 
+    def propagate_position(self, date=None):
+        if date is None:
+            date = datetime.date(2000, 1, 1)
+
+        # J1991.25 is april 2, 1991
+        delta = date - datetime.date(1991, 4, 2)
+        dt = delta.days/365.25
+
+        # mas/year = 1e-3 as/year = 1e-3/60.0 amin/year = 1e-3/3600 degrees/year
+        ra = self.right_ascension + dt*self.proper_motion_ra/3.6e6
+        dec = self.declination + dt*self.proper_motion_dec/3.6e6
+        return ra, dec
+
+
+def get_star(hip_id):
+    conn = sqlite3.connect("data/hipparcos/xhip.db")
+    c = conn.cursor()
+
+    q = "SELECT * " \
+        "FROM main " \
+        "JOIN photo ON photo.id=main.id " \
+        "JOIN biblio ON biblio.id=main.id " \
+        "WHERE main.id={0}".format(hip_id)
+    res = c.execute(q)
+    row = res.fetchone()
+    columns = [x[0] for x in res.description]
+    conn.close()
+    return HipparcosStar(row, columns)
+
 
 def select_stars(magnitude=0.0, constellation=None, ra_range=None, dec_range=None):
-    conn = sqlite3.connect("hipparcos/hipparcos.db")
+    conn = sqlite3.connect("data/hipparcos/xhip.db")
     c = conn.cursor()
 
     result = []
@@ -182,8 +222,11 @@ def select_stars(magnitude=0.0, constellation=None, ra_range=None, dec_range=Non
 
 
 
+
+
+
 def parse_hipparcos(main=True, photo=True, biblio=True):
-    conn = sqlite3.connect("hipparcos/hipparcos.db")
+    conn = sqlite3.connect("data/hipparcos/xhip.db")
 
     c = conn.cursor()
 
@@ -247,7 +290,7 @@ def parse_hipparcos(main=True, photo=True, biblio=True):
                       )""")
         conn.commit()
 
-        with open("hipparcos/main.dat") as fp:
+        with open("data/hipparcos/main.dat") as fp:
             for l in fp.readlines():
                 parts = [x.strip() for x in l.split("|")]
                 c.execute("INSERT INTO main VALUES ('" + "','".join(parts) + "')")
@@ -292,7 +335,7 @@ def parse_hipparcos(main=True, photo=True, biblio=True):
                       magmin float
         )""")
         conn.commit()
-        with open("hipparcos/photo.dat") as fp:
+        with open("data/hipparcos/photo.dat") as fp:
             for l in fp.readlines():
                 parts = [x.strip() for x in l.split("|")]
                 c.execute("INSERT INTO photo VALUES ('" + "','".join(parts) + "')")
@@ -309,7 +352,7 @@ def parse_hipparcos(main=True, photo=True, biblio=True):
                     group_name text
         )""")
         conn.commit()
-        with open("hipparcos/biblio.dat") as fp:
+        with open("data/hipparcos/biblio.dat") as fp:
             for l in fp.readlines():
                 parts = [x.strip() for x in l.split("|")[:7]]
                 c.execute("INSERT INTO biblio VALUES (\"" + "\",\"".join(parts) + "\")")
