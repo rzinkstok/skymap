@@ -118,7 +118,7 @@ class HipparcosStar(object):
     @property
     def greek_letter(self):
         for x in GREEK_LETTERS:
-            if " {0} ".format(x) in self.name.lower():
+            if "{0} ".format(x) in self.name.lower():
                 if x == "omicron":
                     return "o"
                 else:
@@ -136,6 +136,50 @@ class HipparcosStar(object):
     @property
     def identifier_string(self):
         return self.greek_letter or self.numeral
+
+
+def select_stars(magnitude=0.0, constellation=None, ra_range=None, dec_range=None):
+    conn = sqlite3.connect("hipparcos/hipparcos.db")
+    c = conn.cursor()
+
+    result = []
+    q = "SELECT * " \
+        "FROM main " \
+        "JOIN photo ON photo.id=main.id " \
+        "JOIN biblio ON biblio.id=main.id " \
+        "WHERE photo.Vmag<{0}".format(magnitude)
+    if constellation:
+        q += " AND biblio.constellation='{0}'".format(constellation)
+    if ra_range:
+        if ra_range[0] < 0:
+            while ra_range[0] < 0:
+                ra_range = (ra_range[0] + 360, ra_range[1])
+        if ra_range[1] < 0:
+            while ra_range[1] < 0:
+                ra_range = (ra_range[0], ra_range[1]+360)
+
+        if ra_range[0] < 0 or ra_range[0] > 360 or ra_range[1] < 0 or ra_range[1] > 360:
+            raise ValueError("Illegal RA range!")
+        if ra_range[0] < ra_range[1]:
+            q += " AND main.right_ascension>={0} AND main.right_ascension<={1}".format(ra_range[0], ra_range[1])
+        elif ra_range[1] < ra_range[0]:
+            q += " AND (main.right_ascension>={0} OR main.right_ascension<={1})".format(ra_range[0], ra_range[1])
+        else:
+            raise ValueError("Illegal RA range!")
+    if dec_range:
+        if dec_range[0] < -90 or dec_range[0] > 90 or dec_range[1] < -90 or dec_range[1] > 90 or dec_range[1] <= dec_range[0]:
+            raise ValueError("Illegal DEC range!")
+        q += " AND main.declination>={0} AND main.declination<={1}".format(dec_range[0], dec_range[1])
+
+    q += " ORDER BY photo.Vmag ASC"
+    res = c.execute(q)
+    columns = [x[0] for x in res.description]
+    for row in res:
+        result.append(HipparcosStar(row, columns))
+
+    conn.close()
+    return result
+
 
 
 def parse_hipparcos(main=True, photo=True, biblio=True):

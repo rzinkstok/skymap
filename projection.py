@@ -1,9 +1,11 @@
 import math
 
+from geometry import distance, intersection_line_circle
+
 
 class StereographicCylinder(object):
     def __init__(self, standard_parallel, source_distance_scale):
-        self.standard_parallel_rad = 2*math.pi*standard_parallel/360.0
+        self.standard_parallel_rad = math.radians(standard_parallel)
         self.source_distance_scale = source_distance_scale
 
     def set_longitude_limits(self, min_longitude, max_longitude):
@@ -14,9 +16,9 @@ class StereographicCylinder(object):
         else:
             self.orig_longitude = 0.5*(min_longitude+max_longitude) - 180
         print "Origin longitude:", self.orig_longitude
-        self.orig_longitude_rad = 2*math.pi*self.orig_longitude/360.0
-        self.min_x, dummy = self.project(self.min_longitude, 0)
-        self.max_x, dummy = self.project(self.max_longitude, 0)
+        self.orig_longitude_rad = math.radians(self.orig_longitude)
+        self.min_x, dummy = self._project(self.min_longitude, 0)
+        self.max_x, dummy = self._project(self.max_longitude, 0)
         self.extent_x = self.max_x - self.min_x
         print "Min x:", self.min_x
         print "Max x:", self.max_x
@@ -24,8 +26,8 @@ class StereographicCylinder(object):
     def set_latitude_limits(self, min_latitude, max_latitude):
         self.min_latitude = min_latitude
         self.max_latitude = max_latitude
-        dummy, self.min_y = self.project(0, self.min_latitude)
-        dummy, self.max_y = self.project(0, self.max_latitude)
+        dummy, self.min_y = self._project(0, self.min_latitude)
+        dummy, self.max_y = self._project(0, self.max_latitude)
         self.extent_y = self.max_y - self.min_y
 
     def set_map_size(self, size_x, size_y):
@@ -41,14 +43,14 @@ class StereographicCylinder(object):
         map_y = self.map_offset_y + self.map_size_y*(y-self.min_y)/self.extent_y
         return map_x, map_y
 
-    def project(self, longitude, latitude):
+    def _project(self, longitude, latitude):
         # longitude, latitude: in degrees
         # longitude: east-west
         # latitude: north-south
-        longitude_rad = 2*math.pi*longitude/360.0
+        longitude_rad = math.radians(longitude)
         if longitude_rad < 0:
             longitude_rad += 2*math.pi
-        latitude_rad = 2*math.pi*latitude/360.0
+        latitude_rad = math.radians(latitude)
         x = longitude_rad-self.orig_longitude_rad
         if x > math.pi:
             x -= 2*math.pi
@@ -56,7 +58,7 @@ class StereographicCylinder(object):
         return x, y
 
     def project_to_map(self, longitude, latitude):
-        x, y = self.project(longitude, latitude)
+        x, y = self._project(longitude, latitude)
         return self.to_map_coordinates(x, y)
 
     def points_for_parallel(self, latitude):
@@ -77,19 +79,32 @@ class StereographicCylinder(object):
 
 
 class LambertConformalConic(object):
-    def __init__(self, standard_parallel1, standard_parallel2, origin_longitude, origin_latitude, hemisphere):
+    def __init__(self, standard_parallel1, standard_parallel2, origin_longitude, origin_latitude):
+        print standard_parallel1, standard_parallel2, origin_latitude
+        if standard_parallel1 < 0 or standard_parallel2 < 0 or origin_latitude < 0:
+            raise ValueError("Only positive latitudes are allowed!")
         self.standard_parallel1 = standard_parallel1
         self.standard_parallel2 = standard_parallel2
         self.origin_longitude = origin_longitude
         self.origin_latitude = origin_latitude
-        self.hemisphere = hemisphere
 
     def set_latitude_limits(self, min_latitude, max_latitude):
-        self.min_latitude = min_latitude
-        self.max_latitude = max_latitude
-        dummy, self.min_y = self.project(self.origin_longitude, self.min_latitude)
-        dummy, self.max_y = self.project(self.origin_longitude, self.max_latitude)
-        self.extent_y = self.max_y - self.min_y
+        if min_latitude < 0 or max_latitude < 0:
+            raise ValueError("Only positive latitudes are allowed!")
+        self._min_latitude = min_latitude
+        self._max_latitude = max_latitude
+
+    @property
+    def min_latitude(self):
+        return self.min_latitude
+
+    @property
+    def max_latitude(self):
+        return self._max_latitude
+
+    @property
+    def lowest_latitude(self):
+        return self._lowest_latitude
 
     def set_map_size(self, size_x, size_y):
         self.map_size_x = size_x
@@ -101,16 +116,9 @@ class LambertConformalConic(object):
 
     def calculate_map_pole(self):
         self.map_pole = self.project_to_map(0, 90)
-
-        # Calculate min/max longitude on map?
-        if self.hemisphere == "N":
-            self.min_longitude, dummy = self.project_from_map(self.map_offset_x + self.map_size_x, self.map_offset_y + self.map_size_y)
-            self.max_longitude, dummy = self.project_from_map(self.map_offset_x, self.map_offset_y + self.map_size_y)
-            dummy, self.lowest_latitude = self.project_from_map(self.map_offset_x, self.map_offset_y)
-        else:
-            self.min_longitude, dummy = self.project_from_map(self.map_offset_x + self.map_size_x, self.map_offset_y)
-            self.max_longitude, dummy = self.project_from_map(self.map_offset_x, self.map_offset_y)
-            dummy, self.lowest_latitude = self.project_from_map(self.map_offset_x, self.map_offset_y + self.map_size_y)
+        dummy, self._lowest_latitude = self.project_from_map(self.map_offset_x, self.map_offset_y)
+        self.min_longitude, dummy = self.project_from_map(self.map_offset_x + self.map_size_x, self.map_offset_y + self.map_size_y)
+        self.max_longitude, dummy = self.project_from_map(self.map_offset_x, self.map_offset_y + self.map_size_y)
 
         if self.min_longitude < 0:
             self.min_longitude += 360.0
@@ -118,33 +126,25 @@ class LambertConformalConic(object):
             self.max_longitude += 360.0
 
     def to_map_coordinates(self, x, y):
-        map_x = -self.map_size_x*x + 0.5*self.map_size_x + self.map_offset_x
-        if self.hemisphere == "N":
-            map_y = self.map_offset_y + self.map_size_y*(y-self.min_y)/self.extent_y
-        else:
-            map_y = self.map_size_y + self.map_offset_y - self.map_size_y*(y-self.min_y)/self.extent_y
-        return map_x, map_y
+        m = 200.0
+        return -m*x + 0.5*self.map_size_x + self.map_offset_x, m*y + self.map_offset_y
 
     def from_map_coordinates(self, map_x, map_y):
-        x = (-map_x + 0.5*self.map_size_x + self.map_offset_x)/self.map_size_x
-        if self.hemisphere == "N":
-            y = self.extent_y*(map_y - self.map_offset_y)/self.map_size_y + self.min_y
-        else:
-            y = self.extent_y*(self.map_size_y + self.map_offset_y - map_y)/self.map_size_y + self.min_y
-        return x, y
+        m = 200.0
+        return -(map_x - 0.5*self.map_size_x - self.map_offset_x)/m, (map_y-self.map_offset_y)/m
 
-    def project(self, longitude, latitude):
+    def _project(self, longitude, latitude):
         # longitude, latitude: in degrees
         # longitude: east-west
         # latitude: north-south
 
-        longitude_rad = 2*math.pi*longitude/360.0
-        latitude_rad = 2*math.pi*latitude/360.0
+        longitude_rad = math.radians(longitude)
+        latitude_rad = math.radians(latitude)
 
-        sp1r = 2*math.pi*self.standard_parallel1/360.0
-        sp2r = 2*math.pi*self.standard_parallel2/360.0
-        orig_longitude_rad = 2*math.pi*self.origin_longitude/360.0
-        orig_latitude_rad = 2*math.pi*self.origin_latitude/360.0
+        sp1r = math.radians(self.standard_parallel1)
+        sp2r = math.radians(self.standard_parallel2)
+        orig_longitude_rad = math.radians(self.origin_longitude)
+        orig_latitude_rad = math.radians(self.origin_latitude)
 
         cos1 = math.cos(sp1r)
         cos2 = math.cos(sp2r)
@@ -169,24 +169,20 @@ class LambertConformalConic(object):
 
         return x, y
 
-    def project_to_map(self, longitude, latitude):
-        #if self.hemisphere == "S":
-        #    latitude = -latitude
-        x, y = self.project(longitude, latitude)
+    def project_to_map(self, longitude, latitude, invert_latitude=False):
+        x, y = self._project(longitude, latitude)
         return self.to_map_coordinates(x, y)
 
     def project_from_map(self, map_x, map_y):
         x, y = self.from_map_coordinates(map_x, map_y)
-        longitude, latitude = self.inverse_project(x, y)
-        #if self.hemisphere == "S":
-        #    latitude = -latitude
+        longitude, latitude = self._inverse_project(x, y)
         return longitude, latitude
 
-    def inverse_project(self, x, y):
-        sp1r = 2*math.pi*self.standard_parallel1/360.0
-        sp2r = 2*math.pi*self.standard_parallel2/360.0
-        orig_longitude_rad = 2*math.pi*self.origin_longitude/360.0
-        orig_latitude_rad = 2*math.pi*self.origin_latitude/360.0
+    def _inverse_project(self, x, y):
+        sp1r = math.radians(self.standard_parallel1)
+        sp2r = math.radians(self.standard_parallel2)
+        orig_longitude_rad = math.radians(self.origin_longitude)
+        orig_latitude_rad = math.radians(self.origin_latitude)
 
         cos1 = math.cos(sp1r)
         cos2 = math.cos(sp2r)
@@ -206,12 +202,12 @@ class LambertConformalConic(object):
         latitude = 2*math.atan(pow(F/rho, 1/n)) - math.pi/2.0
         longitude = theta/n + orig_longitude_rad
 
-        return 360.0*longitude/(2*math.pi), 360.0*latitude/(2*math.pi)
+        return math.degrees(longitude), math.degrees(latitude)
 
 
     def points_for_meridian(self, longitude):
-        p1 = self.project_to_map(longitude, self.min_latitude)
-        p2 = self.project_to_map(longitude, self.max_latitude)
+        p1 = self.project_to_map(longitude, self._min_latitude, invert_latitude=False)
+        p2 = self.project_to_map(longitude, self._max_latitude, invert_latitude=False)
 
         # meridian (x1y2 - x2y1)
         a1 = p1[1]-p2[1]
@@ -284,42 +280,9 @@ class LambertConformalConic(object):
 
         return new_p1, new_p2, pos1, pos2
 
-    def distance(self, p1, p2):
-        return math.sqrt((p1[0]-p2[0])**2 + (p1[1]-p2[1])**2)
-
-    def intersection_line_circle(self, p1, p2, center, r):
-        # ax+by+c = 0
-        a = p1[1]-p2[1]
-        b = p2[0]-p1[0]
-        c = - p1[0]*p2[1] + p2[0]*p1[1]
-        cp = c - a*center[0] - b*center[1]
-
-        absq = (a**2 + b**2)
-
-        if absq * r**2 - cp**2 <=0:
-            return []
-
-        bigroot = math.sqrt(absq * r**2 - cp**2)
-
-        ksi1 = (a*cp + b*bigroot)/absq
-        ksi2 = (a*cp - b*bigroot)/absq
-        eta1 = (b*cp - a*bigroot)/absq
-        eta2 = (b*cp + a*bigroot)/absq
-
-        x1 = center[0] + ksi1
-        x2 = center[0] + ksi2
-        y1 = center[1] + eta1
-        y2 = center[1] + eta2
-
-        ip1 = (x1, y1)
-        ip2 = (x2, y2)
-
-        return ip1, ip2
-
     def radius_for_parallel(self, latitude):
         p1 = self.project_to_map(self.origin_longitude, latitude)
-        #print latitude, "|", p1, "->", self.map_pole, ":", self.distance(p1, self.map_pole)
-        radius = self.distance(p1, self.map_pole)
+        radius = distance(p1, self.map_pole)
 
         valid_intersections = []
         label_positions = []
@@ -327,19 +290,19 @@ class LambertConformalConic(object):
         # Left border
         bp1 = (self.map_offset_x, self.map_offset_y)
         bp2 = (self.map_offset_x, self.map_offset_y+self.map_size_y)
-        intersections = self.intersection_line_circle(bp1, bp2, self.map_pole, radius)
+        intersections = intersection_line_circle(bp1, bp2, self.map_pole, radius)
         for i in intersections:
             if self.map_offset_y < i[1] < self.map_offset_y+self.map_size_y:
-                angle = 360.0*math.atan((i[0]-self.map_pole[0])/(-i[1]+self.map_pole[1]))/(2*math.pi)
+                angle = math.degrees(math.atan((i[0]-self.map_pole[0])/(-i[1]+self.map_pole[1])))
                 valid_intersections.append((i, "lft", angle))
 
         # Right border
         bp1 = (self.map_offset_x+self.map_size_x, self.map_offset_y)
         bp2 = (self.map_offset_x+self.map_size_x, self.map_offset_y+self.map_size_y)
-        intersections = self.intersection_line_circle(bp1, bp2, self.map_pole, radius)
+        intersections = intersection_line_circle(bp1, bp2, self.map_pole, radius)
         for i in intersections:
             if self.map_offset_y < i[1] < self.map_offset_y+self.map_size_y:
-                angle = 360.0*math.atan((i[0]-self.map_pole[0])/(-i[1]+self.map_pole[1]))/(2*math.pi)
+                angle = math.degrees(math.atan((i[0]-self.map_pole[0])/(-i[1]+self.map_pole[1])))
                 valid_intersections.append((i, "rt", angle))
 
         return radius, valid_intersections
@@ -349,3 +312,78 @@ class LambertConformalConic(object):
             return False
         else:
             return True
+
+
+class InvertedLambertConformalConic(LambertConformalConic):
+    def __init__(self, standard_parallel1, standard_parallel2, origin_longitude, origin_latitude):
+        if standard_parallel1 > 0 or standard_parallel2 > 0 or origin_latitude > 0:
+            raise ValueError("Only negative latitudes are allowed!")
+        new_standard_parallel1 = -standard_parallel2
+        new_standard_parallel2 = -standard_parallel1
+        origin_latitude = -origin_latitude
+        print "SP1:", new_standard_parallel1
+        print "SP2:", new_standard_parallel2
+        print "OrigLat:", origin_latitude
+        LambertConformalConic.__init__(self, new_standard_parallel1, new_standard_parallel2, origin_longitude, origin_latitude)
+
+    def set_latitude_limits(self, min_latitude, max_latitude):
+        if min_latitude > 0 or max_latitude > 0:
+            raise ValueError("Only negative latitudes are allowed!")
+        new_min_latitude = -max_latitude
+        new_max_latitude = -min_latitude
+        LambertConformalConic.set_latitude_limits(self, new_min_latitude, new_max_latitude)
+
+    @property
+    def min_latitude(self):
+        return -self.min_latitude
+
+    @property
+    def max_latitude(self):
+        return -self._max_latitude
+
+    @property
+    def lowest_latitude(self):
+        return -self._lowest_latitude
+
+    def radius_for_parallel(self, latitude):
+        # No transformation needed!
+        return LambertConformalConic.radius_for_parallel(self, latitude)
+
+    def project_to_map(self, longitude, latitude, invert_latitude=True):
+        if invert_latitude:
+            if latitude >= 0:
+                raise ValueError("Only negative latitudes are allowed!")
+            latitude = -latitude
+        else:
+            if latitude <= 0:
+                raise ValueError("Only positive latitudes are allowed!")
+        return LambertConformalConic.project_to_map(self, longitude, latitude)
+
+    def project_from_map(self, map_x, map_y):
+        longitude, latitude = LambertConformalConic.project_from_map(self, map_x, map_y)
+        latitude = -latitude
+        return longitude, latitude
+
+    def calculate_map_pole(self):
+        self.map_pole = self.project_to_map(0, -90)
+        dummy, self._lowest_latitude = self.project_from_map(self.map_offset_x, self.map_offset_y+self.map_size_y)
+        self._lowest_latitude = -self._lowest_latitude
+        self.min_longitude, dummy = self.project_from_map(self.map_offset_x + self.map_size_x, self.map_offset_y)
+        self.max_longitude, dummy = self.project_from_map(self.map_offset_x, self.map_offset_y)
+
+        if self.min_longitude < 0:
+            self.min_longitude += 360.0
+        if self.max_longitude < 0:
+            self.max_longitude += 360.0
+
+    def to_map_coordinates(self, x, y):
+        m = 200.0
+        map_x = -m*x + 0.5*self.map_size_x + self.map_offset_x
+        map_y = self.map_size_y + self.map_offset_y - m*y
+        return map_x, map_y
+
+    def from_map_coordinates(self, map_x, map_y):
+        m = 200.0
+        x = -(map_x - 0.5*self.map_size_x - self.map_offset_x)/m
+        y = (self.map_size_y + self.map_offset_y - map_y)/m
+        return x, y
