@@ -1,6 +1,14 @@
 import sqlite3
 import math
 import datetime
+import os
+import sys
+import urllib
+
+DATA_FOLDER = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data", "hyg")
+DATA_FILE = os.path.join(DATA_FOLDER, "hygdata_v3.csv")
+DATABASE_FILE = os.path.join(DATA_FOLDER, "hyg.db")
+URL = "https://github.com/astronexus/HYG-Database/raw/master/hygdata_v3.csv"
 
 
 GREEK_LETTERS = {
@@ -31,7 +39,9 @@ GREEK_LETTERS = {
 }
 
 
-def connect():
+def connect(wipe=False):
+    if wipe and os.path.exists(DATABASE_FILE):
+        os.remove(DATABASE_FILE)
     conn = sqlite3.connect("data/hyg/hyg.db")
     conn.row_factory = sqlite3.Row
     c = conn.cursor()
@@ -86,6 +96,7 @@ class Star(object):
     @property
     def is_multiple(self):
         return self.comp>1
+
 
 def get_hip_star(hip_id):
     conn, cursor = connect()
@@ -143,3 +154,75 @@ def select_stars(magnitude=0.0, constellation=None, ra_range=None, dec_range=Non
 
     conn.close()
     return result
+
+
+def build_hyg_database():
+    print("")
+    print("Building HYG database")
+
+    # Download data file
+    if not os.path.exists(DATA_FILE):
+        os.makedirs(os.path.dirname(DATA_FILE))
+        print("Downloading {0}".format(URL))
+        urllib.urlretrieve(URL, DATA_FILE)
+
+    # Connect
+    conn, c = connect(True)
+
+    # Create table
+    c.execute("""CREATE TABLE hygdata (
+                    id INT,
+                    hip INT,
+                    hd INT,
+                    hr INT,
+                    gl INT,
+                    bf TEXT,
+                    proper TEXT,
+                    ra REAL,
+                    dec REAL,
+                    dist REAL,
+                    pmra REAL,
+                    pmdec REAL,
+                    rv REAL,
+                    mag REAL,
+                    absmag REAL,
+                    spect TEXT,
+                    ci REAL,
+                    x REAL,
+                    y REAL,
+                    z REAL,
+                    vx REAL,
+                    vy REAL,
+                    vz REAL,
+                    rarad REAL,
+                    decrad REAL,
+                    pmrarad REAL,
+                    pmdecrad REAL,
+                    bayer TEXT,
+                    flam TEXT,
+                    con TEXT,
+                    comp INT,
+                    comp_primary INT,
+                    base TEXT,
+                    lum REAL,
+                    var TEXT,
+                    var_min REAL,
+                    var_max REAL
+                    )""")
+
+    # Fill the table
+    print("")
+    print("Processing records")
+
+    # Retrieve the number of records
+    with open(DATA_FILE, "r") as fp:
+        nrecords = sum([1 for i in fp.readlines()]) - 1
+
+    # Parse all records
+    with open(DATA_FILE, "r") as fp:
+        for i, l in enumerate(fp.readlines()[1:]):
+            sys.stdout.write("\r{0:.1f}%".format(i * 100.0 / (nrecords - 1)))
+            sys.stdout.flush()
+            parts = [x.strip() for x in l.split(",")]
+            c.execute("INSERT INTO hygdata VALUES (\"" + "\",\"".join(parts) + "\")")
+            conn.commit()

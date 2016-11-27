@@ -4,13 +4,18 @@ import os
 import math
 import datetime
 import time
+import urllib
+
+DATA_FOLDER = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data", "constellation_boundaries")
+DATA_FILE = os.path.join(DATA_FOLDER, "bound_18.dat")
+DATABASE_FILE = os.path.join(DATA_FOLDER, "constellation_boundaries.db")
+URL = "ftp://cdsarc.u-strasbg.fr/pub/cats/VI/49/bound_18.dat"
 
 
 def connect(wipe=False):
-    dbpath = "data/constellation_boundaries/constellation_boundaries.db"
-    if wipe and os.path.exists(dbpath):
-        os.remove(dbpath)
-    conn = sqlite3.connect(dbpath)
+    if wipe and os.path.exists(DATABASE_FILE):
+        os.remove(DATABASE_FILE)
+    conn = sqlite3.connect(DATABASE_FILE)
     cursor = conn.cursor()
     return conn, cursor
 
@@ -270,10 +275,21 @@ def herget_precession(ra1, dec1, epoch1, epoch2):
     return math.degrees(ra2), math.degrees(dec2)
 
 
-def build_database():
-    with open("data/constellation_boundaries/bound_18.dat", "r") as fp:
+def build_constellation_database():
+    print("")
+    print("Building constellation boundary database")
+
+    # Download data file
+    if not os.path.exists(DATA_FILE):
+        os.makedirs(os.path.dirname(DATA_FILE))
+        print("Downloading {0}".format(URL))
+        urllib.urlretrieve(URL, DATA_FILE)
+
+    # Read data
+    with open(DATA_FILE, "r") as fp:
         lines = fp.readlines()
 
+    # Collect all points
     point_data = {}
     npoints = 0
     for l in lines:
@@ -289,8 +305,8 @@ def build_database():
             point_data[constellation] = []
         point_data[constellation].append(SphericalPoint(ra, dec))
 
+    # Build edges from points
     all_edges = []
-
     for c, points in point_data.items():
         prev_point = points[-1]
 
@@ -314,6 +330,7 @@ def build_database():
     print
     print "Edge construction complete"
 
+    # Create the table
     conn, cursor = connect(wipe=True)
     cursor.execute("""CREATE TABLE constellation_boundaries (
                         id INT PRIMARY KEY ,
@@ -328,6 +345,7 @@ def build_database():
     )""")
     conn.commit()
 
+    # Fill the table
     nedges = len(all_edges)
     for i, edge in enumerate(all_edges):
         sys.stdout.write("\r{0:.1f}%".format(100.0*i/(nedges-1)))
@@ -377,8 +395,4 @@ def pair_edges():
             cursor.execute(q)
             conn.commit()
 
-
-if __name__ == "__main__":
-    # build_database()
-    pass
 

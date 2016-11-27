@@ -7,15 +7,30 @@ If a different coordinate system is needed, precession of the coordinate system 
 constellation boundary data as these are defined in J1875 coordinates.
 """
 
-
+import os
+import sys
+import gzip
+import urllib
 import sqlite3
 import datetime
 
 from geometry import HourAngle, DMSAngle
 
+
+DATA_FOLDER = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data", "hipparcos")
+FILES_NAMES = ['ReadMe', 'main.dat.gz', 'photo.dat.gz', 'biblio.dat.gz']
+DATA_FILES = [os.path.join(DATA_FOLDER, f) for f in FILES_NAMES]
+DATABASE_FILE = os.path.join(DATA_FOLDER, "xhip.db")
+URLS = [os.path.join("ftp://cdsarc.u-strasbg.fr/pub/cats/V/137D", f) for f in FILES_NAMES]
 GREEK_LETTERS = ["alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta", "iota", "kappa", "lambda", "mu", "nu", "ksi", "omicron", "pi", "rho", "sigma", "tau", "upsilon", "phi", "chi", "psi", "omega"]
 
 
+def connect(wipe=False):
+    if wipe and os.path.exists(DATABASE_FILE):
+        os.remove(DATABASE_FILE)
+    conn = sqlite3.connect(DATABASE_FILE)
+    cursor = conn.cursor()
+    return conn, cursor
 
 
 class HipparcosStar(object):
@@ -220,140 +235,165 @@ def select_stars(magnitude=0.0, constellation=None, ra_range=None, dec_range=Non
     return result
 
 
+def build_hipparcos_database():
+    print("")
+    print("Building Hipparcos database")
 
+    # Download data files
+    for i, f in enumerate(DATA_FILES):
+        data_path = os.path.dirname(f)
+        if not os.path.exists(data_path):
+            os.makedirs(data_path)
+        if not os.path.exists(f):
+            url = URLS[i]
+            print("Downloading {0}".format(url))
+            urllib.urlretrieve(url, f)
 
+    # Determine number of records per table
+    number_of_records = {}
+    with open(DATA_FILES[0], 'r') as fp:
+        for l in fp.readlines():
+            for f in [f for f in FILES_NAMES if f != "ReadMe"]:
+                fn = f[:-3]
+                if l.startswith(fn):
+                    number_of_records[f] = int(l.split()[2])
 
+    # Connect to database and wipe it clean
+    conn, c = connect(True)
 
-def parse_hipparcos(main=True, photo=True, biblio=True):
-    conn = sqlite3.connect("data/hipparcos/xhip.db")
+    # Create main table
+    c.execute("""CREATE TABLE main (
+                  id INT,
+                  component TEXT,
+                  classes TEXT,
+                  groups TEXT,
+                  right_ascension real,
+                  declination real,
+                  parallax real,
+                  proper_motion_ra real,
+                  proper_motion_dec real,
+                  se_right_ascension real,
+                  se_declination real,
+                  se_parallax real,
+                  se_proper_motion_ra real,
+                  se_proper_motion_dec real,
+                  ref_astrometry text,
+                  ref_proper_motion text,
+                  galactic_longitude real,
+                  galactic_latitude real,
+                  distance real,
+                  e_distance real,
+                  proper_motion_glon real,
+                  proper_motion_glat real,
+                  x real,
+                  y real,
+                  z real,
+                  galactocentric_distance real,
+                  transverse_velocity real,
+                  spectral_type text,
+                  temperature_class text,
+                  luminosity_class text,
+                  radial_velocity real,
+                  se_radial_velocity real,
+                  quality_flag_radial_velocity text,
+                  iron_abundance real,
+                  se_iron_abundance real,
+                  quality_flag_iron_abundance text,
+                  age real,
+                  lower_cl_age real,
+                  upper_cl_age real,
+                  u real,
+                  v real,
+                  w real,
+                  total_heliocentric_velocity real,
+                  minimum_distance real,
+                  timing_minimum_distance real,
+                  orbital_eccentricity real,
+                  pericenter_position_angle real,
+                  semi_major_axis real,
+                  semi_minor_axis real,
+                  focus_to_center_distance real,
+                  semilatus_rectum real,
+                  orbital_radius_pericenter real,
+                  orbital_radius_apocenter real,
+                  number_of_exoplanets int,
+                  exoplanet_discovery_methods text
+                  )""")
+    conn.commit()
 
-    c = conn.cursor()
+    # Create photo table
+    c.execute("""CREATE TABLE photo (
+                          id int,
+                          median_magnitude real,
+                          se_median_magnitude real,
+                          reference_flag_median_magnitude text,
+                          median_magnitude_max real,
+                          median_magnitude_min real,
+                          variability_period real,
+                          variability_type text,
+                          Umag real,
+                          Bmag real,
+                          Vmag real,
+                          Rmag real,
+                          Imag real,
+                          Jmag real,
+                          Hmag real,
+                          Kmag real,
+                          Jmag_uncertainty real,
+                          Hmag_uncertainty real,
+                          Kmag_uncertainty real,
+                          source_designation_2MASS text,
+                          JHK_photometric_quality_flag text,
+                          BV text,
+                          VI text,
+                          se_BV text,
+                          se_VI text,
+                          absolute_median_magnitude float,
+                          absolute_Umag real,
+                          absolute_Bmag real,
+                          absolute_Vmag real,
+                          absolute_Rmag real,
+                          absolute_Imag real,
+                          absolute_Jmag real,
+                          absolute_Hmag real,
+                          absolute_Kmag real,
+                          luminosity real,
+                          magmin float
+            )""")
+    conn.commit()
 
-    if main:
-        c.execute("""CREATE TABLE main (
-                      id INT,
-                      component TEXT,
-                      classes TEXT,
-                      groups TEXT,
-                      right_ascension real,
-                      declination real,
-                      parallax real,
-                      proper_motion_ra real,
-                      proper_motion_dec real,
-                      se_right_ascension real,
-                      se_declination real,
-                      se_parallax real,
-                      se_proper_motion_ra real,
-                      se_proper_motion_dec real,
-                      ref_astrometry text,
-                      ref_proper_motion text,
-                      galactic_longitude real,
-                      galactic_latitude real,
-                      distance real,
-                      e_distance real,
-                      proper_motion_glon real,
-                      proper_motion_glat real,
-                      x real,
-                      y real,
-                      z real,
-                      galactocentric_distance real,
-                      transverse_velocity real,
-                      spectral_type text,
-                      temperature_class text,
-                      luminosity_class text,
-                      radial_velocity real,
-                      se_radial_velocity real,
-                      quality_flag_radial_velocity text,
-                      iron_abundance real,
-                      se_iron_abundance real,
-                      quality_flag_iron_abundance text,
-                      age real,
-                      lower_cl_age real,
-                      upper_cl_age real,
-                      u real,
-                      v real,
-                      w real,
-                      total_heliocentric_velocity real,
-                      minimum_distance real,
-                      timing_minimum_distance real,
-                      orbital_eccentricity real,
-                      pericenter_position_angle real,
-                      semi_major_axis real,
-                      semi_minor_axis real,
-                      focus_to_center_distance real,
-                      semilatus_rectum real,
-                      orbital_radius_pericenter real,
-                      orbital_radius_apocenter real,
-                      number_of_exoplanets int,
-                      exoplanet_discovery_methods text
-                      )""")
-        conn.commit()
+    # Create biblio table
+    c.execute("""CREATE TABLE biblio (
+                        id int,
+                        henri_draper_id text,
+                        constellation text,
+                        millenium_star_atlas_page int,
+                        coordinates text,
+                        name text,
+                        group_name text,
+                        ref_component text,
+                        ref_spectral_type text,
+                        ref_radial_velocity text,
+                        reference_iron_abundance text
+            )""")
+    conn.commit()
 
-        with open("data/hipparcos/main.dat") as fp:
-            for l in fp.readlines():
-                parts = [x.strip() for x in l.split("|")]
-                c.execute("INSERT INTO main VALUES ('" + "','".join(parts) + "')")
-                conn.commit()
-    if photo:
-        c.execute("""CREATE TABLE photo (
-                      id int,
-                      median_magnitude real,
-                      se_median_magnitude real,
-                      reference_flag_median_magnitude text,
-                      median_magnitude_max real,
-                      median_magnitude_min real,
-                      variability_period real,
-                      variability_type text,
-                      Umag real,
-                      Bmag real,
-                      Vmag real,
-                      Rmag real,
-                      Imag real,
-                      Jmag real,
-                      Hmag real,
-                      Kmag real,
-                      Jmag_uncertainty real,
-                      Hmag_uncertainty real,
-                      Kmag_uncertainty real,
-                      source_designation_2MASS text,
-                      JHK_photometric_quality_flag text,
-                      BV text,
-                      VI text,
-                      se_BV text,
-                      se_VI text,
-                      absolute_median_magnitude float,
-                      absolute_Umag real,
-                      absolute_Bmag real,
-                      absolute_Vmag real,
-                      absolute_Rmag real,
-                      absolute_Imag real,
-                      absolute_Jmag real,
-                      absolute_Hmag real,
-                      absolute_Kmag real,
-                      luminosity real,
-                      magmin float
-        )""")
-        conn.commit()
-        with open("data/hipparcos/photo.dat") as fp:
-            for l in fp.readlines():
-                parts = [x.strip() for x in l.split("|")]
-                c.execute("INSERT INTO photo VALUES ('" + "','".join(parts) + "')")
-                conn.commit()
+    # Fill the tables
+    for file_path in DATA_FILES[1:]:
+        file_name = os.path.split(file_path)[-1]
+        table_name = file_name.split(".")[0]
+        print("")
+        print("Processing {0}".format(file_name))
+        nrecords = number_of_records[file_name]
+        fp = gzip.open(file_path, "rb")
+        for i, l in enumerate(fp):
+            sys.stdout.write("\r{0:.1f}%".format(i*100.0/(nrecords-1)))
+            sys.stdout.flush()
+            parts = [x.strip() for x in l.split("|")]
 
-    if biblio:
-        c.execute("""CREATE TABLE biblio (
-                    id int,
-                    henri_draper_id text,
-                    constellation text,
-                    millenium_star_atlas_page int,
-                    coordinates text,
-                    name text,
-                    group_name text
-        )""")
-        conn.commit()
-        with open("data/hipparcos/biblio.dat") as fp:
-            for l in fp.readlines():
-                parts = [x.strip() for x in l.split("|")[:7]]
-                c.execute("INSERT INTO biblio VALUES (\"" + "\",\"".join(parts) + "\")")
-                conn.commit()
-    conn.close()
+            # Fix error in biblio database
+            if table_name == "biblio" and i == 30679:
+                parts.pop(6)
+
+            c.execute("INSERT INTO " + table_name + " VALUES (\"" + "\",\"".join(parts) + "\")")
+            conn.commit()
