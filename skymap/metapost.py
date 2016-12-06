@@ -150,7 +150,7 @@ class MetaPostFigure(object):
         self.fp.write("b := {0}--{1}--{2}--{3}--cycle;\n".format(c1, c2, c3, c4))
         self.fp.write("clip currentpicture to b;\n")
 
-    def render(self, filename):
+    def render(self, filename, open=True):
         print os.environ['PATH']
         subprocess.Popen(["mpost", self.name+".mp"], cwd="mpost").wait()
         subprocess.Popen(["mptopdf {0}.1".format(self.name)], shell=True, cwd="mpost").wait()
@@ -158,4 +158,5 @@ class MetaPostFigure(object):
         if folder and not os.path.exists(folder):
             os.makedirs(folder)
         shutil.move("mpost/{0}-1.pdf".format(self.name), filename)
-        subprocess.Popen(["open", filename]).wait()
+        if open:
+            subprocess.Popen(["open", filename]).wait()

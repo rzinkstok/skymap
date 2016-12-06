@@ -246,7 +246,7 @@ class Map(object):
         scale = 6.1815*self.paper_width/465.0
         return scale * math.exp(-0.27 * magnitude)
 
-    def render(self):
+    def render(self, open=False):
         # Draw the coordinate grid
         self.draw_parallels()
         self.draw_meridians()
@@ -270,11 +270,11 @@ class Map(object):
 
         # Finish
         self.figure.end_figure()
-        self.figure.render(self.filename)
+        self.figure.render(self.filename, open=open)
 
 
 class AzimuthalEquidistantMap(Map):
-    def __init__(self, filename, north=True, celestial=False, paper_width=A4_SIZE[0], paper_height=A4_SIZE[1], margin_left=20, margin_bottom=20, margin_right=None, margin_top=None, reference_longitude=0, reference_scale=45):
+    def __init__(self, filename, north=True, celestial=False, paper_width=A4_SIZE[0], paper_height=A4_SIZE[1], margin_left=20, margin_bottom=20, margin_right=None, margin_top=None, reference_longitude=0, reference_scale=None):
         p = AzimuthalEquidistantProjection(north=north, celestial=celestial, reference_longitude=reference_longitude, reference_scale=reference_scale)
 
         Map.__init__(self, filename, p, paper_width, paper_height, margin_left, margin_bottom, margin_right, margin_top)
@@ -306,10 +306,10 @@ class EquidistantCylindricalMap(Map):
 
 
 class EquidistantConicMap(Map):
-    def __init__(self, filename, celestial=False, paper_width=A4_SIZE[0], paper_height=A4_SIZE[1], margin_left=25, margin_bottom=20, margin_right=None, margin_top=None, standard_parallel1=30, standard_parallel2=60, reference_longitude=0):
+    def __init__(self, filename, celestial=False, paper_width=A4_SIZE[0], paper_height=A4_SIZE[1], margin_left=25, margin_bottom=20, margin_right=None, margin_top=None, standard_parallel1=30, standard_parallel2=60, reference_longitude=0, scale=1.0):
         p = EquidistantConicProjection(celestial=celestial, reference_longitude=reference_longitude, standard_parallel1=standard_parallel1, standard_parallel2=standard_parallel2)
         Map.__init__(self, filename, p, paper_width, paper_height, margin_left, margin_bottom, margin_right, margin_top)
-        self.set_scale(1.0)
+        self.set_scale(scale)
         self.min_longitude = reference_longitude - 120
         self.max_longitude = reference_longitude + 120
         if p.reference_latitude > 0:
