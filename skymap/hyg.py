@@ -5,7 +5,7 @@ import os
 import sys
 import urllib
 
-from skymap.geometry import HourAngle, SphericalPoint
+from skymap.geometry import HourAngle, SphericalPoint, ensure_angle_range
 from skymap.constellations import CONSTELLATIONS
 
 
@@ -132,26 +132,19 @@ def select_stars(magnitude=0.0, constellation=None, ra_range=None, dec_range=Non
         "WHERE mag<={0}".format(magnitude)
     if constellation:
         q += " AND con='{0}'".format(constellation)
+
     if ra_range:
-        if ra_range[0] < 0:
-            while ra_range[0] < 0:
-                ra_range = (ra_range[0] + 360, ra_range[1])
-        if ra_range[1] < 0:
-            while ra_range[1] < 0:
-                ra_range = (ra_range[0], ra_range[1]+360)
-
-        if ra_range[0] < 0 or ra_range[0] > 360 or ra_range[1] < 0 or ra_range[1] > 360:
-            raise ValueError("Illegal RA range!")
-
-        min_ra = math.radians(ra_range[0])
-        max_ra = math.radians(ra_range[1])
+        min_ra, max_ra = ra_range
+        min_ra = math.radians(ensure_angle_range(min_ra))
+        max_ra = math.radians(ensure_angle_range(max_ra))
 
         if min_ra < max_ra:
             q += " AND rarad>={0} AND rarad<={1}".format(min_ra, max_ra)
         elif max_ra < min_ra:
             q += " AND (rarad>={0} OR rarad<={1})".format(min_ra, max_ra)
         else:
-            raise ValueError("Illegal RA range!")
+            # min_ra is equal to max_ra: full circle: no ra limits
+            pass
 
     if dec_range:
         min_dec = math.radians(dec_range[0])
