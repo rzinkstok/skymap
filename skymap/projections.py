@@ -172,7 +172,7 @@ class EquidistantConicProjection(object):
         self.reference_longitude = reference_longitude
         self.standard_parallel1 = standard_parallel1
         self.standard_parallel2 = standard_parallel2
-        self.reference_latitude = 0.5*(self.standard_parallel1 + self.standard_parallel2) + 1
+        self.reference_latitude = 0.5*(self.standard_parallel1 + self.standard_parallel2)
 
         # Calculate projection parameters
         phi_1 = math.radians(self.standard_parallel1)
