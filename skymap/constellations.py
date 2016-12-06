@@ -6,10 +6,103 @@ import datetime
 import time
 import urllib
 
-DATA_FOLDER = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data", "constellation_boundaries")
+from skymap.geometry import SphericalPoint, ensure_angle_range
+
+DATA_FOLDER = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), "data", "constellation_boundaries")
 DATA_FILE = os.path.join(DATA_FOLDER, "bound_18.dat")
 DATABASE_FILE = os.path.join(DATA_FOLDER, "constellation_boundaries.db")
 URL = "ftp://cdsarc.u-strasbg.fr/pub/cats/VI/49/bound_18.dat"
+
+CONSTELLATIONS = {
+    'and': 'Andromeda',
+    'ant': 'Antlia',
+    'aps': 'Apus',
+    'aqr': 'Aquarius',
+    'aql': 'Aquila',
+    'ara': 'Ara',
+    'ari': 'Aries',
+    'aur': 'Auriga',
+    'boo': 'Bootes',
+    'cae': 'Caelum',
+    'cam': 'Camelopardalis',
+    'cnc': 'Cancer',
+    'cvn': 'Canes Venatici',
+    'cma': 'Canis Major',
+    'cmi': 'Canis Minor',
+    'cap': 'Capricornus',
+    'car': 'Carina',
+    'cas': 'Cassiopeia',
+    'cen': 'Centaurus',
+    'cep': 'Cepheus',
+    'cet': 'Cetus',
+    'cha': 'Chamaeleon',
+    'cir': 'Circinus',
+    'col': 'Columba',
+    'com': 'Coma Berenices',
+    'cra': 'Corona Austrina',
+    'crb': 'Corona Borealis',
+    'crv': 'Corvus',
+    'crt': 'Crater',
+    'cru': 'Crux',
+    'cyg': 'Cygnus',
+    'del': 'Delphinus',
+    'dor': 'Dorado',
+    'dra': 'Draco',
+    'equ': 'Equuleus',
+    'eri': 'Eridanus',
+    'for': 'Fornax',
+    'gem': 'Gemini',
+    'gru': 'Grus',
+    'her': 'Hercules',
+    'hor': 'Horologium',
+    'hya': 'Hydra',
+    'hyi': 'Hydrus',
+    'ind': 'Indus',
+    'lac': 'Lacerta',
+    'leo': 'Leo',
+    'lmi': 'Leo Minor',
+    'lep': 'Lepus',
+    'lib': 'Libra',
+    'lup': 'Lupus',
+    'lyn': 'Lynx',
+    'lyr': 'Lyra',
+    'men': 'Mensa',
+    'mic': 'Microscopium',
+    'mon': 'Monoceros',
+    'mus': 'Musca',
+    'nor': 'Norma',
+    'oct': 'Octans',
+    'oph': 'Ophiuchus',
+    'ori': 'Orion',
+    'pav': 'Pavo',
+    'peg': 'Pegasus',
+    'per': 'Perseus',
+    'phe': 'Phoenix',
+    'pic': 'Pictor',
+    'psc': 'Pisces',
+    'psa': 'Piscis Austrinus',
+    'pup': 'Puppis',
+    'pyx': 'Pyxis',
+    'ret': 'Reticulum',
+    'sge': 'Sagitta',
+    'sgr': 'Sagittarius',
+    'sco': 'Scorpius',
+    'scl': 'Sculptor',
+    'sct': 'Scutum',
+    'ser': 'Serpens',
+    'sex': 'Sextans',
+    'tau': 'Taurus',
+    'tel': 'Telescopium',
+    'tri': 'Triangulum',
+    'tra': 'Triangulum Australe',
+    'tuc': 'Tucana',
+    'uma': 'Ursa Major',
+    'umi': 'Ursa Minor',
+    'vel': 'Vela',
+    'vir': 'Virgo',
+    'vol': 'Volans',
+    'vul': 'Vulpecula'
+}
 
 
 def connect(wipe=False):
@@ -34,32 +127,6 @@ def fractional_year(date):
     fraction = year_elapsed/year_duration
 
     return date.year + fraction
-
-
-class SphericalPoint(object):
-    def __init__(self, ra, dec):
-        self.ra = ra
-        self.dec = dec
-
-    def __str__(self):
-        return "({0}, {1})".format(self.ra, self.dec)
-
-    def __repr__(self):
-        return self.__str__()
-
-    def __getitem__(self, item):
-        return (self.ra, self.dec)[item]
-
-    @property
-    def x(self):
-        return self.ra
-
-    @property
-    def y(self):
-        return self.dec
-
-    def __eq__(self, other):
-        return (self.ra == other.ra or self.ra+360.0 == other.ra or self.ra-360.0 == other.ra) and self.dec == other.dec
 
 
 class BoundaryEdge(object):
@@ -94,8 +161,9 @@ class BoundaryEdge(object):
     def __repr__(self):
         return self.__str__()
 
-    def interpolate_points(self, fixed_distance=1.0):
-        # TODO: Include check for RA arcs larger than e.g. 180 deg to allow for zero-crossings
+    def interpolate_points(self):
+        fixed_distance = 1.0
+
         if self.epoch != 1875.0:
             raise ValueError("Interpolations is only allowed for epoch 1875 boundaries!")
         if self.p1[0] == self.p2[0]:
@@ -112,36 +180,43 @@ class BoundaryEdge(object):
         v1 = self.p1[index]
         v2 = self.p2[index]
 
-        if v2 < v1:
-            invert = True
-            v1, v2 = v2, v1
-        else:
-            invert = False
-
-        # Prevent problems at 360 to 0 discontinuity
-        d = abs(v2-v1)
-        if v2>v1:
-            d2 = abs(v2-v1-360)
-            newv1, newv2 = v1+360, v2
-        else:
-            d2 = abs(v2-v1+360)
-            newv1, newv2 = v1, v2+360
-        if d2 < d:
-            v1, v2 = newv1, newv2
-
-        new_values = [v1]
-
-        new_val = fixed_distance*math.ceil(v1/fixed_distance)
-        while new_val < v2:
-            if new_val>=360:
-                new_values.append(new_val-360)
+        d = v2 - v1
+        if abs(d) < 180:
+            # No zero crossing (assuming edges never exceed 180)
+            if d > 0:
+                # Interpolate from v1 to v2 (forward)
+                new_values = [v1]
+                new_val = fixed_distance * math.ceil(v1 / fixed_distance)
+                while new_val < v2:
+                    new_values.append(new_val)
+                    new_val += fixed_distance
+                new_values.append(v2)
             else:
-                new_values.append(new_val)
-            new_val += fixed_distance
-        new_values.append(v2)
-
-        if invert:
-            new_values.reverse()
+                # Interpolate from v2 to v1 (backward)
+                new_values = [v1]
+                new_val = fixed_distance * math.floor(v1 / fixed_distance)
+                while new_val > v2:
+                    new_values.append(new_val)
+                    new_val -= fixed_distance
+                new_values.append(v2)
+        else:
+            # Zero crossing
+            if d < 0:
+                # Interpolate from v1 to v2 (forward), with zero crossing
+                new_values = [v1]
+                new_val = fixed_distance * math.ceil(v1 / fixed_distance)
+                while new_val < v2+360:
+                    new_values.append(new_val)
+                    new_val += fixed_distance
+                new_values.append(v2)
+            else:
+                # Interpolate from v2 to v2 (backward), with zero crossing
+                new_values = [v1]
+                new_val = fixed_distance * math.floor(v1 / fixed_distance)
+                while new_val+360 >= v2:
+                    new_values.append(new_val)
+                    new_val -= fixed_distance
+                new_values.append(v2)
 
         if index == 0:
             new_points = [SphericalPoint(v, fixed_value) for v in new_values]
@@ -185,31 +260,35 @@ def get_constellation_boundaries(constellation, date=None):
     return result
 
 
-def get_constellation_boundaries_for_area(min_longitude, max_longitude, min_latitude, max_latitude, date=None):
+def get_constellation_boundaries_for_area(min_longitude, max_longitude, min_latitude, max_latitude, date=None, constellation=None):
     if date is None:
         date = datetime.date(2000, 1, 1)
 
-    # Inverse precession to 1875
-    min_longitude, min_latitude = herget_precession(min_longitude, min_latitude, fractional_year(date), 1875.0)
-    max_longitude, max_latitude = herget_precession(max_longitude, max_latitude, fractional_year(date), 1875.0)
+    # Convert longitude to 0-360 values
+    min_longitude = ensure_angle_range(min_longitude)
+    max_longitude = ensure_angle_range(max_longitude)
 
     conn, cursor = connect()
     q = "SELECT * FROM constellation_boundaries WHERE"
 
     if min_longitude < max_longitude:
-        q += " (ra1>{0} AND ra1<{1}".format(min_longitude, max_longitude)
+        q += " ((ra1>={0} AND ra1<={1}".format(min_longitude, max_longitude)
     else:
-        q += " (ra1>{0} OR ra1<{1}".format(min_longitude, max_longitude)
+        q += " (((ra1>={0} OR ra1<={1})".format(min_longitude, max_longitude)
 
-    q += " AND dec1>{0} AND dec1<{1}) OR".format(min_latitude, max_latitude)
+    q += " AND dec1>={0} AND dec1<={1}) OR".format(min_latitude, max_latitude)
 
     if min_longitude < max_longitude:
-        q += " (ra2>{0} AND ra2<{1}".format(min_longitude, max_longitude)
+        q += " (ra2>={0} AND ra2<={1}".format(min_longitude, max_longitude)
     else:
-        q += " (ra2>{0} OR ra2<{1}".format(min_longitude, max_longitude)
+        q += " ((ra2>={0} OR ra2<={1})".format(min_longitude, max_longitude)
 
-    q += " AND dec2>{0} AND dec2<{1})".format(min_latitude, max_latitude)
+    q += " AND dec2>={0} AND dec2<={1}))".format(min_latitude, max_latitude)
 
+    if constellation is not None:
+        q+= " AND constellation='{}'".format(constellation)
+
+    print q
     res = cursor.execute(q)
 
     result = []
@@ -222,6 +301,15 @@ def get_constellation_boundaries_for_area(min_longitude, max_longitude, min_lati
     conn.close()
 
     return result
+
+
+def get_edge(id):
+    conn, cursor = connect()
+    q = "SELECT * FROM constellation_boundaries WHERE id={}".format(id)
+    res = cursor.execute(q)
+    row = res.fetchone()
+    columns = [x[0] for x in res.description]
+    return BoundaryEdge(dict(zip(columns, row)))
 
 
 def herget_precession(ra1, dec1, epoch1, epoch2):
@@ -289,6 +377,7 @@ def build_constellation_database():
     with open(DATA_FILE, "r") as fp:
         lines = fp.readlines()
 
+    print("Collecting points")
     # Collect all points
     point_data = {}
     npoints = 0
@@ -305,6 +394,7 @@ def build_constellation_database():
             point_data[constellation] = []
         point_data[constellation].append(SphericalPoint(ra, dec))
 
+    print("Building edges")
     # Build edges from points
     all_edges = []
     for c, points in point_data.items():
@@ -325,10 +415,16 @@ def build_constellation_database():
 
             prev_point = p
 
+            # Fix octans problems
+            if c == 'oct':
+                if order in [1, 13, 14]:
+                    continue
+                if order == 12:
+                    edge.p2.dec = -82.5
+
             all_edges.append(edge)
 
-    print
-    print "Edge construction complete"
+    print("Filling database")
 
     # Create the table
     conn, cursor = connect(wipe=True)
@@ -354,7 +450,10 @@ def build_constellation_database():
         cursor.execute(q)
         conn.commit()
     conn.close()
-    print
+
+    print("")
+    print("Pairing edges")
+    pair_edges()
 
 
 def pair_edges():
@@ -394,5 +493,9 @@ def pair_edges():
             q = "UPDATE constellation_boundaries SET complement={0}, other_constellation='{1}' WHERE id={2}".format(e.complement, e.other_constellation, e.identifier)
             cursor.execute(q)
             conn.commit()
+    else:
+        print("")
+        print("Unpaired edges left over:")
+        print(unpaired_edges)
 
 
