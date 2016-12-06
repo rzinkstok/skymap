@@ -5,7 +5,11 @@ import os
 import sys
 import urllib
 
-DATA_FOLDER = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data", "hyg")
+from skymap.geometry import HourAngle, SphericalPoint
+from skymap.constellations import CONSTELLATIONS
+
+
+DATA_FOLDER = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), "data", "hyg")
 DATA_FILE = os.path.join(DATA_FOLDER, "hygdata_v3.csv")
 DATABASE_FILE = os.path.join(DATA_FOLDER, "hyg.db")
 URL = "https://github.com/astronexus/HYG-Database/raw/master/hygdata_v3.csv"
@@ -49,8 +53,9 @@ def connect(wipe=False):
 
 
 class Star(object):
-    def __init__(self, rowdict):
-        self.data = rowdict
+    def __init__(self, row):
+        self.data = dict(row)
+        self.is_multiple = False
 
     def __getattr__(self, item):
         return self.data[item]
@@ -91,11 +96,21 @@ class Star(object):
 
     @property
     def is_variable(self):
-        return bool(self.var.strip())
+        try:
+            float(self.var_min)
+            float(self.var_max)
+        except ValueError:
+            return False
+        return True
 
     @property
-    def is_multiple(self):
-        return self.comp>1
+    def position(self):
+        ra, dec = self.propagate_position()
+        return SphericalPoint(ra, dec)
+
+    @property
+    def constellation(self):
+        return CONSTELLATIONS[self.con.lower()]
 
 
 def get_hip_star(hip_id):
@@ -109,7 +124,7 @@ def get_hip_star(hip_id):
     return Star(row)
 
 
-def select_stars(magnitude=0.0, constellation=None, ra_range=None, dec_range=None):
+def select_stars(magnitude=0.0, constellation=None, ra_range=None, dec_range=None, filter_multiple=True, sol=False):
     conn, cursor = connect()
     result = []
     q = "SELECT * " \
@@ -146,6 +161,8 @@ def select_stars(magnitude=0.0, constellation=None, ra_range=None, dec_range=Non
             raise ValueError("Illegal DEC range!")
         q += " AND decrad>={0} AND decrad<={1}".format(min_dec, max_dec)
 
+    if not sol:
+        q += " AND proper!='Sol'"
     # Order stars from brightest to weakest so displaying them is easier
     q += " ORDER BY mag ASC"
     res = cursor.execute(q)
@@ -153,6 +170,21 @@ def select_stars(magnitude=0.0, constellation=None, ra_range=None, dec_range=Non
         result.append(Star(row))
 
     conn.close()
+
+    if filter_multiple:
+        filtered_stars = []
+        multiple_ids = []
+        for s in result:
+            if s.comp_primary != s.hyg:
+                if s.comp_primary not in multiple_ids:
+                    multiple_ids.append(s.comp_primary)
+                continue
+            filtered_stars.append(s)
+        for s in filtered_stars:
+            if s.hyg in multiple_ids:
+                s.is_multiple = True
+        result = filtered_stars
+
     return result
 
 
@@ -171,7 +203,7 @@ def build_hyg_database():
 
     # Create table
     c.execute("""CREATE TABLE hygdata (
-                    id INT,
+                    hyg INT,
                     hip INT,
                     hd INT,
                     hr INT,
@@ -207,7 +239,9 @@ def build_hyg_database():
                     lum REAL,
                     var TEXT,
                     var_min REAL,
-                    var_max REAL
+                    var_max REAL,
+                    radeg REAL,
+                    decdeg REAL
                     )""")
 
     # Fill the table
@@ -224,5 +258,12 @@ def build_hyg_database():
             sys.stdout.write("\r{0:.1f}%".format(i * 100.0 / (nrecords - 1)))
             sys.stdout.flush()
             parts = [x.strip() for x in l.split(",")]
+
+            # Add the ra and dec in degrees
+            ha = HourAngle()
+            ha.from_fractional_hours(float(parts[7]))
+            parts.append(str(ha.to_degrees()))
+            parts.append(parts[8])
+
             c.execute("INSERT INTO hygdata VALUES (\"" + "\",\"".join(parts) + "\")")
             conn.commit()
