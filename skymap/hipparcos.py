@@ -17,7 +17,7 @@ import datetime
 from geometry import HourAngle, DMSAngle
 
 
-DATA_FOLDER = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data", "hipparcos")
+DATA_FOLDER = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), "data", "hipparcos")
 FILES_NAMES = ['ReadMe', 'main.dat.gz', 'photo.dat.gz', 'biblio.dat.gz']
 DATA_FILES = [os.path.join(DATA_FOLDER, f) for f in FILES_NAMES]
 DATABASE_FILE = os.path.join(DATA_FOLDER, "xhip.db")
