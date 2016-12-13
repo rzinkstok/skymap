@@ -35,7 +35,11 @@ class HourAngle(object):
 
 class DMSAngle(object):
     def __init__(self, degrees=0, minutes=0, seconds=0):
-        self.degrees = degrees
+        if degrees >= 0:
+            self.sign = 1
+        else:
+            self.sign = -1
+        self.degrees = abs(degrees)
         self.minutes = minutes
         self.seconds = seconds
 
@@ -52,6 +56,12 @@ class DMSAngle(object):
         self.degrees = int(degrees)
         self.minutes = int(minutes)
         self.seconds = seconds
+
+    def to_degrees(self):
+        degrees = self.sign * self.degrees
+        degrees += self.sign * self.minutes/60.0
+        degrees += self.sign * self.seconds/3600.0
+        return degrees
 
     def __repr__(self):
         result =  "{0}d {1}' {2}\"".format(self.degrees, self.minutes, self.seconds)
@@ -114,7 +124,7 @@ class SphericalPoint(Point):
         Point.__init__(self, a, b)
 
     def __str__(self):
-        return "Location({}, {})".format(self.longitude, self.latitude)
+        return "SphericalPoint({}, {})".format(self.longitude, self.latitude)
 
     @property
     def longitude(self):
@@ -204,6 +214,27 @@ class Line(object):
         if comp >= 0 and comp <= self.length:
             return True
         return False
+
+
+class Polygon(object):
+    def __init__(self, points=[], closed=True):
+        self.points = []
+        self.lines = []
+        self.closed = closed
+        for p in points:
+            self.add_point(p)
+        if closed:
+            self.close()
+
+    def add_point(self, p):
+        self.points.append(p)
+        if len(self.points) > 1:
+            self.lines.append(Line(self.points[-2], self.points[-1]))
+
+    def close(self):
+        if not self.closed:
+            self.closed = True
+        self.lines.append(Line(self.points[-1], self.points[0]))
 
 
 class Circle(object):

@@ -267,6 +267,8 @@ def get_constellation_boundaries_for_area(min_longitude, max_longitude, min_lati
     # Convert longitude to 0-360 values
     min_longitude = ensure_angle_range(min_longitude)
     max_longitude = ensure_angle_range(max_longitude)
+    if max_longitude == min_longitude:
+        max_longitude += 360
 
     conn, cursor = connect()
     q = "SELECT * FROM constellation_boundaries WHERE"

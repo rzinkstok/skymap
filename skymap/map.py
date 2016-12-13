@@ -1,57 +1,50 @@
 import os
-import math
-from skymap.geometry import Point, SphericalPoint, Line, Circle, Arc, HourAngle
+from skymap.geometry import Point, SphericalPoint, Line, Polygon, Circle, Arc, HourAngle
 from skymap.metapost import MetaPostFigure
 from skymap.projections import AzimuthalEquidistantProjection, EquidistantCylindricalProjection, EquidistantConicProjection
-from skymap.constellations import get_constellation_boundaries_for_area
-from skymap.hyg import select_stars
 
-A4_SIZE = (297.0, 210.0)
 FAINTEST_MAGNITUDE = 8
 
 
 class Map(object):
-    def __init__(self, filename, projection, paper_width=A4_SIZE[0], paper_height=A4_SIZE[1], margin_left=20, margin_bottom=20, margin_right=None, margin_top=None):
-        self.filename = filename
-
+    def __init__(self, projection, paper_size, margin_lr, margin_bt):
         self.set_projection(projection)
-        self.set_paper_size(paper_width, paper_height)
-        self.set_margins(margin_left, margin_bottom, margin_right, margin_top)
+        self.set_paper_size(paper_size)
+        self.set_margins(margin_lr, margin_bt)
 
         self.min_longitude = None
         self.max_longitude = None
         self.min_latitude = None
         self.max_latitude = None
 
-        self.set_origin(Point(paper_width/2.0, paper_height/2.0))
-        self.set_scale(2.0)
-
-        basename = os.path.splitext(os.path.split(self.filename)[-1])[0]
-        self.figure = MetaPostFigure(basename)
+        self.set_origin(Point(self.paper_width/2.0, self.paper_height/2.0))
+        self.set_vertical_scale(2.0)
 
         self.draw_parallel_ticks_on_vertical_axis = True
         self.draw_parallel_ticks_on_horizontal_axis = False
         self.draw_meridian_ticks_on_vertical_axis = False
         self.draw_meridian_ticks_on_horizontal_axis = True
 
+    # Init functions
     def set_projection(self, projection):
         self.projection = projection
 
-    def set_paper_size(self, paper_width, paper_height):
-        self.paper_width = paper_width
-        self.paper_height = paper_height
+    def set_paper_size(self, paper_size):
+        self.paper_width = paper_size[0]
+        self.paper_height = paper_size[1]
 
-    def set_margins(self, margin_left, margin_bottom, margin_right=None, margin_top=None):
-        self.margin_left = margin_left
-        self.margin_bottom = margin_bottom
-        if margin_right:
-            self.margin_right = margin_right
-        else:
-            self.margin_right = margin_left
-        if margin_top:
-            self.margin_top = margin_top
-        else:
-            self.margin_top = margin_bottom
+    def set_margins(self, margin_lr,  margin_bt):
+        try:
+            self.margin_left, self.margin_right = margin_lr
+        except TypeError:
+            self.margin_left = margin_lr
+            self.margin_right = margin_lr
+        try:
+            self.margin_bottom, self.margin_top = margin_bt
+        except TypeError:
+            self.margin_bottom = margin_bt
+            self.margin_top = margin_bt
+
         self.map_size_x = float(self.paper_width - self.margin_left - self.margin_right)
         self.map_size_y = float(self.paper_height - self.margin_bottom - self.margin_top)
 
@@ -68,8 +61,8 @@ class Map(object):
     def set_origin(self, origin):
         self.origin = origin
 
-    def set_scale(self, scale):
-        self.conversion = scale/self.map_size_x
+    def set_vertical_scale(self, scale):
+        self.conversion = scale/self.map_size_y
 
         self.extent_x = self.conversion * self.map_size_x
         self.min_x = self.conversion * (self.margin_left - self.origin.x)
@@ -79,23 +72,6 @@ class Map(object):
         self.min_y = self.conversion * (self.margin_bottom - self.origin.y)
         self.max_y = self.min_y + self.extent_y
 
-    def point_to_paper(self, p):
-        """Convert planar coordinates to a location on the map"""
-        x, y = p
-        map_x = self.margin_left + self.map_size_x * (x - self.min_x) / self.extent_x
-        map_y = self.margin_bottom + self.map_size_y * (y - self.min_y) / self.extent_y
-        return Point(map_x, map_y)
-
-    def distance_to_paper(self, d):
-        return self.point_to_paper(Point(0, 0)).distance(self.point_to_paper(Point(0, d)))
-
-    def point_from_paper(self, map_p):
-        """Convert a location on the map to planar coordinates"""
-        map_x, map_y = map_p
-        x = self.min_x + self.extent_x * (map_x - self.margin_left) / self.map_size_x
-        y = self.min_y + self.extent_y * (map_y - self.margin_bottom) / self.map_size_y
-        return Point(x, y)
-
     def inside_viewport(self, p):
         """Check whether the given point lies within the map area"""
         if p.x < self.margin_left or p.x > self.margin_left+self.map_size_x or p.y < self.margin_bottom or p.y > self.margin_bottom+self.map_size_y:
@@ -103,181 +79,34 @@ class Map(object):
         else:
             return True
 
-    def draw_object_to_paper(self, draw_object):
-        try:
-            return self.line_to_paper(draw_object)
-        except AttributeError:
-            pass
-        try:
-            return self.circle_to_paper(draw_object)
-        except AttributeError:
-            pass
+    def map_distance(self, distance):
+        p1 = self.map_point(SphericalPoint(0, 0))
+        p2 = self.map_point(SphericalPoint(0, distance))
+        return p1.distance(p2)
 
-    def line_to_paper(self, line):
-        return Line(self.point_to_paper(line.p1), self.point_to_paper(line.p2))
+    def map_point(self, spherical_point):
+        p = self.projection.project(spherical_point)
+        map_x = self.margin_left + self.map_size_x * (p.x - self.min_x) / self.extent_x
+        map_y = self.margin_bottom + self.map_size_y * (p.y - self.min_y) / self.extent_y
+        return Point(map_x, map_y)
 
-    def circle_to_paper(self, circle):
-        return Circle(self.point_to_paper(circle.center), self.distance_to_paper(circle.radius))
+    def map_line(self, line):
+        p1 = self.map_point(line.p1)
+        p2 = self.map_point(line.p2)
+        return Line(p1, p2)
 
-    def arc_to_paper(self, arc):
-        return Arc(self.point_to_paper(arc.center), self.distance_to_paper(arc.radius), arc.start_angle, arc.stop_angle)
-
-    def draw(self, draw_object, **kwargs):
-        try:
-            self.figure.draw_line(self.line_to_paper(draw_object), **kwargs)
-            return
-        except AttributeError:
-            pass
-        try:
-            self.figure.draw_arc(self.arc_to_paper(draw_object), **kwargs)
-            return
-        except AttributeError:
-            pass
-        try:
-            self.figure.draw_circle(self.circle_to_paper(draw_object), **kwargs)
-            return
-        except AttributeError:
-            pass
-        raise RuntimeError("Could not draw {}".format(draw_object))
-
-    def draw_parallels(self):
-        print
-        print "Drawing parallels"
-        self.figure.comment("Parallels", True)
-        for latitude in range(int(self.min_latitude), int(self.max_latitude)+1, 10):
-            parallel = self.projection.parallel(latitude)
-            self.draw(parallel, linewidth=0.2)
-            marker = "{0}$^{{\\circ}}$".format(latitude)
-            self.draw_ticks(parallel, marker, self.draw_parallel_ticks_on_horizontal_axis, self.draw_parallel_ticks_on_vertical_axis)
-
-    def draw_meridians(self):
-        print
-        print "Drawing meridians"
-        self.figure.comment("Meridians", True)
-        for longitude in range(int(self.min_longitude), int(self.max_longitude)+1, 15):
-            meridian = self.projection.meridian(longitude)
-            self.draw(meridian, linewidth=0.2)
-            if self.projection.celestial:
-                ha = HourAngle()
-                ha.from_degrees(longitude)
-                if not longitude % 15:
-                    marker = "\\textbf{{{0}\\textsuperscript{{h}}}}".format(ha.hours)
-
-                else:
-                    marker = "{0}\\textsuperscript{{m}}".format(ha.minutes)
-            else:
-                marker = "{0}$^{{\\circ}}$".format(longitude)
-            self.draw_ticks(meridian, marker, self.draw_meridian_ticks_on_horizontal_axis, self.draw_meridian_ticks_on_vertical_axis)
-
-    def draw_ticks(self, draw_object, text, horizontal_axis, vertical_axis):
-        draw_object = self.draw_object_to_paper(draw_object)
-        if horizontal_axis:
-            for border, pos in [(self.bottom_border, "bot"), (self.top_border, "top")]:
-                points = draw_object.inclusive_intersect_line(border)
-                for p in points:
-                    self.figure.draw_text(p, text, pos, size="small", delay_write=True)
-        if vertical_axis:
-            for border, pos in [(self.right_border, "rt"), (self.left_border, "lft")]:
-                points = draw_object.inclusive_intersect_line(border)
-                for p in points:
-                    self.figure.draw_text(p, text, pos, size="small", delay_write=True)
-
-    def draw_constellation_boundaries(self, constellation=None):
-        print
-        print "Drawing constellation borders"
-        self.figure.comment("Constellation boundaries", True)
-        drawn_edges = []
-        edges = get_constellation_boundaries_for_area(self.min_longitude, self.max_longitude, self.min_latitude, self.max_latitude, constellation=constellation)
-        for e in edges:
-            if e.identifier in drawn_edges:
-                continue
-            points = [self.point_to_paper(self.projection.project(p)) for p in e.interpolated_points]
-            self.figure.draw_polygon(points, closed=False, linewidth=0.2, dashed=True)
-            drawn_edges.append(e.identifier)
-            drawn_edges.append(e.complement)
-
-    def draw_stars(self):
-        print
-        print "Drawing stars"
-        self.figure.comment("Stars")
-        stars = select_stars(magnitude=FAINTEST_MAGNITUDE, constellation=None, ra_range=(self.min_longitude, self.max_longitude), dec_range=(self.min_latitude, self.max_latitude))
-        for star in stars:
-            self.draw_star(star)
-
-    def draw_star(self, star):
-        p = self.point_to_paper(self.projection.project(star.position))
-        if not self.inside_viewport(p):
-            return
-
-        # Print the star itself
-        if star.is_variable:
-            min_size = self.magnitude_to_size(star.var_min)
-            max_size = self.magnitude_to_size(star.var_max)
-            self.figure.draw_point(p, max_size + 0.15, color="white")
-            c = Circle(p, 0.5 * max_size)
-            self.figure.draw_circle(c, linewidth=0.15)
-            if star.var_min < FAINTEST_MAGNITUDE:
-                self.figure.draw_point(p, min_size)
-            size = max_size
-        else:
-            size = self.magnitude_to_size(star.mag)
-            self.figure.draw_point(p, size + 0.15, color="white")
-            self.figure.draw_point(p, size)
-
-        # Print the multiple bar
-        if star.is_multiple:
-            p1 = Point(p[0] - 0.5 * size - 0.2, p[1])
-            p2 = Point(p[0] + 0.5 * size + 0.2, p[1])
-            l = Line(p1, p2)
-            self.figure.draw_line(l, linewidth=0.25)
-            print "MULTIPLE:", star, star.mag, star.position
-
-        # Print text
-        if star.identifier_string.strip():
-            text_pos = Point(p.x + 0.5 * size - 0.9, p.y)
-            self.figure.draw_text(text_pos, star.identifier_string, "rt", "tiny", scale=0.75, delay_write=True)
-        if star.proper:
-            text_pos = Point(p.x, p.y - 0.5 * size + 0.8)
-            self.figure.draw_text(text_pos, star.proper, "bot", "tiny", scale=0.75, delay_write=True)
-
-    def magnitude_to_size(self, magnitude):
-        if magnitude < -0.5:
-            magnitude = -0.5
-        scale = 6.1815*self.paper_width/465.0
-        return scale * math.exp(-0.27 * magnitude)
-
-    def render(self, open=False):
-        # Draw the coordinate grid
-        self.draw_parallels()
-        self.draw_meridians()
-
-        self.draw_constellation_boundaries()
-
-        self.draw_stars()
-
-        # Clip the map area
-        llborder = Point(self.margin_left, self.margin_bottom)
-        urborder = Point(self.paper_width - self.margin_right, self.paper_height - self.margin_top)
-        self.figure.clip(llborder, urborder)
-
-        # Draw border
-        self.figure.draw_rectange(llborder, urborder)
-
-        # Create bounding box for page
-        llcorner = Point(0, 0)
-        urcorner = Point(self.paper_width, self.paper_height)
-        self.figure.draw_rectange(llcorner, urcorner, linewidth=0)
-
-        # Finish
-        self.figure.end_figure()
-        self.figure.render(self.filename, open=open)
+    def map_circle(self, circle):
+        """This is a parallel circle...."""
+        center = self.map_point(circle.center)
+        radius = self.map_distance(circle.radius)
+        return Circle(center, radius)
 
 
 class AzimuthalEquidistantMap(Map):
-    def __init__(self, filename, north=True, celestial=False, paper_width=A4_SIZE[0], paper_height=A4_SIZE[1], margin_left=20, margin_bottom=20, margin_right=None, margin_top=None, reference_longitude=0, reference_scale=None):
+    def __init__(self, paper_size, margin_lr, margin_bt, north=True, reference_longitude=0, reference_scale=25, celestial=False):
         p = AzimuthalEquidistantProjection(north=north, celestial=celestial, reference_longitude=reference_longitude, reference_scale=reference_scale)
 
-        Map.__init__(self, filename, p, paper_width, paper_height, margin_left, margin_bottom, margin_right, margin_top)
+        Map.__init__(self, p, paper_size, margin_lr, margin_bt)
 
         self.min_longitude = 0
         self.max_longitude = 360
@@ -291,27 +120,66 @@ class AzimuthalEquidistantMap(Map):
         self.draw_parallel_ticks_on_vertical_axis = False
         self.draw_meridian_ticks_on_vertical_axis = True
 
+    def map_parallel(self, latitude):
+        parallel = Circle(SphericalPoint(0, self.projection.origin_latitude), latitude)
+        return self.map_circle(parallel)
+
+    def map_meridian(self, longitude):
+        if longitude%90 == 0.0:
+            p1 = SphericalPoint(0, self.projection.origin_latitude)
+        elif longitude%45 == 0.0:
+            if self.projection.north:
+                p1 = SphericalPoint(longitude, 89)
+            else:
+                p1 = SphericalPoint(longitude, -89)
+        else:
+            if self.projection.north:
+                p1 = SphericalPoint(longitude, 80)
+            else:
+                p1 = SphericalPoint(longitude, -80)
+        p2 = SphericalPoint(longitude, 0)
+
+        return self.map_line(Line(p1, p2))
+
 
 class EquidistantCylindricalMap(Map):
-    def __init__(self, filename, celestial=False, paper_width=A4_SIZE[0], paper_height=A4_SIZE[1], margin_left=25, margin_bottom=20, margin_right=None, margin_top=None, standard_parallel=20, reference_longitude=0, reference_scale=30):
-        margin_left = 0.5*(paper_width - (paper_height - 2*margin_bottom)*1.5)
-        p = EquidistantCylindricalProjection(celestial=celestial, standard_parallel=standard_parallel, reference_longitude=reference_longitude, reference_scale=reference_scale)
+    def __init__(self, paper_size, margin_lr, margin_bt, center_longitude, standard_parallel=20, reference_scale=25, celestial=False):
+        try:
+            margin_bottom = margin_bt[0]
+        except TypeError:
+            margin_bottom = margin_bt
+        margin_lr = 0.5 * (paper_size[0] - (paper_size[1] - 2 * margin_bottom) * 1.5)
 
-        Map.__init__(self, filename, p, paper_width, paper_height, margin_left, margin_bottom, margin_right, margin_top)
+        p = EquidistantCylindricalProjection(celestial=celestial, standard_parallel=standard_parallel, center_longitude=center_longitude, reference_scale=reference_scale)
 
-        self.min_longitude = reference_longitude - reference_scale
-        self.max_longitude = reference_longitude + reference_scale
-        self.min_latitude = -reference_scale * self.map_size_y / self.map_size_x
-        self.max_latitude = reference_scale * self.map_size_y / self.map_size_x
+        Map.__init__(self, p, paper_size, margin_lr, margin_bt)
+
+        xrange = self.projection.reference_scale * self.map_size_x / self.map_size_y
+        yrange = self.projection.reference_scale
+        self.min_longitude = center_longitude - xrange
+        self.max_longitude = center_longitude + xrange
+        self.min_latitude = -yrange
+        self.max_latitude = yrange
+
+    def map_parallel(self, latitude):
+        p1 = SphericalPoint(self.projection.center_longitude - 2 * self.projection.reference_scale, latitude)
+        p2 = SphericalPoint(self.projection.center_longitude + 2 * self.projection.reference_scale, latitude)
+        return self.map_line(Line(p1, p2))
+
+    def map_meridian(self, longitude):
+        p1 = SphericalPoint(longitude, -90)
+        p2 = SphericalPoint(longitude, +90)
+        return self.map_line(Line(p1, p2))
 
 
 class EquidistantConicMap(Map):
-    def __init__(self, filename, celestial=False, paper_width=A4_SIZE[0], paper_height=A4_SIZE[1], margin_left=25, margin_bottom=20, margin_right=None, margin_top=None, standard_parallel1=30, standard_parallel2=60, reference_longitude=0, scale=1.0):
-        p = EquidistantConicProjection(celestial=celestial, reference_longitude=reference_longitude, standard_parallel1=standard_parallel1, standard_parallel2=standard_parallel2)
-        Map.__init__(self, filename, p, paper_width, paper_height, margin_left, margin_bottom, margin_right, margin_top)
-        self.set_scale(scale)
-        self.min_longitude = reference_longitude - 120
-        self.max_longitude = reference_longitude + 120
+    def __init__(self, paper_size, margin_lr, margin_bt, center, standard_parallel1=30, standard_parallel2=60, reference_scale=25, celestial=False):
+        p = EquidistantConicProjection(center, standard_parallel1=standard_parallel1, standard_parallel2=standard_parallel2, reference_scale=reference_scale, celestial=celestial)
+        Map.__init__(self, p, paper_size, margin_lr, margin_bt)
+
+        self.min_longitude = center[0] - 120
+        self.max_longitude = center[0] + 120
+        print self.min_longitude, self.max_longitude
         if p.reference_latitude > 0:
             self.min_latitude = -70
             self.max_latitude = 90
@@ -319,3 +187,16 @@ class EquidistantConicMap(Map):
             self.min_latitude = -90
             self.max_latitude = 70
 
+    def map_parallel(self, latitude):
+        # Circle around origin
+        p = SphericalPoint(0, latitude)
+        radius = p.distance(self.projection.parallel_circle_center)
+        return self.map_circle(Circle(self.projection.parallel_circle_center, radius))
+
+    def map_meridian(self, longitude):
+        # Line from origin
+        if self.projection.reference_latitude > 0:
+            p = SphericalPoint(longitude, -30)
+        else:
+            p = SphericalPoint(longitude, 30)
+        return self.map_line(Line(self.projection.parallel_circle_center, p))

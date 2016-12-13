@@ -5,6 +5,10 @@ import shutil
 from geometry import Point
 
 
+# Set the path for metapost
+os.environ['PATH'] = "/Library/TeX/texbin:"+os.environ['PATH']
+
+
 class DrawError(Exception):
     pass
 
@@ -72,13 +76,13 @@ class MetaPostFigure(object):
         else:
             self.fp.write(s)
 
-    def draw_polygon(self, points, color="black", linewidth=0.5, closed=True, dashed=False, dotted=False, delay_write=False):
+    def draw_polygon(self, polygon, color="black", linewidth=0.5, dashed=False, dotted=False, delay_write=False):
         s = "draw "
-        for p in points:
+        for p in polygon.points:
             c1 = self.point_to_coordinates(p)
             s += "{0}--".format(c1)
-        if closed:
-            s+="{0}".format(self.point_to_coordinates(points[0]))
+        if polygon.closed:
+            s+="{0}".format(self.point_to_coordinates(polygon.points[0]))
         else:
             s = s[:-2]
         s += " withcolor {0} withpen pencircle scaled {1}pt".format(color, linewidth)
@@ -150,13 +154,30 @@ class MetaPostFigure(object):
         self.fp.write("b := {0}--{1}--{2}--{3}--cycle;\n".format(c1, c2, c3, c4))
         self.fp.write("clip currentpicture to b;\n")
 
-    def render(self, filename, open=True):
-        print os.environ['PATH']
-        subprocess.Popen(["mpost", self.name+".mp"], cwd="mpost").wait()
-        subprocess.Popen(["mptopdf {0}.1".format(self.name)], shell=True, cwd="mpost").wait()
-        folder = os.path.dirname(filename)
-        if folder and not os.path.exists(folder):
-            os.makedirs(folder)
-        shutil.move("mpost/{0}-1.pdf".format(self.name), filename)
-        if open:
-            subprocess.Popen(["open", filename]).wait()
+    def render(self, filename=None, open=True):
+        #subprocess.Popen(["mpost", self.name+".mp"], cwd="mpost").wait()
+        subprocess.check_output(["mpost", self.name + ".mp"], cwd="mpost")
+        if filename:
+            subprocess.Popen(["mptopdf {0}.1".format(self.name)], shell=True, cwd="mpost").wait()
+            folder = os.path.dirname(filename)
+            if folder and not os.path.exists(folder):
+                os.makedirs(folder)
+            shutil.move("mpost/{0}-1.pdf".format(self.name), filename)
+            if open:
+                subprocess.Popen(["open", filename]).wait()
+
+    def bounding_box(self):
+        self.end_figure()
+        self.render()
+        fpath = os.path.join("mpost", "{0}.1".format(self.name))
+        with open(fpath, "r") as fp:
+            lines = fp.readlines()
+        for l in lines:
+            if l.startswith("%%HiResBoundingBox:"):
+                bb = [(2.54 / 72) * float(x) for x in l.split(":")[-1].split()]
+                return bb
+        return None
+
+    def bounding_box_size(self):
+        bb = self.bounding_box()
+        return bb[2]-bb[0], bb[3]-bb[1]
