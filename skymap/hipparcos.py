@@ -11,31 +11,22 @@ import os
 import sys
 import gzip
 import urllib
-import sqlite3
 import datetime
 
-from geometry import HourAngle, DMSAngle
+from skymap.geometry import HourAngle, DMSAngle
+from skymap.database import SkyMapDatabase
 
 
 DATA_FOLDER = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), "data", "hipparcos")
 FILES_NAMES = ['ReadMe', 'main.dat.gz', 'photo.dat.gz', 'biblio.dat.gz']
 DATA_FILES = [os.path.join(DATA_FOLDER, f) for f in FILES_NAMES]
-DATABASE_FILE = os.path.join(DATA_FOLDER, "xhip.db")
 URLS = [os.path.join("ftp://cdsarc.u-strasbg.fr/pub/cats/V/137D", f) for f in FILES_NAMES]
 GREEK_LETTERS = ["alpha", "beta", "gamma", "delta", "epsilon", "zeta", "eta", "theta", "iota", "kappa", "lambda", "mu", "nu", "ksi", "omicron", "pi", "rho", "sigma", "tau", "upsilon", "phi", "chi", "psi", "omega"]
 
 
-def connect(wipe=False):
-    if wipe and os.path.exists(DATABASE_FILE):
-        os.remove(DATABASE_FILE)
-    conn = sqlite3.connect(DATABASE_FILE)
-    cursor = conn.cursor()
-    return conn, cursor
-
-
 class HipparcosStar(object):
-    def __init__(self, row, column_names):
-        self.data = dict(zip(column_names, row))
+    def __init__(self, row):
+        self.data = row
 
     @property
     def identifier(self):
@@ -177,33 +168,29 @@ class HipparcosStar(object):
 
 
 def get_star(hip_id):
-    conn = sqlite3.connect("data/hipparcos/xhip.db")
-    c = conn.cursor()
+    db = SkyMapDatabase()
 
     q = "SELECT * " \
-        "FROM main " \
-        "JOIN photo ON photo.id=main.id " \
-        "JOIN biblio ON biblio.id=main.id " \
-        "WHERE main.id={0}".format(hip_id)
-    res = c.execute(q)
-    row = res.fetchone()
-    columns = [x[0] for x in res.description]
-    conn.close()
-    return HipparcosStar(row, columns)
+        "FROM hipparcos_main " \
+        "JOIN hipparcos_photo ON hipparcos_photo.id=hipparcos_main.id " \
+        "JOIN hipparcos_biblio ON hipparcos_biblio.id=hipparcos_main.id " \
+        "WHERE hipparcos_main.id={0}".format(hip_id)
+    row = db.query_one(q)
+    db.close()
+    return HipparcosStar(row)
 
 
 def select_stars(magnitude=0.0, constellation=None, ra_range=None, dec_range=None):
-    conn = sqlite3.connect("data/hipparcos/xhip.db")
-    c = conn.cursor()
+    db = SkyMapDatabase()
 
     result = []
     q = "SELECT * " \
-        "FROM main " \
-        "JOIN photo ON photo.id=main.id " \
-        "JOIN biblio ON biblio.id=main.id " \
-        "WHERE photo.Vmag<{0}".format(magnitude)
+        "FROM hipparcos_main " \
+        "JOIN hipparcos_photo ON hipparcos_photo.id=hipparcos_main.id " \
+        "JOIN hipparcos_biblio ON hipparcos_biblio.id=hipparcos_main.id " \
+        "WHERE hipparcos_photo.Vmag<{0}".format(magnitude)
     if constellation:
-        q += " AND biblio.constellation='{0}'".format(constellation)
+        q += " AND hipparcos_biblio.constellation='{0}'".format(constellation)
     if ra_range:
         if ra_range[0] < 0:
             while ra_range[0] < 0:
@@ -215,28 +202,27 @@ def select_stars(magnitude=0.0, constellation=None, ra_range=None, dec_range=Non
         if ra_range[0] < 0 or ra_range[0] > 360 or ra_range[1] < 0 or ra_range[1] > 360:
             raise ValueError("Illegal RA range!")
         if ra_range[0] < ra_range[1]:
-            q += " AND main.right_ascension>={0} AND main.right_ascension<={1}".format(ra_range[0], ra_range[1])
+            q += " AND hipparcos_main.right_ascension>={0} AND hipparcos_main.right_ascension<={1}".format(ra_range[0], ra_range[1])
         elif ra_range[1] < ra_range[0]:
-            q += " AND (main.right_ascension>={0} OR main.right_ascension<={1})".format(ra_range[0], ra_range[1])
+            q += " AND (hipparcos_main.right_ascension>={0} OR hipparcos_main.right_ascension<={1})".format(ra_range[0], ra_range[1])
         else:
             raise ValueError("Illegal RA range!")
     if dec_range:
         if dec_range[0] < -90 or dec_range[0] > 90 or dec_range[1] < -90 or dec_range[1] > 90 or dec_range[1] <= dec_range[0]:
             raise ValueError("Illegal DEC range!")
-        q += " AND main.declination>={0} AND main.declination<={1}".format(dec_range[0], dec_range[1])
+        q += " AND hipparcos_main.declination>={0} AND hipparcos_main.declination<={1}".format(dec_range[0], dec_range[1])
 
-    q += " ORDER BY photo.Vmag ASC"
-    res = c.execute(q)
-    columns = [x[0] for x in res.description]
-    for row in res:
-        result.append(HipparcosStar(row, columns))
+    q += " ORDER BY hipparcos_photo.Vmag ASC"
+    rows = db.query(q)
+    for row in rows:
+        result.append(HipparcosStar(row))
 
-    conn.close()
+    db.close()
     return result
 
 
 def build_hipparcos_database():
-    print("")
+    print("\n")
     print("Building Hipparcos database")
 
     # Download data files
@@ -259,10 +245,13 @@ def build_hipparcos_database():
                     number_of_records[f] = int(l.split()[2])
 
     # Connect to database and wipe it clean
-    conn, c = connect(True)
+    db = SkyMapDatabase()
+    db.drop_table("hipparcos_main")
+    db.drop_table("hipparcos_photo")
+    db.drop_table("hipparcos_biblio")
 
     # Create main table
-    c.execute("""CREATE TABLE main (
+    db.commit_query("""CREATE TABLE hipparcos_main (
                   id INT,
                   component TEXT,
                   classes TEXT,
@@ -319,10 +308,9 @@ def build_hipparcos_database():
                   number_of_exoplanets int,
                   exoplanet_discovery_methods text
                   )""")
-    conn.commit()
 
     # Create photo table
-    c.execute("""CREATE TABLE photo (
+    db.commit_query("""CREATE TABLE hipparcos_photo (
                           id int,
                           median_magnitude real,
                           se_median_magnitude real,
@@ -360,10 +348,9 @@ def build_hipparcos_database():
                           luminosity real,
                           magmin float
             )""")
-    conn.commit()
 
     # Create biblio table
-    c.execute("""CREATE TABLE biblio (
+    db.commit_query("""CREATE TABLE hipparcos_biblio (
                         id int,
                         henri_draper_id text,
                         constellation text,
@@ -376,12 +363,11 @@ def build_hipparcos_database():
                         ref_radial_velocity text,
                         reference_iron_abundance text
             )""")
-    conn.commit()
 
     # Fill the tables
     for file_path in DATA_FILES[1:]:
         file_name = os.path.split(file_path)[-1]
-        table_name = file_name.split(".")[0]
+        table_name = "hipparcos_" + file_name.split(".")[0]
         print("")
         print("Processing {0}".format(file_name))
         nrecords = number_of_records[file_name]
@@ -392,8 +378,9 @@ def build_hipparcos_database():
             parts = [x.strip() for x in l.split("|")]
 
             # Fix error in biblio database
-            if table_name == "biblio" and i == 30679:
+            if table_name == "hipparcos_biblio" and i == 30679:
                 parts.pop(6)
 
-            c.execute("INSERT INTO " + table_name + " VALUES (\"" + "\",\"".join(parts) + "\")")
-            conn.commit()
+            db.commit_query("INSERT INTO " + table_name + " VALUES (\"" + "\",\"".join(parts) + "\")")
+
+    db.close()

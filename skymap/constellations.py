@@ -1,16 +1,15 @@
 import sys
-import sqlite3
 import os
 import math
 import datetime
 import time
 import urllib
 
+from skymap.database import SkyMapDatabase
 from skymap.geometry import SphericalPoint, ensure_angle_range
 
 DATA_FOLDER = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), "data", "constellation_boundaries")
 DATA_FILE = os.path.join(DATA_FOLDER, "bound_18.dat")
-DATABASE_FILE = os.path.join(DATA_FOLDER, "constellation_boundaries.db")
 URL = "ftp://cdsarc.u-strasbg.fr/pub/cats/VI/49/bound_18.dat"
 
 CONSTELLATIONS = {
@@ -103,14 +102,6 @@ CONSTELLATIONS = {
     'vol': 'Volans',
     'vul': 'Vulpecula'
 }
-
-
-def connect(wipe=False):
-    if wipe and os.path.exists(DATABASE_FILE):
-        os.remove(DATABASE_FILE)
-    conn = sqlite3.connect(DATABASE_FILE)
-    cursor = conn.cursor()
-    return conn, cursor
 
 
 def fractional_year(date):
@@ -244,19 +235,17 @@ def get_constellation_boundaries(constellation, date=None):
     if date is None:
         date = datetime.date(2000, 1, 1)
 
-    conn, cursor = connect()
+    db = SkyMapDatabase()
     q = "SELECT * FROM constellation_boundaries WHERE constellation_boundaries.constellation='{0}' ORDER BY edge_order".format(constellation)
-    res = cursor.execute(q)
+    res = db.query(q)
 
     result = []
-    columns = [x[0] for x in res.description]
     for row in res:
-        row = dict(zip(columns, row))
         e = BoundaryEdge(row)
         e.precess(date)
         result.append(e)
-    conn.close()
 
+    db.close()
     return result
 
 
@@ -270,7 +259,7 @@ def get_constellation_boundaries_for_area(min_longitude, max_longitude, min_lati
     if max_longitude == min_longitude:
         max_longitude += 360
 
-    conn, cursor = connect()
+    db = SkyMapDatabase()
     q = "SELECT * FROM constellation_boundaries WHERE"
 
     if min_longitude < max_longitude:
@@ -291,27 +280,24 @@ def get_constellation_boundaries_for_area(min_longitude, max_longitude, min_lati
         q+= " AND constellation='{}'".format(constellation)
 
     print q
-    res = cursor.execute(q)
+    res = db.query(q)
 
     result = []
-    columns = [x[0] for x in res.description]
     for row in res:
-        row = dict(zip(columns, row))
         e = BoundaryEdge(row)
         e.precess(date)
         result.append(e)
-    conn.close()
 
+    db.close()
     return result
 
 
 def get_edge(id):
-    conn, cursor = connect()
+    db = SkyMapDatabase()
     q = "SELECT * FROM constellation_boundaries WHERE id={}".format(id)
-    res = cursor.execute(q)
-    row = res.fetchone()
-    columns = [x[0] for x in res.description]
-    return BoundaryEdge(dict(zip(columns, row)))
+    row = db.query_one(q)
+    db.close()
+    return BoundaryEdge(row)
 
 
 def herget_precession(ra1, dec1, epoch1, epoch2):
@@ -429,8 +415,11 @@ def build_constellation_database():
     print("Filling database")
 
     # Create the table
-    conn, cursor = connect(wipe=True)
-    cursor.execute("""CREATE TABLE constellation_boundaries (
+    db = SkyMapDatabase()
+
+    db.drop_table("constellation_boundaries")
+
+    db.commit_query("""CREATE TABLE constellation_boundaries (
                         id INT PRIMARY KEY ,
                         constellation TEXT,
                         other_constellation TEXT,
@@ -441,7 +430,6 @@ def build_constellation_database():
                         complement INT,
                         edge_order INT
     )""")
-    conn.commit()
 
     # Fill the table
     nedges = len(all_edges)
@@ -449,27 +437,24 @@ def build_constellation_database():
         sys.stdout.write("\r{0:.1f}%".format(100.0*i/(nedges-1)))
         sys.stdout.flush()
         q = """INSERT INTO constellation_boundaries VALUES ({0}, "{1}", "{2}", {3}, {4}, {5}, {6}, {7}, {8})""".format(edge.identifier, edge.constellation, edge.other_constellation, edge.p1.ra, edge.p1.dec, edge.p2.ra, edge.p2.dec, edge.complement or "NULL", edge.order)
-        cursor.execute(q)
-        conn.commit()
-    conn.close()
+        db.commit_query(q)
 
     print("")
     print("Pairing edges")
-    pair_edges()
+    pair_edges(db)
+
+    db.close()
 
 
-def pair_edges():
-    conn, cursor = connect()
+def pair_edges(db):
     q = "SELECT * FROM constellation_boundaries ORDER BY id ASC"
-    res = cursor.execute(q)
-    columns = [x[0] for x in res.description]
+    res = db.query(q)
 
     all_edges = []
     unpaired_edges = []
 
     for row in res:
-        d = dict(zip(columns, row))
-        e = BoundaryEdge(d)
+        e = BoundaryEdge(row)
 
         if all_edges:
             sys.stdout.write("\r{0} - {1}/{2} ({3:.1f}%)".format(e.constellation, len(unpaired_edges), len(all_edges), 100.0*len(unpaired_edges)/len(all_edges)))
@@ -493,8 +478,7 @@ def pair_edges():
     if not unpaired_edges:
         for e in all_edges:
             q = "UPDATE constellation_boundaries SET complement={0}, other_constellation='{1}' WHERE id={2}".format(e.complement, e.other_constellation, e.identifier)
-            cursor.execute(q)
-            conn.commit()
+            db.commit_query(q)
     else:
         print("")
         print("Unpaired edges left over:")

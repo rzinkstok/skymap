@@ -1,17 +1,16 @@
-import sqlite3
 import math
 import datetime
 import os
 import sys
 import urllib
 
+from skymap.database import SkyMapDatabase
 from skymap.geometry import HourAngle, SphericalPoint, ensure_angle_range
 from skymap.constellations import CONSTELLATIONS
 
 
 DATA_FOLDER = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), "data", "hyg")
 DATA_FILE = os.path.join(DATA_FOLDER, "hygdata_v3.csv")
-DATABASE_FILE = os.path.join(DATA_FOLDER, "hyg.db")
 URL = "https://github.com/astronexus/HYG-Database/raw/master/hygdata_v3.csv"
 
 
@@ -43,18 +42,9 @@ GREEK_LETTERS = {
 }
 
 
-def connect(wipe=False):
-    if wipe and os.path.exists(DATABASE_FILE):
-        os.remove(DATABASE_FILE)
-    conn = sqlite3.connect("data/hyg/hyg.db")
-    conn.row_factory = sqlite3.Row
-    c = conn.cursor()
-    return conn, c
-
-
 class Star(object):
     def __init__(self, row):
-        self.data = dict(row)
+        self.data = row
         self.is_multiple = False
 
     def __getattr__(self, item):
@@ -114,18 +104,17 @@ class Star(object):
 
 
 def get_hip_star(hip_id):
-    conn, cursor = connect()
+    db = SkyMapDatabase()
     q = "SELECT * " \
         "FROM hygdata " \
         "WHERE hip={0}".format(hip_id)
-    res = cursor.execute(q)
-    row = res.fetchone()
-    conn.close()
+    row = db.query_one(q)
+    db.close()
     return Star(row)
 
 
 def select_stars(magnitude=0.0, constellation=None, ra_range=None, dec_range=None, filter_multiple=True, sol=False):
-    conn, cursor = connect()
+    db = SkyMapDatabase()
     result = []
     q = "SELECT * " \
         "FROM hygdata " \
@@ -156,13 +145,13 @@ def select_stars(magnitude=0.0, constellation=None, ra_range=None, dec_range=Non
 
     if not sol:
         q += " AND proper!='Sol'"
+
     # Order stars from brightest to weakest so displaying them is easier
     q += " ORDER BY mag ASC"
-    res = cursor.execute(q)
-    for row in res:
-        result.append(Star(row))
 
-    conn.close()
+    rows = db.query(q)
+    for row in rows:
+        result.append(Star(row))
 
     if filter_multiple:
         filtered_stars = []
@@ -178,6 +167,7 @@ def select_stars(magnitude=0.0, constellation=None, ra_range=None, dec_range=Non
                 s.is_multiple = True
         result = filtered_stars
 
+    db.close()
     return result
 
 
@@ -192,10 +182,11 @@ def build_hyg_database():
         urllib.urlretrieve(URL, DATA_FILE)
 
     # Connect
-    conn, c = connect(True)
+    db = SkyMapDatabase()
+    db.drop_table("hygdata")
 
     # Create table
-    c.execute("""CREATE TABLE hygdata (
+    db.commit_query("""CREATE TABLE hygdata (
                     hyg INT,
                     hip INT,
                     hd INT,
@@ -258,5 +249,6 @@ def build_hyg_database():
             parts.append(str(ha.to_degrees()))
             parts.append(parts[8])
 
-            c.execute("INSERT INTO hygdata VALUES (\"" + "\",\"".join(parts) + "\")")
-            conn.commit()
+            db.commit_query("INSERT INTO hygdata VALUES (\"" + "\",\"".join(parts) + "\")")
+
+    db.close()

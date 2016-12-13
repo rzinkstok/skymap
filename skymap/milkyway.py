@@ -1,25 +1,17 @@
 import os
 import urllib
 import zipfile
-import sqlite3
 import re
+
+from skymap.database import SkyMapDatabase
 from skymap.geometry import HourAngle, DMSAngle, SphericalPoint, ensure_angle_range, Line
 
 DATA_FOLDER = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), "data", "milkyway")
 DATA_FILE = os.path.join(DATA_FOLDER, "milkyway.zip")
-DATABASE_FILE = os.path.join(DATA_FOLDER, "milkyway.db")
 URL = "http://www.skymap.com/files/overlays/milky.zip"
 
 
-def connect(wipe=False):
-    if wipe and os.path.exists(DATABASE_FILE):
-        os.remove(DATABASE_FILE)
-    conn = sqlite3.connect(DATABASE_FILE)
-    cursor = conn.cursor()
-    return conn, cursor
-
-
-def parse_file(file_path, cursor, conn, edge_id):
+def parse_file(file_path, db, edge_id):
     with open(file_path, "r") as fp:
         lines = fp.readlines()
 
@@ -32,8 +24,7 @@ def parse_file(file_path, cursor, conn, edge_id):
         if l.startswith("DRAW"):
             p2 = extract_point(l)
             q = """INSERT INTO milkyway VALUES ({0}, "{1}", "{2}", {3}, {4})""".format(edge_id, p1.longitude, p1.latitude, p2.longitude, p2.latitude)
-            cursor.execute(q)
-            conn.commit()
+            db.commit_query(q)
 
             # Move to next point
             p1 = p2
@@ -66,7 +57,7 @@ def get_milky_way_boundary_for_area(min_longitude, max_longitude, min_latitude, 
     if max_longitude == min_longitude:
         max_longitude += 360
 
-    conn, cursor = connect()
+    db = SkyMapDatabase()
     q = "SELECT * FROM milkyway WHERE"
 
     if min_longitude < max_longitude:
@@ -84,19 +75,17 @@ def get_milky_way_boundary_for_area(min_longitude, max_longitude, min_latitude, 
     q += " AND dec2>={0} AND dec2<={1}))".format(min_latitude, max_latitude)
 
     print q
-    res = cursor.execute(q)
+    result = db.query(q)
 
-    result = []
-    columns = [x[0] for x in res.description]
-    for row in res:
-        row = dict(zip(columns, row))
+    lines = []
+    for row in result:
         p1 = SphericalPoint(row['ra1'], row['dec1'])
         p2 = SphericalPoint(row['ra2'], row['dec2'])
-        l = Line(p1, p2)
-        result.append(l)
-    conn.close()
+        lines.append(Line(p1, p2))
 
-    return result
+    db.close()
+
+    return lines
 
 
 def build_milkyway_database():
@@ -114,19 +103,23 @@ def build_milkyway_database():
         zip_ref.close()
 
     print("Filling database")
+    db = SkyMapDatabase()
 
-    # Create the table
-    conn, cursor = connect(wipe=True)
-    cursor.execute("""CREATE TABLE milkyway (
+    # Drop table
+    db.drop_table("milkyway")
+
+    # Create table
+    db.commit_query("""CREATE TABLE milkyway (
                             id INT PRIMARY KEY ,
                             ra1 REAL,
                             dec1 REAL,
                             ra2 REAL,
                             dec2 REAL
         )""")
-    conn.commit()
 
+    # Fill table
     edge_id = 0
-    edge_id = parse_file(os.path.join(DATA_FOLDER, "Milkyway.sol"), cursor, conn, edge_id)
-    edge_id = parse_file(os.path.join(DATA_FOLDER, "Magellanic clouds.sol"), cursor, conn, edge_id)
-    conn.close()
+    edge_id = parse_file(os.path.join(DATA_FOLDER, "Milkyway.sol"), db, edge_id)
+    edge_id = parse_file(os.path.join(DATA_FOLDER, "Magellanic clouds.sol"), db, edge_id)
+
+    db.close()
