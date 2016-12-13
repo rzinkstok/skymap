@@ -1,5 +1,6 @@
 import math
 
+from skymap.milkyway import get_milky_way_boundary_for_area
 from skymap.constellations import get_constellation_boundaries_for_area
 from skymap.hyg import select_stars
 from skymap.map import *
@@ -158,10 +159,17 @@ class SkyMapMaker(object):
         scale = 6.1815*self.map.paper_width/465.0
         return scale * math.exp(-0.27 * magnitude)
 
+    def draw_milky_way(self):
+        edges = get_milky_way_boundary_for_area(self.map.min_longitude, self.map.max_longitude, self.map.min_latitude, self.map.max_latitude)
+        for e in edges:
+            e = self.map.map_line(e)
+            self.figure.draw_line(e, linewidth=0.5)
+
     def render(self, open=False):
         self.draw_parallels()
         self.draw_meridians()
         self.draw_constellation_boundaries()
+        self.draw_milky_way()
         self.draw_stars()
 
         #Clip the map area
