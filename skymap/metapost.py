@@ -53,38 +53,47 @@ class MetaPostFigure(object):
     def point_to_coordinates(p):
         return "({0}mm,{1}mm)".format(p.x, p.y)
 
-    def draw_rectange(self, p1, p2, color="black", linewidth=0.5):
+    def draw_rectangle(self, p1, p2, color="black", linewidth=0.5):
         c1 = self.point_to_coordinates(p1)
         c2 = self.point_to_coordinates(Point(p1.x, p2.y))
         c3 = self.point_to_coordinates(p2)
         c4 = self.point_to_coordinates(Point(p2.x, p1.y))
-        s = "draw {0}--{1}--{2}--{3}--cycle withcolor {4} withpen pencircle scaled {5}pt;\n".format(c1, c2, c3, c4, color, linewidth)
-        self.fp.write(s)
+        path = "{0}--{1}--{2}--{3}--cycle".format(c1, c2, c3, c4)
+        self.draw_path(path, color=color, linewidth=linewidth)
 
     def draw_line(self, line, color="black", linewidth=0.5, dotted=False, delay_write=False):
-        # dotted: dashed withdots scaled 0.5
         if not hasattr(line, "p1") or not hasattr(line, "p2"):
             raise DrawError
         c1 = self.point_to_coordinates(line.p1)
         c2 = self.point_to_coordinates(line.p2)
-        s = "draw {0}--{1} withcolor {2} withpen pencircle scaled {3}pt".format(c1, c2, color, linewidth)
-        if dotted:
-            s += " dashed withdots scaled 0.5"
+        path = "{0}--{1}".format(c1, c2)
+
+        self.draw_path(path, color=color, linewidth=linewidth, dotted=dotted, delay_write=delay_write)
+
+    def draw_polygon(self, polygon, color="black", linewidth=0.5, dashed=False, dotted=False, delay_write=False):
+        path = ""
+        for p in polygon.points:
+            c1 = self.point_to_coordinates(p)
+            path += "{0}--".format(c1)
+        if polygon.closed:
+            path += "{0}".format(self.point_to_coordinates(polygon.points[0]))
+        else:
+            path = path[:-2]
+        self.draw_path(path, color=color, linewidth=linewidth, dotted=dotted, dashed=dashed, delay_write=delay_write)
+
+    def fill_path(self, path, color, delay_write=False):
+        s = "fill "
+        s += path
+        s += " withcolor {0}".format(color)
         s += ";\n"
         if delay_write:
             self.delayed.append(s)
         else:
             self.fp.write(s)
 
-    def draw_polygon(self, polygon, color="black", linewidth=0.5, dashed=False, dotted=False, delay_write=False):
+    def draw_path(self, path, color="black", linewidth=0.5, dashed=False, dotted=False, delay_write=False):
         s = "draw "
-        for p in polygon.points:
-            c1 = self.point_to_coordinates(p)
-            s += "{0}--".format(c1)
-        if polygon.closed:
-            s+="{0}".format(self.point_to_coordinates(polygon.points[0]))
-        else:
-            s = s[:-2]
+        s += path
         s += " withcolor {0} withpen pencircle scaled {1}pt".format(color, linewidth)
         if dotted:
             s += " dashed withdots scaled {0}".format(linewidth)
@@ -96,36 +105,67 @@ class MetaPostFigure(object):
         else:
             self.fp.write(s)
 
+    def draw_curve(self, points, closed=False, color="black", linewidth=0.5, dashed=False, dotted=False, delay_write=False):
+        path = ""
+        for p in points:
+            c1 = self.point_to_coordinates(p)
+            path += "{0}..".format(c1)
+        if closed:
+            path += "cycle"
+        else:
+            path = path[:-2]
+        self.draw_path(path, color=color, linewidth=linewidth, dashed=dashed, dotted=dotted, delay_write=delay_write)
+
+    def fill_curve(self, curve, color="black", delay_write=False):
+        if curve[0] == curve[-1]:
+            curve = curve[:-1]
+        path = ""
+        for p in curve:
+            c1 = self.point_to_coordinates(p)
+            path += "{0}..".format(c1)
+        path = path[:-2]
+        path += "..cycle"
+        self.fill_path(path, color=color, delay_write=delay_write)
+
+    def draw_connected_curves(self, curves, color="black", linewidth=0.5, dashed=False, dotted=False, delay_write=False):
+        path = ""
+        for c in curves:
+            for p in c:
+                pp = self.point_to_coordinates(p)
+                path += "{0}..".format(pp)
+            path = path[:-2] + "--"
+        path = path[:-2]
+        #path += "cycle"
+        self.draw_path(path, color=color, linewidth=linewidth, dashed=dashed, dotted=dotted, delay_write=delay_write)
+
+    def fill_connected_curves(self, curves, color="black", delay_write=False):
+        path = ""
+        for c in curves:
+            for p in c:
+                pp = self.point_to_coordinates(p)
+                path += "{0}..".format(pp)
+            path = path[:-2] + "--"
+        path += "cycle"
+        self.fill_path(path, color=color, delay_write=delay_write)
+
     def draw_point(self, p, size, color="black"):
         c = self.point_to_coordinates(p)
         s = "draw {0} withcolor {1} withpen pencircle scaled {2}mm;\n".format(c, color, size)
         self.fp.write(s)
 
-    def draw_circle(self, circle, color="black", linewidth=0.5, dotted=False, delay_write=False):
+    def draw_circle(self, circle, color="black", linewidth=0.5, dotted=False, dashed=False, delay_write=False):
         if not hasattr(circle, "center") or not hasattr(circle, "radius"):
             raise DrawError
         c = self.point_to_coordinates(circle.center)
-        s = "draw fullcircle scaled {0}mm shifted {1} withcolor {2} withpen pencircle scaled {3}pt".format(2*circle.radius, c, color, linewidth)
-        if dotted:
-            s += " dashed withdots scaled {}".format(linewidth)
-        s += ";\n"
-        if delay_write:
-            self.delayed.append(s)
-        else:
-            self.fp.write(s)
+        path = "fullcircle scaled {0}mm shifted {1}".format(2*circle.radius, c)
+        self.draw_path(path, color=color, linewidth=linewidth, dotted=dotted, dashed=dashed, delay_write=delay_write)
 
     def draw_arc(self, arc, color="black", linewidth=0.5, dotted=False, delay_write=False):
         if not hasattr(arc, "center") or not hasattr(arc, "radius") or not hasattr(arc, "start_mp"):
             raise DrawError
         c = self.point_to_coordinates(arc.center)
-        s = "draw subpath ({}, {}) of fullcircle scaled {}mm shifted {} withcolor {} withpen pencircle scaled {}pt".format(arc.start_mp, arc.stop_mp, 2*arc.radius, c, color, linewidth)
-        if dotted:
-            s += " dashed withdots scaled {}".format(linewidth)
-        s += ";\n"
-        if delay_write:
-            self.delayed.append(s)
-        else:
-            self.fp.write(s)
+        path = "subpath ({}, {}) of fullcircle scaled {}mm shifted {}".format(arc.start_mp, arc.stop_mp, 2*arc.radius, c)
+        self.draw_path(path, color=color, linewidth=linewidth, dotted=dotted, delay_write=delay_write)
 
     def draw_text(self, p, text, pos, size="tiny", scale=None, angle=None, delay_write=False):
         o = self.point_to_coordinates(Point(0, 0))

@@ -110,18 +110,19 @@ class AzimuthalEquidistantMap(Map):
 
         self.min_longitude = 0
         self.max_longitude = 360
-        if north:
-            self.min_latitude = 0
+        self.north = north
+        if self.north:
+            self.min_latitude = 30
             self.max_latitude = 90
         else:
             self.min_latitude = -90
-            self.max_latitude = 0
+            self.max_latitude = -30
 
         self.draw_parallel_ticks_on_vertical_axis = False
         self.draw_meridian_ticks_on_vertical_axis = True
 
     def map_parallel(self, latitude):
-        parallel = Circle(SphericalPoint(0, self.projection.origin_latitude), latitude)
+        parallel = Circle(SphericalPoint(0, self.projection.origin_latitude), self.projection.origin_latitude - latitude)
         return self.map_circle(parallel)
 
     def map_meridian(self, longitude):
@@ -154,12 +155,13 @@ class EquidistantCylindricalMap(Map):
 
         Map.__init__(self, p, paper_size, margin_lr, margin_bt)
 
-        xrange = self.projection.reference_scale * self.map_size_x / self.map_size_y
-        yrange = self.projection.reference_scale
+        xrange = self.projection.reference_scale * self.map_size_x / self.map_size_y + 20
+        yrange = self.projection.reference_scale + 15
         self.min_longitude = center_longitude - xrange
         self.max_longitude = center_longitude + xrange
         self.min_latitude = -yrange
         self.max_latitude = yrange
+        self.north = None
 
     def map_parallel(self, latitude):
         p1 = SphericalPoint(self.projection.center_longitude - 2 * self.projection.reference_scale, latitude)
@@ -177,15 +179,16 @@ class EquidistantConicMap(Map):
         p = EquidistantConicProjection(center, standard_parallel1=standard_parallel1, standard_parallel2=standard_parallel2, reference_scale=reference_scale, celestial=celestial)
         Map.__init__(self, p, paper_size, margin_lr, margin_bt)
 
-        self.min_longitude = center[0] - 120
-        self.max_longitude = center[0] + 120
-        print self.min_longitude, self.max_longitude
+        self.min_longitude = center[0] - 100
+        self.max_longitude = center[0] + 100
         if p.reference_latitude > 0:
-            self.min_latitude = -70
+            self.north = True
+            self.min_latitude = -5
             self.max_latitude = 90
         else:
+            self.north = False
             self.min_latitude = -90
-            self.max_latitude = 70
+            self.max_latitude = +5
 
     def map_parallel(self, latitude):
         # Circle around origin

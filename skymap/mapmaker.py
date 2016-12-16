@@ -1,6 +1,7 @@
 import math
+import itertools
 
-from skymap.milkyway import get_milky_way_boundary_for_area
+from skymap.milkyway import get_milky_way_south_boundary, get_milky_way_north_boundary, get_milky_way_holes, get_magellanic_clouds
 from skymap.constellations import get_constellation_boundaries_for_area
 from skymap.hyg import select_stars
 from skymap.map import *
@@ -159,17 +160,81 @@ class SkyMapMaker(object):
         scale = 6.1815*self.map.paper_width/465.0
         return scale * math.exp(-0.27 * magnitude)
 
+    def split(self, curve):
+        pieces = [[]]
+        for i, p in enumerate(curve):
+            if i > 0:
+                prev_p = curve[i - 1]
+                dx = abs(p.x - prev_p.x)
+                if dx > 100:
+                    pieces.append([])
+            pieces[-1].append(p)
+        return pieces
+
+    def sort_curve(self, curve):
+        pieces = self.split(curve)
+        permutations = itertools.permutations([i for i in range(len(pieces))])
+        for perm in permutations:
+            pcurve = []
+            for p in perm:
+                pcurve += pieces[p]
+
+            if len(self.split(pcurve)) == 1:
+                return [pieces[i] for i in perm]
+
     def draw_milky_way(self):
-        edges = get_milky_way_boundary_for_area(self.map.min_longitude, self.map.max_longitude, self.map.min_latitude, self.map.max_latitude)
-        for e in edges:
-            e = self.map.map_line(e)
-            self.figure.draw_line(e, linewidth=0.5)
+        print
+        print "Drawing milky way"
+        self.figure.comment("Milky way")
+        north_curve = get_milky_way_north_boundary()
+        south_curve = get_milky_way_south_boundary()
+        holes = get_milky_way_holes()
+        magellan = get_magellanic_clouds()
+
+        # Map all points
+        north_curve = [self.map.map_point(p) for p in north_curve]
+        south_curve = [self.map.map_point(p) for p in south_curve]
+
+        self.figure.comment("Milky way fill")
+        if self.map.north is None:
+            north_curves = self.sort_curve(north_curve)
+            south_curves = self.sort_curve(south_curve)
+            curves = north_curves
+            curves.extend([[p for p in reversed(c)] for c in reversed(south_curves)])
+            self.figure.fill_connected_curves(curves, color="(0.6, 0.8, 1.0)")
+        elif self.map.north:
+            self.figure.fill_curve(south_curve, color="(0.6, 0.8, 1.0)")
+            self.figure.fill_curve(north_curve, color="(1, 1, 1)")
+        else:
+            self.figure.fill_curve(north_curve, color="(0.6, 0.8, 1.0)")
+            self.figure.fill_curve(south_curve, color="(1, 1, 1)")
+
+        self.figure.comment("Milky way outline")
+        if self.map.north is None:
+            self.figure.draw_connected_curves(curves, linewidth=0.5, color="black")
+        else:
+            self.figure.draw_curve(north_curve, linewidth=0.5, color="black")
+            self.figure.draw_curve(south_curve, linewidth=0.5, color="black")
+
+        self.figure.comment("Milky way holes")
+        for h in holes:
+            if len(self.split(h)) > 1:
+                continue
+            h = [self.map.map_point(p) for p in h]
+            self.figure.fill_curve(h, color="(1, 1, 1)")
+            self.figure.draw_curve(h, closed=True, linewidth=0.5, color="black")
+
+        self.figure.comment("Magellanic clouds")
+        for m in magellan:
+            m = [self.map.map_point(p) for p in m]
+            self.figure.fill_curve(m, color="(0.6, 0.8, 1.0)")
+            self.figure.draw_curve(m, closed=True, linewidth=0.5, color="black")
 
     def render(self, open=False):
+        self.draw_milky_way()
         self.draw_parallels()
         self.draw_meridians()
         self.draw_constellation_boundaries()
-        self.draw_milky_way()
         self.draw_stars()
 
         #Clip the map area
@@ -178,12 +243,12 @@ class SkyMapMaker(object):
         self.figure.clip(llborder, urborder)
 
         # Draw border
-        self.figure.draw_rectange(llborder, urborder)
+        self.figure.draw_rectangle(llborder, urborder)
 
         # Create bounding box for page
         llcorner = Point(0, 0)
         urcorner = Point(self.paper_size[0], self.paper_size[1])
-        self.figure.draw_rectange(llcorner, urcorner, linewidth=0)
+        self.figure.draw_rectangle(llcorner, urcorner, linewidth=0)
 
         # Finish
         self.figure.end_figure()
