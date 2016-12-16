@@ -1,4 +1,5 @@
 import math
+import re
 
 
 class HourAngle(object):
@@ -34,14 +35,11 @@ class HourAngle(object):
 
 
 class DMSAngle(object):
-    def __init__(self, degrees=0, minutes=0, seconds=0):
-        if degrees >= 0:
-            self.sign = 1
-        else:
-            self.sign = -1
-        self.degrees = abs(degrees)
+    def __init__(self, degrees=0, minutes=0, seconds=0, sign=1):
+        self.degrees = degrees
         self.minutes = minutes
         self.seconds = seconds
+        self.sign = sign
 
     def from_degrees(self, degrees):
         sign = degrees>=0
@@ -99,6 +97,16 @@ class Point(object):
         x = self.x - other.x
         y = self.y - other.y
         return Point(x, y)
+
+    def __mul__(self, other):
+        return Point(other * self.x, other * self.y)
+
+    def __rmul__(self, other):
+        return self.__mul__(other)
+
+    def __div__(self, other):
+        other = float(other)
+        return Point(self.x/other, self.y/other)
 
     def __eq__(self, other):
         return self.distance(other) < 1e-10
@@ -294,6 +302,12 @@ class Arc(Circle):
 
     def __str__(self):
         return "Arc({}, {}, start={}, stop={})".format(self.center, self.radius, self.start_angle, self.stop_angle)
+
+
+class Rectangle(object):
+    def __init__(self, p1, p2):
+        self.p1 = p1
+        self.p2 = p2
 
 
 def ensure_angle_range(angle):
