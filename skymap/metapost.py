@@ -51,7 +51,14 @@ class MetaPostFigure(object):
 
     @staticmethod
     def point_to_coordinates(p):
-        return "({0}mm,{1}mm)".format(p.x, p.y)
+        x = p.x
+        y = p.y
+        if abs(x) < 1e-6:
+            x = 0.0
+        if abs(y) < 1e-6:
+            y = 0.0
+
+        return "({0}mm,{1}mm)".format(x, y)
 
     def draw_rectangle(self, p1, p2, color="black", linewidth=0.5):
         c1 = self.point_to_coordinates(p1)
@@ -214,7 +221,7 @@ class MetaPostFigure(object):
             lines = fp.readlines()
         for l in lines:
             if l.startswith("%%HiResBoundingBox:"):
-                bb = [(2.54 / 72) * float(x) for x in l.split(":")[-1].split()]
+                bb = [10*(2.54 / 72) * float(x) for x in l.split(":")[-1].split()]
                 return bb
         return None
 
