@@ -33,7 +33,10 @@ class SkyMapDatabase(object):
 
     def query_one(self, q):
         rows = self.query(q)
-        return rows[0]
+        try:
+            return rows[0]
+        except IndexError:
+            return None
 
     def commit_query(self, q):
         self.cursor.execute(q)
@@ -42,12 +45,14 @@ class SkyMapDatabase(object):
 
 
 if __name__ == "__main__":
-    from hipparcos import build_hipparcos_database
-    from hyg import build_hyg_database
-    from constellations import build_constellation_database
-    from milkyway import build_milkyway_database
+    from skymap.hipparcos import build_hipparcos_database
+    from skymap.hyg import build_hyg_database
+    from skymap.constellations import build_constellation_database
+    from skymap.milkyway import build_milkyway_database
+    from skymap.labels import build_label_database
 
-    build_constellation_database()
-    build_hipparcos_database()
-    build_hyg_database()
-    build_milkyway_database()
+    #build_constellation_database()
+    #build_hipparcos_database()
+    #build_hyg_database()
+    #build_milkyway_database()
+    build_label_database()

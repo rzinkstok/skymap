@@ -309,6 +309,49 @@ class Rectangle(object):
         self.p1 = p1
         self.p2 = p2
 
+    def __str__(self):
+        return "Rectangle({}, {})".format(self.p1, self.p2)
+
+    @property
+    def center(self):
+        return 0.5*(self.p1 + self.p2)
+
+    @property
+    def size(self):
+        return abs(self.p2.x-self.p1.x), abs(self.p2.y - self.p1.y)
+
+    def overlap(self, other):
+        if isinstance(other, Rectangle):
+            left = max(self.p1.x, other.p1.x)
+            right = min(self.p2.x, other.p2.x)
+            bottom = max(self.p1.y, self.p1.y)
+            top = min(self.p2.y, other.p2.y)
+
+            if left < right:
+                w = right - left
+            else:
+                return 0
+            if bottom < top:
+                h = top - bottom
+            else:
+                return 0
+            return w*h
+
+        if isinstance(other, Circle):
+            left = max(self.p1.x, other.center.x - other.radius)
+            right = min(self.p2.x, other.center.x + other.radius)
+            bottom = max(self.p1.y, other.center.y - other.radius)
+            top = min(self.p2.y, other.center.y + other.radius)
+            if left < right:
+                w = right - left
+            else:
+                return 0
+            if bottom < top:
+                h = top - bottom
+            else:
+                return 0
+            return w*h
+
 
 def ensure_angle_range(angle):
     while angle < 0:
