@@ -3,8 +3,6 @@ from skymap.geometry import Point, SphericalPoint, Line, Polygon, Circle, Arc, H
 from skymap.metapost import MetaPostFigure
 from skymap.projections import AzimuthalEquidistantProjection, EquidistantCylindricalProjection, EquidistantConicProjection
 
-FAINTEST_MAGNITUDE = 8
-
 
 class Map(object):
     def __init__(self, projection, paper_size, margin_lr, margin_bt):

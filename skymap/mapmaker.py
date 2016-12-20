@@ -5,19 +5,24 @@ from skymap.milkyway import get_milky_way_south_boundary, get_milky_way_north_bo
 from skymap.constellations import get_constellation_boundaries_for_area
 from skymap.hyg import select_stars
 from skymap.map import *
+from skymap.labels import LabelManager
 
 
 A4_SIZE = (297.0, 210.0)
+A3_SIZE = (420.0, 297.0)
+LINEWIDTH = 0.75
+FAINTEST_MAGNITUDE = 7
 
 
 class SkyMapMaker(object):
-    def __init__(self, filename=None, paper_size=A4_SIZE, margin_lr=(20, 20), margin_bt=(20, 20)):
+    def __init__(self, filename=None, paper_size=A3_SIZE, margin_lr=(20, 20), margin_bt=(20, 20)):
         self.filename = filename
         self.paper_size = paper_size
         self.margin_lr = margin_lr
         self.margin_bt = margin_bt
         self.map = None
         self.figure = None
+        self.labelmanager = LabelManager()
 
     def set_filename(self, filename):
         self.filename = filename
@@ -47,9 +52,9 @@ class SkyMapMaker(object):
         for latitude in range(min_latitude, int(self.map.max_latitude) + 1, int(increment)):
             parallel = self.map.map_parallel(latitude)
             if isinstance(parallel, Circle):
-                self.figure.draw_circle(parallel, linewidth=0.2)
+                self.figure.draw_circle(parallel, linewidth=LINEWIDTH)
             else:
-                self.figure.draw_line(parallel, linewidth=0.2)
+                self.figure.draw_line(parallel, linewidth=LINEWIDTH)
             marker = "{0}$^{{\\circ}}$".format(latitude)
             self.draw_ticks(parallel, marker, self.map.draw_parallel_ticks_on_horizontal_axis, self.map.draw_parallel_ticks_on_vertical_axis)
 
@@ -66,9 +71,9 @@ class SkyMapMaker(object):
         for longitude in range(min_longitude, max_longitude, int(increment)):
             meridian = self.map.map_meridian(longitude)
             if isinstance(meridian, Circle):
-                self.figure.draw_circle(meridian, linewidth=0.2)
+                self.figure.draw_circle(meridian, linewidth=LINEWIDTH)
             else:
-                self.figure.draw_line(meridian, linewidth=0.2)
+                self.figure.draw_line(meridian, linewidth=LINEWIDTH)
             if self.map.projection.celestial:
                 ha = HourAngle()
                 ha.from_degrees(longitude)
@@ -105,7 +110,7 @@ class SkyMapMaker(object):
                 continue
             points = [self.map.map_point(p) for p in e.interpolated_points]
             polygon = Polygon(points, closed=False)
-            self.figure.draw_polygon(polygon, linewidth=0.2, dashed=True)
+            self.figure.draw_polygon(polygon, linewidth=LINEWIDTH, dashed=True)
             drawn_edges.append(e.identifier)
             drawn_edges.append(e.complement)
 
@@ -146,13 +151,13 @@ class SkyMapMaker(object):
             self.figure.draw_line(l, linewidth=0.25)
             print "MULTIPLE:", star, star.mag, star.position
 
+        self.labelmanager.add_object(Circle(p, 0.5 * size))
+
         # Print text
-        if star.identifier_string.strip():
-            text_pos = Point(p.x + 0.5 * size - 0.9, p.y)
-            self.figure.draw_text(text_pos, star.identifier_string, "rt", "tiny", scale=0.75, delay_write=True)
         if star.proper:
-            text_pos = Point(p.x, p.y - 0.5 * size + 0.8)
-            self.figure.draw_text(text_pos, star.proper, "bot", "tiny", scale=0.75, delay_write=True)
+            self.labelmanager.add_label(p, star.proper, "tiny", extra_distance=0.5 * size - 0.7)
+        elif star.identifier_string.strip():
+            self.labelmanager.add_label(p, star.identifier_string, "tiny", extra_distance=0.5 * size - 0.7)
 
     def magnitude_to_size(self, magnitude):
         if magnitude < -0.5:
@@ -213,8 +218,8 @@ class SkyMapMaker(object):
         if self.map.north is None:
             self.figure.draw_connected_curves(curves, linewidth=0.5, color="black")
         else:
-            self.figure.draw_curve(north_curve, linewidth=0.5, color="black")
-            self.figure.draw_curve(south_curve, linewidth=0.5, color="black")
+            self.figure.draw_curve(north_curve, linewidth=LINEWIDTH, color="black")
+            self.figure.draw_curve(south_curve, linewidth=LINEWIDTH, color="black")
 
         self.figure.comment("Milky way holes")
         for h in holes:
@@ -236,6 +241,9 @@ class SkyMapMaker(object):
         self.draw_meridians()
         self.draw_constellation_boundaries()
         self.draw_stars()
+
+        print "Drawing labels"
+        self.labelmanager.draw_labels(self.figure)
 
         #Clip the map area
         llborder = Point(self.margin_lr[0], self.margin_bt[0])
