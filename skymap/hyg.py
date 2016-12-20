@@ -59,7 +59,7 @@ class Star(object):
         else:
             bayer = "$\\{0}$".format(GREEK_LETTERS[parts[0]])
         if len(parts) == 2:
-            bayer += "$^{0}$".format(parts[1])
+            bayer += "\\textsuperscript{" + parts[1] + "}" #"$^{0}$".format(parts[1])
         return bayer
 
     @property
@@ -187,7 +187,7 @@ def build_hyg_database():
 
     # Create table
     db.commit_query("""CREATE TABLE hygdata (
-                    hyg INT,
+                    hyg INT PRIMARY KEY,
                     hip INT,
                     hd INT,
                     hr INT,

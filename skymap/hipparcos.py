@@ -252,7 +252,7 @@ def build_hipparcos_database():
 
     # Create main table
     db.commit_query("""CREATE TABLE hipparcos_main (
-                  id INT,
+                  id INT PRIMARY KEY,
                   component TEXT,
                   classes TEXT,
                   groups TEXT,
@@ -311,7 +311,7 @@ def build_hipparcos_database():
 
     # Create photo table
     db.commit_query("""CREATE TABLE hipparcos_photo (
-                          id int,
+                          id int PRIMARY KEY,
                           median_magnitude real,
                           se_median_magnitude real,
                           reference_flag_median_magnitude text,
@@ -351,7 +351,7 @@ def build_hipparcos_database():
 
     # Create biblio table
     db.commit_query("""CREATE TABLE hipparcos_biblio (
-                        id int,
+                        id int PRIMARY KEY,
                         henri_draper_id text,
                         constellation text,
                         millenium_star_atlas_page int,
