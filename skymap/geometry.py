@@ -253,6 +253,9 @@ class Circle(object):
     def __str__(self):
         return "Circle({0}, {1})".format(self.center, self.radius)
 
+    def __repr__(self):
+        return self.__str__()
+
     def intersect_line(self, line):
         # ax+by+c = 0
         a = line.p1.y - line.p2.y
@@ -306,8 +309,8 @@ class Arc(Circle):
 
 class Rectangle(object):
     def __init__(self, p1, p2):
-        self.p1 = p1
-        self.p2 = p2
+        self.p1 = Point(min(p1.x, p2.x), min(p1.y, p2.y))
+        self.p2 = Point(max(p1.x, p2.x), max(p1.y, p2.y))
 
     def __str__(self):
         return "Rectangle({}, {})".format(self.p1, self.p2)
@@ -324,7 +327,7 @@ class Rectangle(object):
         if isinstance(other, Rectangle):
             left = max(self.p1.x, other.p1.x)
             right = min(self.p2.x, other.p2.x)
-            bottom = max(self.p1.y, self.p1.y)
+            bottom = max(self.p1.y, other.p1.y)
             top = min(self.p2.y, other.p2.y)
 
             if left < right:
