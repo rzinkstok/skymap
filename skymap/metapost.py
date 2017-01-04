@@ -60,11 +60,11 @@ class MetaPostFigure(object):
 
         return "({0}mm,{1}mm)".format(x, y)
 
-    def draw_rectangle(self, p1, p2, color="black", linewidth=0.5):
-        c1 = self.point_to_coordinates(p1)
-        c2 = self.point_to_coordinates(Point(p1.x, p2.y))
-        c3 = self.point_to_coordinates(p2)
-        c4 = self.point_to_coordinates(Point(p2.x, p1.y))
+    def draw_rectangle(self, rectangle, color="black", linewidth=0.5):
+        c1 = self.point_to_coordinates(rectangle.p1)
+        c2 = self.point_to_coordinates(Point(rectangle.p1.x, rectangle.p2.y))
+        c3 = self.point_to_coordinates(rectangle.p2)
+        c4 = self.point_to_coordinates(Point(rectangle.p2.x, rectangle.p1.y))
         path = "{0}--{1}--{2}--{3}--cycle".format(c1, c2, c3, c4)
         self.draw_path(path, color=color, linewidth=linewidth)
 

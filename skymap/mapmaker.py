@@ -3,15 +3,17 @@ import itertools
 
 from skymap.milkyway import get_milky_way_south_boundary, get_milky_way_north_boundary, get_milky_way_holes, get_magellanic_clouds
 from skymap.constellations import get_constellation_boundaries_for_area
-from skymap.hyg import select_stars
+from skymap.stars import select_stars
 from skymap.map import *
 from skymap.labels import LabelManager
+from skymap.geometry import Rectangle
 
 
 A4_SIZE = (297.0, 210.0)
 A3_SIZE = (420.0, 297.0)
-LINEWIDTH = 0.75
-FAINTEST_MAGNITUDE = 7
+A2_SIZE = (594.0, 420.0)
+LINEWIDTH = 0.5
+FAINTEST_MAGNITUDE = 8.5
 
 
 class SkyMapMaker(object):
@@ -32,14 +34,17 @@ class SkyMapMaker(object):
     # Map types
     def set_polar(self, filename, north=True, vertical_range=50):
         self.set_filename(filename)
+        self.labelmanager = LabelManager()
         self.map = AzimuthalEquidistantMap(self.paper_size, self.margin_lr, self.margin_bt, north=north, reference_scale=vertical_range/2.0, celestial=True)
 
     def set_intermediate(self, filename, center, standard_parallel1=30, standard_parallel2=60, vertical_range=50):
         self.set_filename(filename)
+        self.labelmanager = LabelManager()
         self.map = EquidistantConicMap(self.paper_size, self.margin_lr, self.margin_bt, center, standard_parallel1=standard_parallel1, standard_parallel2=standard_parallel2, reference_scale=vertical_range/2.0, celestial=True)
 
     def set_equatorial(self, filename, center_longitude, standard_parallel=25, vertical_range=50):
         self.set_filename(filename)
+        self.labelmanager = LabelManager()
         self.map = EquidistantCylindricalMap(self.paper_size, self.margin_lr, self.margin_bt, center_longitude=center_longitude, standard_parallel=standard_parallel, reference_scale=vertical_range/2.0, celestial=True)
 
     # Drawing functions
@@ -130,17 +135,17 @@ class SkyMapMaker(object):
 
         # Print the star itself
         if star.is_variable:
-            min_size = self.magnitude_to_size(star.var_min)
-            max_size = self.magnitude_to_size(star.var_max)
-            self.figure.draw_point(p, max_size + 0.15, color="white")
+            min_size = self.magnitude_to_size(star.min_magnitude)
+            max_size = self.magnitude_to_size(star.max_magnitude)
+            self.figure.draw_point(p, max_size + 0.3*LINEWIDTH, color="white")
             c = Circle(p, 0.5 * max_size)
-            self.figure.draw_circle(c, linewidth=0.15)
-            if star.var_min < FAINTEST_MAGNITUDE:
+            self.figure.draw_circle(c, linewidth=0.3*LINEWIDTH)
+            if star.min_magnitude < FAINTEST_MAGNITUDE:
                 self.figure.draw_point(p, min_size)
             size = max_size
         else:
-            size = self.magnitude_to_size(star.mag)
-            self.figure.draw_point(p, size + 0.15, color="white")
+            size = self.magnitude_to_size(star.magnitude)
+            self.figure.draw_point(p, size + 0.3*LINEWIDTH, color="white")
             self.figure.draw_point(p, size)
 
         # Print the multiple bar
@@ -149,21 +154,24 @@ class SkyMapMaker(object):
             p2 = Point(p[0] + 0.5 * size + 0.2, p[1])
             l = Line(p1, p2)
             self.figure.draw_line(l, linewidth=0.25)
-            print "MULTIPLE:", star, star.mag, star.position
+            print "MULTIPLE:", star, star.magnitude, star.position
 
-        self.labelmanager.add_object(Circle(p, 0.5 * size))
+        o = Circle(p, 0.5 * size)
+        self.labelmanager.add_object(o)
 
         # Print text
-        if star.proper:
-            self.labelmanager.add_label(p, star.proper, "tiny", extra_distance=0.5 * size - 0.7)
+        if star.proper_name:
+            print p
+            self.labelmanager.add_label(p, star.proper_name, "tiny", extra_distance=0.5 * size - 0.7, object_for=o)
         elif star.identifier_string.strip():
-            self.labelmanager.add_label(p, star.identifier_string, "tiny", extra_distance=0.5 * size - 0.7)
+            self.labelmanager.add_label(p, star.identifier_string, "tiny", extra_distance=0.5 * size - 0.7, object_for=o)
 
     def magnitude_to_size(self, magnitude):
         if magnitude < -0.5:
             magnitude = -0.5
-        scale = 6.1815*self.map.paper_width/465.0
-        return scale * math.exp(-0.27 * magnitude)
+        #scale = 6.1815*self.map.paper_width/465.0
+        #return scale * math.exp(-0.27 * magnitude)
+        return 0.8*(25.4/1200) * pow(4.3486 - 0.2503*magnitude, 1/0.26)
 
     def split(self, curve):
         pieces = [[]]
@@ -251,12 +259,15 @@ class SkyMapMaker(object):
         self.figure.clip(llborder, urborder)
 
         # Draw border
-        self.figure.draw_rectangle(llborder, urborder)
+        self.figure.draw_rectangle(Rectangle(llborder, urborder))
+        llborder = Point(self.margin_lr[0] - 10, self.margin_bt[0] - 10)
+        urborder = Point(self.paper_size[0] - self.margin_lr[1] + 10, self.paper_size[1] - self.margin_bt[1] + 10)
+        self.figure.draw_rectangle(Rectangle(llborder, urborder), linewidth=1.0)
 
         # Create bounding box for page
         llcorner = Point(0, 0)
         urcorner = Point(self.paper_size[0], self.paper_size[1])
-        self.figure.draw_rectangle(llcorner, urcorner, linewidth=0)
+        self.figure.draw_rectangle(Rectangle(llcorner, urcorner), linewidth=0)
 
         # Finish
         self.figure.end_figure()

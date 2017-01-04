@@ -1,5 +1,4 @@
 import math
-import re
 
 
 class HourAngle(object):
@@ -26,6 +25,9 @@ class HourAngle(object):
         fractional_minutes = (fractional_hours - self.hours) * 60.0
         self.minutes = int(fractional_minutes)
         self.seconds = (fractional_minutes - self.minutes) * 60.0
+
+    def to_fractional_hours(self):
+        return self.hours + self.minutes/60.0 + self.seconds/3600.0
 
     def __repr__(self):
         return "HA {0}h {1}m {2}s".format(self.hours, self.minutes, self.seconds)

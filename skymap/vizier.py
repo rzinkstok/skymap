@@ -1,6 +1,7 @@
 import os
 import sys
 import re
+import time
 import ftplib
 import gzip
 from functools import partial
@@ -11,7 +12,6 @@ from skymap.database import SkyMapDatabase
 VIZIER_SERVER = "cdsarc.u-strasbg.fr"
 DATA_FOLDER = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), "data")
 BYTE_PATTERN = re.compile("^\s*(\d+)(\-\s*(\d+))?\s+(([A-Z])\d*(\.\d+)?)\s+\S+\s+(\S+)\s")
-VIZIER_DB = os.path.join(DATA_FOLDER, "vizier.db")
 VIZIER_FORMATS = {"I": int, "A": str, "F": float}
 
 
@@ -25,7 +25,7 @@ def parse_readme(foldername):
     datadicts = {}
 
     for l in lines:
-        if l.startswith("Byte-by-byte Description of file:"):
+        if l.startswith("Byte-by-byte Description of file:") or l.startswith("Byte-per-byte Description of file:"):
             current_files = [x.strip() for x in l.split(":")[-1].split(",")]
 
         if current_files:
@@ -58,7 +58,7 @@ def parse_readme(foldername):
     return datadicts
 
 
-def parse_datafile(db, foldername, filename, table, datadicts):
+def parse_datafile(db, foldername, filename, table, datadicts, columns):
     print
     print "Parsing", filename
 
@@ -77,12 +77,14 @@ def parse_datafile(db, foldername, filename, table, datadicts):
     nrecords = len(fp.readlines())
     rewind()
 
+    batchsize = 1000
+    batch = []
     for i, line in enumerate(fp):
         sys.stdout.write("\r{0:.1f}%".format(i * 100.0 / (nrecords - 1)))
         sys.stdout.flush()
         values = []
         for d in datadicts:
-            s = line[d['startbyte']:d['stopbyte']].strip()
+            s = line[d['startbyte']:d['stopbyte']]
             t = d['format']
             if not s and t is not str:
                 v = None
@@ -92,7 +94,12 @@ def parse_datafile(db, foldername, filename, table, datadicts):
                 except ValueError:
                     v = None
             values.append(v)
-        db.insert_row(table, values)
+        batch.append(values)
+        if len(batch) == batchsize:
+            db.insert_rows(table, columns, batch)
+            batch = []
+    if batch:
+        db.insert_rows(table, columns, batch)
 
 
 def get_files(catalogue, foldername):
@@ -127,19 +134,24 @@ def get_files(catalogue, foldername):
     return files
 
 
-def build_database(catalogue, foldername):
+def build_database(catalogue, foldername, indices=(), extra_function=None):
     print
     print "Building database for {} ({})".format(catalogue, foldername)
+    t1 = time.time()
     files = get_files(catalogue, foldername)
     datadicts = parse_readme(foldername)
-    db = SkyMapDatabase(VIZIER_DB)
+    db = SkyMapDatabase()
     for f, dds in datadicts.items():
         table = "{}_{}".format(foldername, f.split(".")[0])
         db.drop_table(table)
 
         columns = []
         lc_columns = []
-        for c in [dd["label"] for dd in dds]:
+        datatypes = []
+        for dd in dds:
+            c = dd["label"]
+
+            # Check for columns that have equivalent names
             i = 1
             while c.lower() in lc_columns:
                 if i == 1:
@@ -150,21 +162,50 @@ def build_database(catalogue, foldername):
 
             lc_columns.append(c.lower())
             columns.append(c)
+            datatypes.append(dd['format'])
 
-        datatypes = [dd['format'] for dd in dds]
         db.create_table(table, columns, datatypes)
 
-        real_files = [file for file in files if file.startswith(f)]
+        real_files = [fn for fn in files if fn.startswith(f)]
         for real_file in real_files:
-            parse_datafile(db, foldername, real_file, table, dds)
+            parse_datafile(db, foldername, real_file, table, dds, columns)
+        for i in indices:
+            if i in columns:
+                db.add_index(table, i)
+
+    t2 = time.time()
+    print "Time: {} s".format(t2-t1)
+
+    if extra_function:
+        extra_function()
+
+
+def split_tyc():
+    db = SkyMapDatabase()
+    db.commit_query("""
+        ALTER TABLE hiptyc_tyc_main
+        ADD COLUMN `TYC1` INT AFTER `TYC`,
+        ADD COLUMN `TYC2` INT AFTER `TYC1`,
+        ADD COLUMN `TYC3` INT AFTER `TYC2`
+    """)
+    db.commit_query("""
+        UPDATE hiptyc_tyc_main
+        SET TYC1=CAST(substr(TYC, 1, 4) AS UNSIGNED), TYC2=CAST(substr(hiptyc_tyc_main.TYC, 5, 6) AS UNSIGNED), TYC3=CAST(substr(hiptyc_tyc_main.TYC, 11, 2) AS UNSIGNED)
+    """)
+    db.add_index("hiptyc_tyc_main", "TYC1")
+    db.add_index("hiptyc_tyc_main", "TYC2")
+    db.add_index("hiptyc_tyc_main", "TYC3")
 
 
 if __name__ == "__main__":
-    #build_database("V/137D", "xhip")
-    #build_database("I/259", "tyc2")
-    #build_database("IV/27A", "cross_index")
-    #build_database("IV/25", "tyc2hd")
-    build_database("I/274", "ccdm")
-    build_database("B/gcvs", "gcvs")
-    build_database("I/239", "hiptyc")
-    build_database("I/276", "tdsc")
+    build_database("VI/42", "cst_id")
+
+    # build_database("I/239", "hiptyc", indices=["HIP"], extra_function=split_tyc)
+    # build_database("I/259", "tyc2", indices=["TYC1", "TYC2", "TYC3"])
+    # build_database("IV/25", "tyc2hd", indices=["TYC1", "TYC2", "TYC3", "HD"])
+    # build_database("IV/27A", "cross_index", indices=["HD"])
+
+    # build_database("I/274", "ccdm")
+    # build_database("B/gcvs", "gcvs")
+    # build_database("I/276", "tdsc")
+    # build_database("VII/118", "ngc")

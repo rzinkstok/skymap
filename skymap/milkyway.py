@@ -4,7 +4,7 @@ import re
 from skymap.database import SkyMapDatabase
 from skymap.geometry import HourAngle, DMSAngle, SphericalPoint
 
-DATA_FOLDER = os.path.dirname(os.path.realpath(__file__))
+DATA_FOLDER = os.path.join(os.path.dirname(os.path.realpath(__file__)), "data", "milkyway")
 URL = "http://www.skymap.com/files/overlays/milky.zip"
 
 

@@ -15,7 +15,7 @@ class Map(object):
         self.min_latitude = None
         self.max_latitude = None
 
-        self.set_origin(Point(self.paper_width/2.0, self.paper_height/2.0))
+        self.set_origin(Point(self.paper_width/2.0, self.paper_height/2.0), set_scale=False)
         self.set_vertical_scale(2.0)
 
         self.draw_parallel_ticks_on_vertical_axis = True
@@ -56,17 +56,20 @@ class Map(object):
         self.top_border = Line(self.map_ur_corner, self.map_ul_corner)
         self.left_border = Line(self.map_ul_corner, self.map_ll_corner)
 
-    def set_origin(self, origin):
+    def set_origin(self, origin, set_scale=True):
         self.origin = origin
+        if set_scale:
+            self.set_vertical_scale()
 
-    def set_vertical_scale(self, scale):
-        self.conversion = scale/self.map_size_y
+    def set_vertical_scale(self, scale=None):
+        if scale is not None:
+            self.conversion = scale/self.map_size_y
+            self.extent_x = self.conversion * self.map_size_x
+            self.extent_y = self.conversion * self.map_size_y
 
-        self.extent_x = self.conversion * self.map_size_x
         self.min_x = self.conversion * (self.margin_left - self.origin.x)
         self.max_x = self.min_x + self.extent_x
 
-        self.extent_y = self.conversion * self.map_size_y
         self.min_y = self.conversion * (self.margin_bottom - self.origin.y)
         self.max_y = self.min_y + self.extent_y
 

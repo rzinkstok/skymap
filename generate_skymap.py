@@ -1,9 +1,10 @@
 import os
 from skymap.map import AzimuthalEquidistantMap, EquidistantCylindricalMap, EquidistantConicMap
 from skymap.mapmaker import SkyMapMaker
+from skymap.geometry import Point
 
 
-def build_atlas(path="atlas"):
+def build_cambridge_atlas(path="atlas"):
     if not os.path.exists(path):
         os.makedirs(path)
 
@@ -11,7 +12,7 @@ def build_atlas(path="atlas"):
 
     m.set_polar("atlas/01.pdf", north=True, vertical_range=50)
     m.render()
-
+    return
     m.set_polar("atlas/20.pdf", north=False, vertical_range=50)
     m.render()
 
@@ -28,17 +29,32 @@ def build_atlas(path="atlas"):
         m.render()
 
 
-def label_size_test():
-    from skymap.metapost import MetaPostFigure
-    from skymap.geometry import Point
+def build_sky_atlas_2000(path="skyatlas2000"):
+    if not os.path.exists(path):
+        os.makedirs(path)
 
-    m = MetaPostFigure("bliep")
-    m.draw_text(Point(10, 0), "Bliep!", "rt")
-    m.end_figure()
-    print m.bounding_box()
-    print m.bounding_box_size()
+    m = SkyMapMaker()
+    m.set_intermediate("skyatlas2000/01.pdf", (90, 70), standard_parallel1=90, standard_parallel2=60, vertical_range=40)
+    m.map.set_origin(Point(m.paper_size[0]/3.0, m.paper_size[1]/2.0))
 
-build_atlas()
-#label_size_test()
+    m.render()
+
+    m.set_intermediate("skyatlas2000/02.pdf", (210, 70), standard_parallel1=90, standard_parallel2=60, vertical_range=40)
+    m.map.set_origin(Point(m.paper_size[0] / 3.0, m.paper_size[1] / 2.0))
+
+    m.render()
+
+    m.set_intermediate("skyatlas2000/03.pdf", (330, 70), standard_parallel1=90, standard_parallel2=60, vertical_range=40)
+    m.map.set_origin(Point(m.paper_size[0] / 3.0, m.paper_size[1] / 2.0))
+
+    m.render()
+
+
+    pass
+
+
+
+#build_cambridge_star_atlas()
+build_sky_atlas_2000()
 
 
