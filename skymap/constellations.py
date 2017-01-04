@@ -1,8 +1,8 @@
 import sys
 import os
 import math
+import numpy
 import datetime
-import time
 import urllib
 
 from skymap.database import SkyMapDatabase
@@ -102,6 +102,22 @@ CONSTELLATIONS = {
     'vol': 'Volans',
     'vul': 'Vulpecula'
 }
+
+
+REFERENCE_EPOCH = datetime.datetime(2000, 1, 1).date()
+CONST_BOUND_EPOCH = datetime.datetime(1875, 1, 1).date()
+
+
+def determine_constellation(ra, de, db):
+    ra, de = precess(ra, de, REFERENCE_EPOCH, CONST_BOUND_EPOCH)
+    ra /= 15.0  # Convert to fractional hours of right ascension
+
+    q = """
+            SELECT const
+            FROM skymap.cst_id_data
+            WHERE DE_low < {0} AND RA_low <= {1}  AND RA_up > {1} ORDER BY pk LIMIT 1
+        """.format(de, ra)
+    return db.query_one(q)['const'].lower()
 
 
 def fractional_year(date):
@@ -300,6 +316,69 @@ def get_edge(id):
     return BoundaryEdge(row)
 
 
+def precess(ra, dec, epoch1, epoch2):
+    # from epoch1 to 2000.0
+    ra = math.radians(ra)
+    dec = math.radians(dec)
+    cd = math.cos(dec)
+    v1 = numpy.array([math.cos(ra) * cd, math.sin(ra) * cd, math.sin(dec)])
+    T1 = (epoch1 - REFERENCE_EPOCH).days/36525.0
+
+    X =  0.0007362625 + 0.6405786742 * T1 + 0.00008301386111 * T1**2 + 0.000005005077778 * T1**3 - 0.000000001658611 * T1**4 - 8.813888889e-11 * T1**5
+    Z = -0.0007362625 + 0.6405769947 * T1 + 0.0003035374444  * T1**2 + 0.000005074547222 * T1**3 - 0.000000007943333 * T1**4 - 8.066666667e-11 * T1**5
+    T =                 0.5567199731 * T1 - 0.0001193037222  * T1**2 - 0.0000116174      * T1**3 - 0.000000001969167 * T1**4 - 3.538888889E-11 * T1**5
+    X = math.radians(X)
+    Z = math.radians(Z)
+    T = math.radians(T)
+
+    CX = math.cos(X)
+    SX = math.sin(X)
+    CZ = math.cos(Z)
+    SZ = math.sin(Z)
+    CT = math.cos(T)
+    ST = math.sin(T)
+
+    Pinv = numpy.array([
+        [ CX * CT * CZ - SX * SZ,  CX * CT * SZ + SX * CZ,  CX * ST],
+        [-SX * CT * CZ - CX * SZ, -SX * CT * SZ + CX * CZ, -SX * ST],
+        [-ST * CZ,                -ST * SZ,                 CT]
+    ])
+
+    v0 = numpy.dot(Pinv, v1)
+
+    # from 2000.0 to date2
+    T2 = (epoch2 - REFERENCE_EPOCH).days / 36525.0
+
+    X =  0.0007362625 + 0.6405786742 * T2 + 0.00008301386111 * T2**2 + 0.000005005077778 * T2**3 - 0.000000001658611 * T2**4 - 8.813888889e-11 * T2**5
+    Z = -0.0007362625 + 0.6405769947 * T2 + 0.0003035374444  * T2**2 + 0.000005074547222 * T2**3 - 0.000000007943333 * T2**4 - 8.066666667e-11 * T2**5
+    T =                 0.5567199731 * T2 - 0.0001193037222  * T2**2 - 0.0000116174      * T2**3 - 0.000000001969167 * T2**4 - 3.538888889E-11 * T2**5
+    X = math.radians(X)
+    Z = math.radians(Z)
+    T = math.radians(T)
+
+    CX = math.cos(X)
+    SX = math.sin(X)
+    CZ = math.cos(Z)
+    SZ = math.sin(Z)
+    CT = math.cos(T)
+    ST = math.sin(T)
+
+    P = numpy.array([
+        [CX * CT * CZ - SX * SZ, -SX * CT * CZ - CX * SZ, -ST * CZ],
+        [CX * CT * SZ + SX * CZ, -SX * CT * SZ + CX * CZ, -ST * SZ],
+        [CX * ST,                -SX * ST,                 CT]
+    ])
+
+    v2 = numpy.dot(P, v0)
+
+    ra2 = math.atan2(v2[1], v2[0])
+    if ra2 < 0:
+        ra2 += 2 * math.pi
+    dec2 = math.asin(v2[2])
+
+    return math.degrees(ra2), math.degrees(dec2)
+
+
 def herget_precession(ra1, dec1, epoch1, epoch2):
     # ra1 and dec1 in degrees, epoch1 and epoch2 in years AD
     ra1 = math.radians(ra1)
@@ -483,5 +562,35 @@ def pair_edges(db):
         print("")
         print("Unpaired edges left over:")
         print(unpaired_edges)
+
+
+if __name__ == "__main__":
+    # import time
+    # from skymap.stars import Star
+    #
+    # db = SkyMapDatabase()
+    #
+    # s = Star(db.query_one("SELECT * FROM dummy WHERE proper_name='Acrux'"))
+    # print CONSTELLATIONS[determine_constellation(s.right_ascension, s.declination, db)]
+
+    ra1 = 0
+    dec1 = 90
+
+    e0 = datetime.datetime(2000, 1, 1).date()
+
+    e1 = datetime.datetime(1700, 1, 1).date()
+    print precess(ra1, dec1, e0, e1)
+    e1 = datetime.datetime(1800, 1, 1).date()
+    print precess(ra1, dec1, e0, e1)
+    e1 = datetime.datetime(1900, 1, 1).date()
+    print precess(ra1, dec1, e0, e1)
+    e1 = datetime.datetime(2100, 1, 1).date()
+    print precess(ra1, dec1, e0, e1)
+    e1 = datetime.datetime(2200, 1, 1).date()
+    print precess(ra1, dec1, e0, e1)
+    e1 = datetime.datetime(2300, 1, 1).date()
+    print precess(ra1, dec1, e0, e1)
+
+
 
 
