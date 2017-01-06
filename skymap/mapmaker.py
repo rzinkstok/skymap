@@ -13,7 +13,7 @@ A4_SIZE = (297.0, 210.0)
 A3_SIZE = (420.0, 297.0)
 A2_SIZE = (594.0, 420.0)
 LINEWIDTH = 0.5
-FAINTEST_MAGNITUDE = 8.5
+FAINTEST_MAGNITUDE = 12
 
 
 class SkyMapMaker(object):
@@ -103,21 +103,16 @@ class SkyMapMaker(object):
                 for p in points:
                     self.figure.draw_text(p, text, pos, size="small", delay_write=True)
 
-    def draw_constellation_boundaries(self, constellation=None):
+    def draw_constellation_boundaries(self):
         print
         print "Drawing constellation borders"
         self.figure.comment("Constellation boundaries", True)
 
-        drawn_edges = []
-        edges = get_constellation_boundaries_for_area(self.map.min_longitude, self.map.max_longitude, self.map.min_latitude, self.map.max_latitude, constellation=constellation)
+        edges = get_constellation_boundaries_for_area(self.map.min_longitude, self.map.max_longitude, self.map.min_latitude, self.map.max_latitude)
         for e in edges:
-            if e.identifier in drawn_edges:
-                continue
             points = [self.map.map_point(p) for p in e.interpolated_points]
             polygon = Polygon(points, closed=False)
             self.figure.draw_polygon(polygon, linewidth=LINEWIDTH, dashed=True)
-            drawn_edges.append(e.identifier)
-            drawn_edges.append(e.complement)
 
     def draw_stars(self):
         print
@@ -126,6 +121,16 @@ class SkyMapMaker(object):
 
         stars = select_stars(magnitude=FAINTEST_MAGNITUDE, constellation=None, ra_range=(self.map.min_longitude, self.map.max_longitude), dec_range=(self.map.min_latitude, self.map.max_latitude))
         for star in stars:
+            # print
+            # print "HIP:", star.hip
+            # print "Bayer/Flamsteed:", star.bayer, star.flamsteed
+            # print "Proper:", star.proper_name
+            # print "Constellation:", star.constellation
+            # print "Magnitude:", star.magnitude
+            # print "Variable:", star.is_variable
+            # print "Multiple:", star.is_multiple
+            # print "Max/min magnitude:", star.max_magnitude, star.min_magnitude
+
             self.draw_star(star)
 
     def draw_star(self, star):
@@ -167,11 +172,16 @@ class SkyMapMaker(object):
             self.labelmanager.add_label(p, star.identifier_string, "tiny", extra_distance=0.5 * size - 0.7, object_for=o)
 
     def magnitude_to_size(self, magnitude):
+        if magnitude is None:
+            return 0.0
         if magnitude < -0.5:
             magnitude = -0.5
         #scale = 6.1815*self.map.paper_width/465.0
         #return scale * math.exp(-0.27 * magnitude)
-        return 0.8*(25.4/1200) * pow(4.3486 - 0.2503*magnitude, 1/0.26)
+        # return 0.8*(25.4/1200) * pow(4.3486 - 0.2503*magnitude, 1/0.26)
+
+        s = -1.36913308 + (4.71252943 + 1.36913308) / pow((1 + pow((magnitude / 26.24176615), 1.28894382)), 4.82370053)
+        return 0.5*s
 
     def split(self, curve):
         pieces = [[]]
@@ -244,7 +254,7 @@ class SkyMapMaker(object):
             self.figure.draw_curve(m, closed=True, linewidth=0.5, color="black")
 
     def render(self, open=False):
-        self.draw_milky_way()
+        #self.draw_milky_way()
         self.draw_parallels()
         self.draw_meridians()
         self.draw_constellation_boundaries()

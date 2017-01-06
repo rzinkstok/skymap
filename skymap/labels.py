@@ -12,17 +12,17 @@ DEFAULT_DISTANCE2 = 0.7408298055555554  # Almost
 
 def build_label_database():
     db = SkyMapDatabase()
-    db.drop_table("labels")
+    db.drop_table("skymap_labels")
 
     # Create table
-    db.commit_query("""CREATE TABLE labels (
+    db.commit_query("""CREATE TABLE skymap_labels (
                         label_id INT PRIMARY KEY,
                         label_text TEXT,
                         fontsize TEXT,
                         width REAL,
                         height REAL)""")
 
-    stars = [Star(r) for r in db.query("""SELECT * FROM stars WHERE proper_name is not null""")]
+    stars = [Star(r) for r in db.query("""SELECT * FROM skymap_stars WHERE proper_name is not null""")]
     p = Point(0, 0)
     i = 0
     nstars = len(stars)
@@ -35,24 +35,24 @@ def build_label_database():
 
         if s.proper_name:
             i += 1
-            if db.query_one("""SELECT * FROM labels WHERE label_text="{}" AND fontsize="{}" """.format(s.proper_name, "tiny")) is None:
+            if db.query_one("""SELECT * FROM skymap_labels WHERE label_text="{}" AND fontsize="{}" """.format(s.proper_name, "tiny")) is None:
                 l = Label(p, s.proper_name, fontsize="tiny", render_size=True)
                 size = l.size
-                db.commit_query("""INSERT INTO labels VALUES ({}, "{}", "{}", {}, {})""".format(i, s.proper_name, "tiny", size[0], size[1]))
+                db.commit_query("""INSERT INTO skymap_labels VALUES ({}, "{}", "{}", {}, {})""".format(i, s.proper_name, "tiny", size[0], size[1]))
 
         if s.identifier_string:
             i += 1
-            if db.query_one("""SELECT * FROM labels WHERE label_text="{}" AND fontsize="{}" """.format(s.identifier_string, "tiny")) is None:
+            if db.query_one("""SELECT * FROM skymap_labels WHERE label_text="{}" AND fontsize="{}" """.format(s.identifier_string, "tiny")) is None:
                 l = Label(p, s.identifier_string.strip(), fontsize="tiny", render_size=True)
                 size = l.size
-                db.commit_query("""INSERT INTO labels VALUES ({}, "{}", "{}", {}, {})""".format(i, s.identifier_string, "tiny", size[0], size[1]))
+                db.commit_query("""INSERT INTO skymap_labels VALUES ({}, "{}", "{}", {}, {})""".format(i, s.identifier_string, "tiny", size[0], size[1]))
 
     db.close()
 
 
 def get_label_size(text, fontsize):
     db = SkyMapDatabase()
-    res = db.query_one("""SELECT * FROM labels WHERE label_text="{}" AND fontsize="{}" """.format(text, fontsize))
+    res = db.query_one("""SELECT * FROM skymap_labels WHERE label_text="{}" AND fontsize="{}" """.format(text, fontsize))
     db.close()
     if res is None:
         return None

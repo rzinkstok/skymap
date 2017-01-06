@@ -1,15 +1,15 @@
-import os
 import sys
 import time
+import math
 import urllib
 from bs4 import BeautifulSoup
 from datetime import datetime
 
 from skymap.database import SkyMapDatabase
 from skymap.geometry import ensure_angle_range, SphericalPoint
-from skymap.constellations import determine_constellation
+from skymap.constellations import determine_constellation, PointInConstellationPrecession
 
-
+RAD_TO_DEG = 360.0/(2*math.pi)
 J1991_TO_J2000_PM_CONVERSION_FACTOR = ((datetime(2000, 1, 1).date() - datetime(1991, 4, 1).date()).days/365.25)/3.6e6
 
 
@@ -60,6 +60,10 @@ class Star(object):
         self.data = row
 
     @property
+    def hip(self):
+        return self.data['hip']
+
+    @property
     def bayer(self):
         """Returns the Bayer designation for the star, if present"""
         return self.data['bayer']
@@ -81,7 +85,8 @@ class Star(object):
     @property
     def magnitude(self):
         """Retuns the visual magnitude for the star"""
-        return self.data['magnitude']
+        m = [self.data['hp_magnitude'], self.data['vt_magnitude'], self.data['magnitude']]
+        return next((item for item in m if item is not None), None)
 
     @property
     def is_variable(self):
@@ -159,6 +164,7 @@ def build_star_database():
                     constellation VARCHAR(64),
 
                     magnitude FLOAT,
+                    hp_magnitude FLOAT,
                     vt_magnitude FLOAT,
                     bt_magnitude FLOAT,
 
@@ -169,10 +175,10 @@ def build_star_database():
 
                     ccdm VARCHAR(16),
                     nhip_entries_for_ccdm INT,
+                    component_identifiers VARCHAR(8),
                     number_of_components INT,
                     multiple_annex_flag VARCHAR(1),
                     tyc_multiple_flag VARCHAR(1),
-                    component_identifiers VARCHAR(512),
 
                     max_magnitude FLOAT,
                     min_magnitude FLOAT,
@@ -191,9 +197,21 @@ def build_star_database():
     print "Inserting Tycho-2 data"
     t1 = time.time()
     q = """
-            INSERT INTO skymap_stars
-            (tyc1, tyc2, tyc3, hip, hd1, hd2, right_ascension, declination, proper_motion_ra, proper_motion_dec, bt_magnitude, vt_magnitude)
-            SELECT t2.TYC1, t2.TYC2, t2.TYC3, t2.HIP, t2hd.HD1, t2hd.HD2, t2.RAdeg, t2.DEdeg, t2.pmRA, t2.pmDE, t2.BTmag, t2.VTmag
+            INSERT INTO skymap_stars (
+                tyc1, tyc2, tyc3, hip, hd1, hd2,
+                right_ascension,
+                declination,
+                proper_motion_ra, proper_motion_dec,
+                bt_magnitude, vt_magnitude,
+                component_identifiers
+            )
+            SELECT
+                t2.TYC1, t2.TYC2, t2.TYC3, t2.HIP, t2hd.HD1, t2hd.HD2,
+                t2.RAdeg,
+                t2.DEdeg,
+                t2.pmRA, t2.pmDE,
+                t2.BTmag, t2.VTmag,
+                t2.CCDM
             FROM tyc2_tyc2 AS t2
             LEFT JOIN (
                 SELECT TYC1, TYC2, TYC3, MIN(HD) AS HD1, CASE WHEN COUNT(HD)>1 THEN MAX(HD) ELSE NULL END AS HD2
@@ -212,14 +230,21 @@ def build_star_database():
     print "Inserting Tycho-2 supplement 1 data"
     t1 = time.time()
     q = """
-            INSERT INTO skymap_stars
-            (tyc1, tyc2, tyc3, hip, hd1, hd2, right_ascension, declination, proper_motion_ra, proper_motion_dec, bt_magnitude, vt_magnitude)
+            INSERT INTO skymap_stars (
+                tyc1, tyc2, tyc3, hip, hd1, hd2,
+                right_ascension,
+                declination,
+                proper_motion_ra, proper_motion_dec,
+                bt_magnitude, vt_magnitude,
+                component_identifiers
+            )
             SELECT
                 t2.TYC1, t2.TYC2, t2.TYC3, t2.HIP, t2hd.HD1, t2hd.HD2,
                 CASE WHEN t2.pmRA IS NULL THEN t2.RAdeg ELSE t2.RAdeg + t2.pmRA*{0} END,
                 CASE WHEN t2.pmDE IS NULL THEN t2.DEdeg ELSE t2.DEdeg + t2.pmDE*{0} END,
                 t2.pmRA, t2.pmDE,
-                t2.BTmag, t2.VTmag
+                t2.BTmag, t2.VTmag,
+                t2.CCDM
             FROM tyc2_suppl_1 AS t2
             LEFT JOIN (
                 SELECT TYC1, TYC2, TYC3, MIN(HD) AS HD1, CASE WHEN COUNT(HD)>1 THEN MAX(HD) ELSE NULL END AS HD2
@@ -266,28 +291,35 @@ def build_star_database():
     t2 = time.time()
     print "{:.1f} s".format(t2 - t1)
 
-    # Overwrite astrometry, photometry, add multiplicity from Hipparcos
+    # Overwrite astrometry from Hipparcos New Reduction TODO
+    # Overwrtie photometry, add multiplicity from Hipparcos
     # Hipparcos stars that are resolved into multiple Tycho stars are excluded
     # The 263 stars that lack proper astrometry are excluded
     # Astrometry is position at J1991.25 (ICRS), which is converted to J2000 using the proper motion
     print "Inserting Hipparcos data"
+
     t1 = time.time()
     q = """
-            UPDATE skymap_stars, hiptyc_hip_main
+            UPDATE skymap_stars, hipnew_hip2, hiptyc_hip_main
             SET
-              skymap_stars.right_ascension=hiptyc_hip_main.RAdeg + hiptyc_hip_main.pmRA*{0},
-              skymap_stars.declination=hiptyc_hip_main.DEdeg + hiptyc_hip_main.pmDE*{0},
-              skymap_stars.proper_motion_ra=hiptyc_hip_main.pmRA,
-              skymap_stars.proper_motion_dec=hiptyc_hip_main.pmDE,
-              skymap_stars.magnitude=hiptyc_hip_main.Hpmag,
+              skymap_stars.right_ascension=hipnew_hip2.RArad*{0} + hiptyc_hip_main.pmRA*{1},
+              skymap_stars.declination=hipnew_hip2.DErad*{0} + hiptyc_hip_main.pmDE*{1},
+              skymap_stars.proper_motion_ra=hipnew_hip2.pmRA,
+              skymap_stars.proper_motion_dec=hipnew_hip2.pmDE,
+              skymap_stars.hp_magnitude=hiptyc_hip_main.Hpmag,
               skymap_stars.ccdm=hiptyc_hip_main.CCDM,
               skymap_stars.nhip_entries_for_ccdm=hiptyc_hip_main.Nsys,
               skymap_stars.number_of_components=hiptyc_hip_main.Ncomp,
               skymap_stars.component_identifiers=hiptyc_hip_main.m_HIP
             WHERE hiptyc_hip_main.HIP=skymap_stars.hip
-            AND skymap_stars.hip NOT IN (SELECT HIP FROM tyc2_tyc2 GROUP BY HIP HAVING COUNT(HIP) > 1)
+            AND hipnew_hip2.HIP=skymap_stars.hip
+            AND skymap_stars.hip NOT IN (
+                SELECT * FROM (
+                    (SELECT HIP FROM tyc2_tyc2) UNION ALL (SELECT HIP FROM tyc2_suppl_1)
+                ) AS all_hip GROUP BY HIP HAVING COUNT(HIP) > 1
+            )
             AND hiptyc_hip_main.RAdeg is not NULL
-        """.format(J1991_TO_J2000_PM_CONVERSION_FACTOR)
+        """.format(RAD_TO_DEG, J1991_TO_J2000_PM_CONVERSION_FACTOR)
     #db.commit_query(q)
     t2 = time.time()
     print "{:.1f} s".format(t2 - t1)
@@ -302,12 +334,44 @@ def build_star_database():
               skymap_stars.min_magnitude=hiptyc_hip_va_1.minMag,
               skymap_stars.variable_name=hiptyc_hip_va_1.VarName
             WHERE hiptyc_hip_va_1.HIP=skymap_stars.hip
-            AND skymap_stars.hip NOT IN (SELECT HIP FROM tyc2_tyc2 GROUP BY HIP HAVING COUNT(HIP) > 1)
-
+            AND skymap_stars.hip NOT IN (
+                SELECT * FROM (
+                    (SELECT HIP FROM tyc2_tyc2) UNION ALL (SELECT HIP FROM tyc2_suppl_1)
+                ) AS all_hip GROUP BY HIP HAVING COUNT(HIP) > 1
+            )
         """
     #db.commit_query(q)
     t2 = time.time()
     print "{:.1f} s".format(t2 - t1)
+
+    # Add the 263 Hipparcos stars with no astrometric solution (use the Hipparcos Input Catalog data)
+    # Of these, only stars that have a value for Hpmag are included (249 stars)
+    # print "Inserting Hipparcos stars without astrometric solution"
+    # t1 = time.time()
+    # stars = db.query("""SELECT * FROM hiptyc_hip_main WHERE RAdeg IS NULL AND Hpmag IS NOT NULL""")
+    # for s in stars:
+    #     q = """
+    #         INSERT INTO skymap_stars (
+    #                 hip, hd1, hd2,
+    #                 right_ascension,
+    #                 declination,
+    #                 hp_magnitude,
+    #                 max_magnitude,
+    #                 min_magnitude
+    #             )
+    #             SELECT
+    #                 t2.TYC1, t2.TYC2, t2.TYC3, t2.HIP, t2hd.HD1, t2hd.HD2,
+    #                 CASE WHEN t2.pmRA IS NULL THEN t2.RAdeg ELSE t2.RAdeg + t2.pmRA*{0} END,
+    #                 CASE WHEN t2.pmDE IS NULL THEN t2.DEdeg ELSE t2.DEdeg + t2.pmDE*{0} END,
+    #                 t2.pmRA, t2.pmDE,
+    #                 t2.BTmag, t2.VTmag,
+    #                 t2.CCDM
+    #             FROM tyc2_suppl_1 AS t2
+    #
+    #     """
+    #     db.commit_query(q)
+    # t2 = time.time()
+    # print "{:.1f} s".format(t2 - t1)
 
     # Add cross index data
     print "Adding New Cross Index data"
@@ -336,26 +400,39 @@ def build_star_database():
         tds = tr.find_all("td")
         if not tds:
             continue
+
         try:
             hip = int(tds[7].get_text().strip())
         except ValueError:
             continue
+        hd = int(tds[8].get_text().strip())
         proper_name = tds[2].get_text().strip()
         date = tds[9].get_text().strip()
         if date == '2015-12-15':
             continue
-        q = """UPDATE skymap_stars SET proper_name="{}" WHERE hip={}""".format(proper_name, hip)
+
+        row = db.query_one("""SELECT id FROM skymap_stars WHERE hip={} ORDER BY hp_magnitude ASC LIMIT 1""".format(hip))
+        if row is None:
+            row = db.query_one("""SELECT id FROM skymap_stars WHERE hd1={0} OR hd2={0} ORDER BY hp_magnitude ASC LIMIT 1""".format(hd))
+
+        q = """UPDATE skymap_stars SET proper_name="{}" WHERE id={}""".format(proper_name, row['id'])
         db.commit_query(q)
 
     # Add some special cases
-    db.commit_query("""UPDATE skymap_stars SET proper_name="Barnard's Star" WHERE hip=87937""")
-    db.commit_query("""UPDATE skymap_stars SET proper_name="Kapteyn's Star" WHERE hip=24186""")
-    db.commit_query("""UPDATE skymap_stars SET proper_name="Groombridge 1618" WHERE hip=49908""")
-    db.commit_query("""UPDATE skymap_stars SET proper_name="Groombridge 1830" WHERE hip=57939""")
-    db.commit_query("""UPDATE skymap_stars SET proper_name="Lacaille 8760" WHERE hip=105090""")
-    db.commit_query("""UPDATE skymap_stars SET proper_name="Lacaille 9352" WHERE hip=114046""")
-    db.commit_query("""UPDATE skymap_stars SET proper_name="Lalande 21185" WHERE hip=54035""")
-    db.commit_query("""UPDATE skymap_stars SET proper_name="Bradley 3077" WHERE hip=114622""")
+    special_cases = {
+        87937: "Barnard's Star",
+        24186: "Kapteyn's Star",
+        49908: "Groombridge 1618",
+        57939: "Groombridge 1830",
+        105090: "Lacaille 8760",
+        114046: "Lacaille 9352",
+        54035: "Lalande 21185",
+        114622: "Bradley 3077"
+    }
+    for hip, proper_name in special_cases.items():
+        rid = db.query_one("""SELECT id FROM skymap_stars WHERE hip={} ORDER BY hp_magnitude ASC LIMIT 1""".format(hip))['id']
+        q = """UPDATE skymap_stars SET proper_name="{}" WHERE id={}""".format(proper_name, rid)
+        db.commit_query(q)
 
     t2 = time.time()
     print "{:.1f} s".format(t2 - t1)
@@ -365,28 +442,25 @@ def build_star_database():
     t1 = time.time()
     rows = db.query("""SELECT id, right_ascension, declination FROM skymap_stars""")
     nrecords = len(rows)
-    sys.stdout.write("Number of stars: {}".format(nrecords))
-    sys.stdout.flush
+    pc = PointInConstellationPrecession()
     for i, r in enumerate(rows):
         if i%1000 == 0:
             sys.stdout.write("\r{0:.1f}%".format(i * 100.0 / (nrecords - 1)))
             sys.stdout.flush()
-        c = determine_constellation(r['right_ascension'], r['declination'], db)
+        c = determine_constellation(r['right_ascension'], r['declination'], pc, db)
         db.commit_query("UPDATE skymap_stars SET constellation='{}' WHERE id={}".format(c, r['id']))
     t2 = time.time()
+    print
     print "{:.1f} s".format(t2 - t1)
-
 
 
 def select_stars(magnitude, constellation=None, ra_range=None, dec_range=None):
     db = SkyMapDatabase()
     result = []
-    q = "SELECT * " \
-        "FROM stars " \
-        "WHERE magnitude<={0}".format(magnitude)
+    q = """SELECT * FROM skymap_stars WHERE magnitude<={0}""".format(magnitude)
 
     if constellation:
-        q += " AND constellation='{0}'".format(constellation)
+        q += """ AND constellation='{0}'""".format(constellation)
 
     if ra_range:
         min_ra, max_ra = ra_range
@@ -394,9 +468,9 @@ def select_stars(magnitude, constellation=None, ra_range=None, dec_range=None):
         max_ra = ensure_angle_range(max_ra)
 
         if min_ra < max_ra:
-            q += " AND right_ascension>={0} AND right_ascension<={1}".format(min_ra, max_ra)
+            q += """ AND right_ascension>={0} AND right_ascension<={1}""".format(min_ra, max_ra)
         elif max_ra < min_ra:
-            q += " AND (right_ascension>={0} OR right_ascension<={1})".format(min_ra, max_ra)
+            q += """ AND (right_ascension>={0} OR right_ascension<={1})""".format(min_ra, max_ra)
         else:
             # min_ra is equal to max_ra: full circle: no ra limits
             pass
@@ -407,12 +481,10 @@ def select_stars(magnitude, constellation=None, ra_range=None, dec_range=None):
 
         if min_dec < -90 or min_dec > 90 or max_dec < -90 or max_dec > 90 or max_dec <= min_dec:
             raise ValueError("Illegal DEC range!")
-        q += " AND declination>={0} AND declination<={1}".format(min_dec, max_dec)
+        q += """ AND declination>={0} AND declination<={1}""".format(min_dec, max_dec)
 
     # Order stars from brightest to weakest so displaying them is easier
-    q += " ORDER BY magnitude ASC"
-
-    print q
+    q += """ ORDER BY magnitude ASC"""
 
     rows = db.query(q)
     for row in rows:
@@ -420,6 +492,7 @@ def select_stars(magnitude, constellation=None, ra_range=None, dec_range=None):
 
     db.close()
     return result
+
 
 
 if __name__ == "__main__":

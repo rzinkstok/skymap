@@ -44,7 +44,7 @@ class SkyMapDatabase(object):
     def insert_row(self, table, columns, values):
         q = """INSERT INTO {} (""".format(table)
         for c in columns:
-            q += """"`{}`, """.format(c)
+            q += """`{}`, """.format(c)
         q = q[:-2] + """) VALUES ("""
         for v in values:
             q += """%s, """

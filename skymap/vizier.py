@@ -3,6 +3,7 @@ import sys
 import re
 import time
 import ftplib
+import urllib
 import gzip
 from functools import partial
 
@@ -26,7 +27,13 @@ def parse_readme(foldername):
 
     for l in lines:
         if l.startswith("Byte-by-byte Description of file:") or l.startswith("Byte-per-byte Description of file:"):
-            current_files = [x.strip() for x in l.split(":")[-1].split(",")]
+            files_l = l.split(":")[-1].strip()
+            if "," in files_l:
+                current_files = [x.strip() for x in files_l.split(",")]
+            elif " " in files_l:
+                current_files = [x.strip() for x in files_l.split(" ")]
+            else:
+                current_files = [files_l]
 
         if current_files:
             if not l.strip():
@@ -85,6 +92,8 @@ def parse_datafile(db, foldername, filename, table, datadicts, columns):
         values = []
         for d in datadicts:
             s = line[d['startbyte']:d['stopbyte']]
+            if s and s[-1] == "\n":
+                s = s[:-1]
             t = d['format']
             if not s and t is not str:
                 v = None
@@ -93,6 +102,8 @@ def parse_datafile(db, foldername, filename, table, datadicts, columns):
                     v = t(s)
                 except ValueError:
                     v = None
+                # if t == str:
+                #     v = v.rstrip("\n")
             values.append(v)
         batch.append(values)
         if len(batch) == batchsize:
@@ -139,6 +150,7 @@ def build_database(catalogue, foldername, indices=(), extra_function=None):
     print "Building database for {} ({})".format(catalogue, foldername)
     t1 = time.time()
     files = get_files(catalogue, foldername)
+
     datadicts = parse_readme(foldername)
     db = SkyMapDatabase()
     for f, dds in datadicts.items():
@@ -174,6 +186,8 @@ def build_database(catalogue, foldername, indices=(), extra_function=None):
                 db.add_index(table, i)
 
     t2 = time.time()
+    print
+    print
     print "Time: {} s".format(t2-t1)
 
     if extra_function:
@@ -198,9 +212,11 @@ def split_tyc():
 
 
 if __name__ == "__main__":
-    build_database("VI/42", "cst_id")
+    # build_database("VI/42", "cst_id")
+    #build_database("VI/49", "cst_bound")
+    #build_database("I/311", "hipnew", indices=["HIP"])
 
-    # build_database("I/239", "hiptyc", indices=["HIP"], extra_function=split_tyc)
+    build_database("I/239", "hiptyc", indices=["HIP"], extra_function=split_tyc)
     # build_database("I/259", "tyc2", indices=["TYC1", "TYC2", "TYC3"])
     # build_database("IV/25", "tyc2hd", indices=["TYC1", "TYC2", "TYC3", "HD"])
     # build_database("IV/27A", "cross_index", indices=["HD"])

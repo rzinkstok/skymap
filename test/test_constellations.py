@@ -1,5 +1,4 @@
 import unittest
-from skymap.constellations import BoundaryEdge, get_edge
 from skymap.geometry import SphericalPoint
 
 

@@ -1,10 +1,9 @@
 import os
-from skymap.map import AzimuthalEquidistantMap, EquidistantCylindricalMap, EquidistantConicMap
 from skymap.mapmaker import SkyMapMaker
 from skymap.geometry import Point
 
 
-def build_cambridge_atlas(path="atlas"):
+def build_cambridge_star_atlas(path="atlas"):
     if not os.path.exists(path):
         os.makedirs(path)
 
@@ -50,11 +49,8 @@ def build_sky_atlas_2000(path="skyatlas2000"):
     m.render()
 
 
-    pass
-
-
-
-#build_cambridge_star_atlas()
-build_sky_atlas_2000()
+if __name__ == "__main__":
+    build_cambridge_star_atlas()
+    #build_sky_atlas_2000()
 
 
