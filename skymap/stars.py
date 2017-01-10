@@ -207,8 +207,8 @@ def build_star_database():
             )
             SELECT
                 t2.TYC1, t2.TYC2, t2.TYC3, t2.HIP, t2hd.HD1, t2hd.HD2,
-                t2.RAdeg,
-                t2.DEdeg,
+                t2.mRAdeg,
+                t2.mDEdeg,
                 t2.pmRA, t2.pmDE,
                 t2.BTmag, t2.VTmag,
                 t2.CCDM
