@@ -225,6 +225,11 @@ class Line(object):
             return True
         return False
 
+    @property
+    def angle(self):
+        d = self.p2 - self.p1
+        return math.degrees(math.atan2(d.y, d.x))
+
 
 class Polygon(object):
     def __init__(self, points=[], closed=True):
@@ -298,12 +303,16 @@ class Circle(object):
 
 
 class Arc(Circle):
-    def __init__(self, origin, radius, start_angle, stop_angle):
-        Circle.__init__(self, origin, radius)
+    def __init__(self, center, radius, start_angle, stop_angle):
+        Circle.__init__(self, center, radius)
         self.start_angle = start_angle
         self.stop_angle = stop_angle
         self.start_mp = 8 * start_angle / 360.0
         self.stop_mp = 8 * stop_angle / 360.0
+        sar = math.radians(self.start_angle)
+        self.p1 = self.center + self.radius * Point(math.cos(sar), math.sin(sar))
+        sar = math.radians(self.stop_angle)
+        self.p2 = self.center + self.radius * Point(math.cos(sar), math.sin(sar))
 
     def __str__(self):
         return "Arc({}, {}, start={}, stop={})".format(self.center, self.radius, self.start_angle, self.stop_angle)

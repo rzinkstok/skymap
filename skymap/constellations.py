@@ -104,6 +104,7 @@ CONSTELLATIONS = {
 CONST_BOUND_EPOCH = datetime.datetime(1875, 1, 1).date()
 REFERENCE_EPOCH = datetime.datetime(2000, 1, 1).date()
 
+
 # Precession
 class PrecessionCalculator(object):
     def __init__(self, epoch1, epoch2):

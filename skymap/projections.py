@@ -1,4 +1,5 @@
 import math
+import numpy
 from operator import xor
 from skymap.geometry import Point, SphericalPoint, Line, Circle, Arc, ensure_angle_range
 
@@ -14,8 +15,16 @@ class UnitProjection(object):
     def __init__(self):
         pass
 
+    def __call__(self, point, inverse=False):
+        if inverse:
+            return self.inverse_project(point)
+        return self.project(point)
+
     def project(self, spherical_point):
         return Point(spherical_point)
+
+    def inverse_project(self, point):
+        return SphericalPoint(point)
 
 
 class AzimuthalEquidistantProjection(object):
@@ -23,14 +32,14 @@ class AzimuthalEquidistantProjection(object):
         """
         :param north: whether to plot the north pole
         :param reference_longitude: the longitude that points to the right
-        :param reference_range: the latitude that is projected at distance 1 from the origin
+        :param reference_scale: degrees of latitude per unit distance
         :param celestial: longitude increases clockwise around north pole
         """
 
         self.origin = SphericalPoint(0, 0)
         self._north = north
         self.reference_longitude = reference_longitude
-        self.reference_scale = abs(reference_scale)
+        self.reference_scale = reference_scale
         self._celestial = celestial
 
         if self._north:
@@ -44,6 +53,11 @@ class AzimuthalEquidistantProjection(object):
             self.origin_latitude = -90
 
         self.reverse_polar_direction = not xor(self._north, self._celestial)
+
+    def __call__(self, point, inverse=False):
+        if inverse:
+            return self.inverse_project(point)
+        return self.project(point)
 
     @property
     def celestial(self):
@@ -91,22 +105,33 @@ class AzimuthalEquidistantProjection(object):
 
 
 class EquidistantCylindricalProjection(object):
-    def __init__(self, center_longitude, standard_parallel, reference_scale, celestial=False):
+    def __init__(self, center_longitude, standard_parallel, reference_scale, lateral_scale=1.0, celestial=False):
         self.center_longitude = center_longitude
         self.standard_parallel = standard_parallel
         self.reference_scale = float(reference_scale)
         self.celestial = celestial
+        self.lateral_scale = lateral_scale
+
+    def __call__(self, point, inverse=False):
+        if inverse:
+            return self.inverse_project(point)
+        return self.project(point)
 
     def project(self, spherical_point):
         if self.celestial:
-            x = - (self.reduce_longitude(spherical_point.longitude) - self.center_longitude) / self.reference_scale
+            x = - self.lateral_scale * (self.reduce_longitude(spherical_point.longitude) - self.center_longitude) / self.reference_scale
         else:
-            x = (self.reduce_longitude(spherical_point.longitude) - self.center_longitude) / self.reference_scale
+            x = self.lateral_scale * (self.reduce_longitude(spherical_point.longitude) - self.center_longitude) / self.reference_scale
         y = spherical_point.latitude / self.reference_scale
         return Point(x, y)
 
     def inverse_project(self, point):
-        pass
+        if self.celestial:
+            longitude = - self.center_longitude - self.reference_scale * point.x / self.lateral_scale
+        else:
+            longitude = self.center_longitude + self.reference_scale * point.x / self.lateral_scale
+        latitude = point.y * self.reference_scale
+        return SphericalPoint(longitude, latitude)
 
     def reduce_longitude(self, longitude):
         while longitude >= self.center_longitude + 180:
@@ -125,6 +150,7 @@ class EquidistantConicProjection(object):
         self.standard_parallel1 = standard_parallel1
         self.standard_parallel2 = standard_parallel2
         self.reference_scale = abs(math.radians(reference_scale))
+        self.cone_angle = 90 - 0.5*abs(self.standard_parallel1 + self.standard_parallel2)
 
         # Calculate projection parameters
         phi_1 = math.radians(self.standard_parallel1)
@@ -133,6 +159,11 @@ class EquidistantConicProjection(object):
         self.G = math.cos(phi_1) / self.n + phi_1
         self.rho_0 = (self.G - math.radians(self.reference_latitude))/self.reference_scale
         self.parallel_circle_center = SphericalPoint(0, math.degrees(self.G))
+
+    def __call__(self, point, inverse=False):
+        if inverse:
+            return self.inverse_project(point)
+        return self.project(point)
 
     def project(self, spherical_point):
         rho = (self.G - math.radians(spherical_point.latitude))/self.reference_scale
@@ -147,7 +178,16 @@ class EquidistantConicProjection(object):
         return Point(x, y)
 
     def inverse_project(self, point):
-        pass
+        rho = self.reference_scale * numpy.sign(self.n) * math.sqrt(point.x**2 + (self.rho_0 - point.y)**2)
+        theta = math.degrees(math.atan2(point.x, self.rho_0 - point.y))
+
+        if self.celestial:
+            longitude = self.reference_longitude - theta / self.n
+        else:
+            longitude = self.reference_longitude + theta / self.n
+        latitude = math.degrees(self.G - rho)
+
+        return SphericalPoint(longitude, latitude)
 
     def reduce_longitude(self, longitude):
         while longitude >= self.reference_longitude + 180:
@@ -155,3 +195,38 @@ class EquidistantConicProjection(object):
         while longitude < self.reference_longitude - 180:
             longitude += 360
         return longitude
+
+
+def calculate_reference_parallels(angle, delta_latitude, central_longitude):
+    full_angle = 360.0*angle/float(delta_latitude)
+    print full_angle
+    fraction_angle = full_angle/360.0
+    print fraction_angle
+    cone_angle = math.degrees(math.asin(fraction_angle))
+    print cone_angle
+
+
+
+def circle(x, r=1.0):
+    return math.sqrt(r**2 - x**2)
+
+
+def crossing(val, r=1.0):
+    return math.sqrt(r**2 - val**2)
+
+
+def error(val, xrange):
+    n = 1000
+    sqsum = 0
+    for i in range(n):
+        x = -0.5*xrange + i * xrange/(n-1)
+        y = circle(x)
+        sqsum += (y-val)**2
+
+    c = crossing(val)
+
+    print val, c, math.sqrt(sqsum), math.degrees(math.asin(c)), math.degrees(math.asin(0.5*xrange))
+
+# for i in range(100):
+#     val = 0.999 + i/100000.0
+#    error(val, 0.1)

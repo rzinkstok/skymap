@@ -1,5 +1,6 @@
 import unittest
-from skymap.projections import AzimuthalEquidistantProjection, EquidistantCylindricalProjection
+import math
+from skymap.projections import AzimuthalEquidistantProjection, EquidistantCylindricalProjection, EquidistantConicProjection
 from skymap.geometry import Point, SphericalPoint
 
 
@@ -77,7 +78,7 @@ class TestAzimuthalEquidistantProjection(unittest.TestCase):
         self.assertEqual(self.p.project(SphericalPoint(230, 50)), Point(0, -1))
 
     def test_south_pole(self):
-        self.p = AzimuthalEquidistantProjection(north=False, reference_longitude=0, reference_scale=-40)
+        self.p = AzimuthalEquidistantProjection(north=False, reference_longitude=0, reference_scale=40)
 
         # Pole
         self.assertEqual(self.p.project(SphericalPoint(0, -90)), self.origin)
@@ -114,6 +115,10 @@ class TestAzimuthalEquidistantProjection(unittest.TestCase):
         ppp = self.p.inverse_project(pp)
         self.assertEqual(p, ppp)
 
+    def test_other_scale(self):
+        self.p = AzimuthalEquidistantProjection(reference_longitude=0, reference_scale=80.0/190.0)
+        self.assertEqual(self.p.project(SphericalPoint(0, 50)), Point(95, 0))
+
 
 class TestEquidistantCylindricalProjection(unittest.TestCase):
     def setUp(self):
@@ -127,3 +132,36 @@ class TestEquidistantCylindricalProjection(unittest.TestCase):
     def test_latitude(self):
         self.assertEqual(self.p.project(SphericalPoint(0, 30)), Point(0, 1))
         self.assertEqual(self.p.project(SphericalPoint(0, -30)), Point(0, -1))
+
+
+class TestEquidistantConicProjection(unittest.TestCase):
+    def setUp(self):
+        self.p = EquidistantConicProjection(center=(0, 45), standard_parallel1=30, standard_parallel2=60, reference_scale=10)
+
+    def test_projection(self):
+        c = self.p(self.p.parallel_circle_center)
+        self.assertEqual(self.p.cone_angle, 45)
+        f = math.sin(math.radians(self.p.cone_angle))
+        print f
+        self.assertEqual(self.p(SphericalPoint(0, 45)), Point(0, 0))
+        self.assertEqual(self.p(SphericalPoint(0, 50)), Point(0, 0.5))
+        self.assertEqual(self.p(SphericalPoint(0, 35)), Point(0, -1))
+        #a = 0.98861593*f*15
+        a = f*15
+        print a
+        print c
+        p = c + (Point(0, 0) - c).rotate(a)
+
+        #self.assertEqual(self.p(SphericalPoint(15, 45)), p)
+
+    def test_inverse_projection(self):
+        self.assertEqual(self.p(Point(0, 0), inverse=True), SphericalPoint(0, 45))
+        self.assertEqual(self.p(self.p(SphericalPoint(15, 45)), inverse=True), SphericalPoint(15, 45))
+        self.assertEqual(self.p(self.p(SphericalPoint(-15, 45)), inverse=True), SphericalPoint(-15, 45))
+        self.assertEqual(self.p(self.p(SphericalPoint(29, 32)), inverse=True), SphericalPoint(29, 32))
+
+        self.p.celestial = True
+        self.assertEqual(self.p(Point(0, 0), inverse=True), SphericalPoint(0, 45))
+        self.assertEqual(self.p(self.p(SphericalPoint(15, 45)), inverse=True), SphericalPoint(15, 45))
+        self.assertEqual(self.p(self.p(SphericalPoint(-15, 45)), inverse=True), SphericalPoint(-15, 45))
+        self.assertEqual(self.p(self.p(SphericalPoint(29, 32)), inverse=True), SphericalPoint(29, 32))
