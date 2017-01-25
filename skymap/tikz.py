@@ -1,4 +1,5 @@
 import os
+import math
 import subprocess
 import shutil
 from contextlib import contextmanager
@@ -155,7 +156,8 @@ class TikzFigure(object):
             s = "\n"
         else:
             s = ""
-        s += "% {0}\n".format(comment)
+        if comment:
+            s += "% {0}\n".format(comment)
         self.fp.write(s)
 
     def add(self, drawing_area):
@@ -185,14 +187,17 @@ class DrawingArea(object):
         self.current = True
 
         if origin is None:
-            self.origin = p1
+            self.set_origin(p1)
         else:
-            self.origin = origin
+            self.set_origin(origin)
 
         self.box = box
 
         self.width = p2.x - p1.x
         self.height = p2.y - p1.y
+
+    def set_origin(self, origin):
+        self.origin = origin
         self.minx = self.p1.x - self.origin.x
         self.maxx = self.p2.x - self.origin.x
         self.miny = self.p1.y - self.origin.y
@@ -211,6 +216,7 @@ class DrawingArea(object):
             self.draw_bounding_box()
 
     def close(self):
+        self.comment("")
         self.fp.write("\\end{tikzpicture}\n\n")
         self.fp = None
         self.current = False
@@ -220,12 +226,12 @@ class DrawingArea(object):
         self.open()
 
     @contextmanager
-    def clip(self, rectangle):
-        p1 = self.point_to_coordinates(rectangle.p1)
-        p2 = self.point_to_coordinates(rectangle.p2)
+    def clip(self, path):
+        self.comment("Clipping")
         self.fp.write("\\begin{scope}\n")
-        self.fp.write("\\clip {} rectangle {};\n".format(p1, p2))
+        self.fp.write("\\clip {};\n".format(path))
         yield
+        self.comment("End clipping")
         self.fp.write("\\end{scope}\n")
 
     @staticmethod
@@ -239,12 +245,24 @@ class DrawingArea(object):
 
         return "({0}mm,{1}mm)".format(x, y)
 
+    def path(self, points, cycle=True):
+        path = ""
+        for p in points:
+            path += self.point_to_coordinates(p)
+            path += "--"
+        if cycle:
+            path += "cycle"
+        else:
+            path = path[:-2]
+        return path
+
     def comment(self, comment, prefix_newline=True):
         if prefix_newline:
             s = "\n"
         else:
             s = ""
-        s += "% {0}\n".format(comment)
+        if comment:
+            s += "% {0}\n".format(comment)
         self.fp.write(s)
 
     def draw_options(self, linewidth, color, dotted, dashed):
@@ -266,13 +284,20 @@ class DrawingArea(object):
         opts = self.draw_options(linewidth, color, dotted, dashed)
         self.fp.write("\\draw {} {}--{};\n".format(opts, p1, p2))
 
-    def draw_polygon(self, points, color="black", linewidth=0.5, dotted=False, dashed=False, delay_write=False):
+    def draw_path(self, path, color="black", linewidth=0.5, dotted=False, dashed=False, delay_write=False):
+        opts = self.draw_options(linewidth, color, dotted, dashed)
+        self.fp.write("\\draw {} {};\n".format(opts, path))
+
+    def draw_polygon(self, points, cycle=False, color="black", linewidth=0.5, dotted=False, dashed=False, delay_write=False):
         opts = self.draw_options(linewidth, color, dotted, dashed)
         cmd = "\\draw {}".format(opts)
         for p in points:
             cmd += self.point_to_coordinates(p)
             cmd += "--"
-        cmd = cmd[:-2] + ";\n"
+        if cycle:
+            cmd += "cycle;\n"
+        else:
+            cmd = cmd[:-2] + ";\n"
         self.fp.write(cmd)
 
     def draw_rectangle(self, rectangle, color="black", linewidth=0.5, dotted=False, dashed=False, delay_write=False):
@@ -293,11 +318,17 @@ class DrawingArea(object):
     def draw_arc(self, arc, color="black", linewidth=0.5, dotted=False, dashed=False, delay_write=False):
         if not hasattr(arc, "center") or not hasattr(arc, "radius") or not hasattr(arc, "start_angle") or not hasattr(arc, "stop_angle"):
             raise DrawError
+        if arc.radius > 2000:
+            self.draw_interpolated_arc(arc, color, linewidth, dotted, dashed, delay_write)
+            return
         c = "([shift=({}:{}mm)]".format(arc.start_angle, arc.radius)
         c += self.point_to_coordinates(arc.center)[1:]
         opts = self.draw_options(linewidth, color, dotted, dashed)
         delta_angle = arc.stop_angle - arc.start_angle
-        self.fp.write("\\draw {} {} arc [start angle={}, delta angle={}, radius={}mm];\n".format(opts, c, arc.start_angle, delta_angle, arc.radius))
+        self.fp.write("\\draw {} {} arc ({}:{}:{}mm);\n".format(opts, c, arc.start_angle, arc.stop_angle, arc.radius))
+
+    def draw_interpolated_arc(self, arc, color="black", linewidth=0.5, dotted=False, dashed=False, delay_write=False):
+        self.draw_polygon(arc.interpolated_points(), color=color, linewidth=linewidth, dotted=dotted, dashed=dashed, delay_write=delay_write)
 
     def draw_bounding_box(self):
         self.draw_rectangle(self.bounding_box)

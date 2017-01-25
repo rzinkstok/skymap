@@ -48,6 +48,8 @@ class MapArea(DrawingArea):
         self.min_latitude = None
         self.max_latitude = None
 
+        self.bordered = True
+
         # Longitude/latitude grid
         self.gridline_factory = GridLineFactory()
         self.gridline_factory.marked_ticksize = 1.0
@@ -102,6 +104,10 @@ class MapArea(DrawingArea):
     def draw_map_box(self):
         self.draw_rectangle(self.map_box, linewidth=self.gridline_thickness)
 
+    def draw_clipping_path(self):
+        path = self.clipping_path
+        self.draw_path(path)
+
     def line_intersect_borders(self, line):
         borderpos = [
             (self.map_left_border, 'left'),
@@ -154,14 +160,22 @@ class MapArea(DrawingArea):
         self.map_urcoordinates = self.projection(self.map_urcorner, True)
         self.map_lrcoordinates = self.projection(self.map_lrcorner, True)
 
-    def draw_meridians(self, origin_offsets={}):
+    def draw_meridians(self, origin_offsets={}, include_endpoint=True):
         start_longitude = self.gridline_factory.meridian_tick_interval * math.ceil(self.min_longitude / self.gridline_factory.meridian_tick_interval)
-        for longitude in numpy.arange(start_longitude, self.max_longitude, self.gridline_factory.meridian_tick_interval):
+        if include_endpoint:
+            stop_longitude = self.max_longitude + 0.5*self.gridline_factory.meridian_tick_interval
+        else:
+            stop_longitude = self.max_longitude
+        for longitude in numpy.arange(start_longitude, stop_longitude, self.gridline_factory.meridian_tick_interval):
             self.draw_meridian(ensure_angle_range(longitude), origin_offsets)
 
-    def draw_parallels(self):
+    def draw_parallels(self, include_endpoint=True):
         start_latitude = self.gridline_factory.parallel_tick_interval * math.ceil(self.min_latitude / self.gridline_factory.parallel_tick_interval)
-        for latitude in numpy.arange(start_latitude, self.max_latitude, self.gridline_factory.parallel_tick_interval):
+        if include_endpoint:
+            stop_latitude = self.max_latitude + 0.5 * self.gridline_factory.parallel_tick_interval
+        else:
+            stop_latitude = self.max_latitude
+        for latitude in numpy.arange(start_latitude, stop_latitude, self.gridline_factory.parallel_tick_interval):
             self.draw_parallel(latitude)
 
     def draw_meridian(self, longitude):
@@ -206,7 +220,16 @@ class MapArea(DrawingArea):
                 self.draw_label(l)
 
     def draw_constellations(self, dashed='dash pattern=on 1.6pt off 0.8pt'):
-        boundaries = get_constellation_boundaries_for_area(self.min_longitude, self.max_longitude, self.min_latitude, self.max_latitude)
+        self.comment("Constellation boundaries")
+        if self.min_longitude != 0 and self.max_longitude != 360:
+            min_longitude = self.min_longitude - 5
+            max_longitude = self.max_longitude + 5
+        else:
+            min_longitude = self.min_longitude
+            max_longitude = self.max_longitude
+        min_latitude = self.min_latitude - 5
+        max_latitude = self.max_latitude + 5
+        boundaries = get_constellation_boundaries_for_area(min_longitude, max_longitude, min_latitude, max_latitude)
         for b in boundaries:
             points = [self.map_point(p) for p in b.interpolated_points]
             self.draw_polygon(points, linewidth=self.gridline_thickness, dashed=dashed)
@@ -231,6 +254,18 @@ class AzimuthalEquidistantMapArea(MapArea):
 
         self.parallel_ticks = {'left': False, 'right': False, 'bottom': False, 'top': False}
         self.meridian_ticks = {'left': True, 'right': True, 'bottom': True, 'top': True}
+
+    @property
+    def clipping_path(self):
+        if self.bordered:
+            return self.map_box.path
+        else:
+            if self.north:
+                boundary = self.map_parallel(self.min_latitude)
+            else:
+                boundary = self.map_parallel(self.max_latitude)
+
+            return "{} circle ({}mm);".format(boundary.center, boundary.radius)
 
     def map_parallel(self, latitude):
         c = Circle(SphericalPoint(0, self.projection.origin_latitude), self.projection.origin_latitude - latitude)
@@ -358,6 +393,15 @@ class EquidistantCylindricalMapArea(MapArea):
         self.max_latitude = 0.5*latitude_range
         self.north = None
 
+    @property
+    def clipping_path(self):
+        if self.bordered:
+            return self.map_box.path
+        else:
+            first_parallel = self.map_parallel(self.min_latitude).parallel
+            last_parallel = self.map_parallel(self.max_latitude).parallel
+            return first_parallel.path + "--" + last_parallel.reverse_path + "--cycle"
+
     def map_parallel(self, latitude):
         p1 = SphericalPoint(self.min_longitude, latitude)
         p2 = SphericalPoint(self.max_longitude, latitude)
@@ -374,7 +418,7 @@ class EquidistantCylindricalMapArea(MapArea):
 
     def draw_parallel(self, latitude):
         p = self.map_parallel(latitude)
-        p.fontsize = "tiny"
+        #p.fontsize = "tiny"
 
         l = p.parallel
         if l:
@@ -457,54 +501,105 @@ class EquidistantConicMapArea(MapArea):
         else:
             self.north = False
 
-        self.rotate_parallel_labels = True
+    @property
+    def clipping_path(self):
+        if self.bordered:
+            return self.map_box.path
+        else:
+            first_parallel = self.map_parallel(self.min_latitude)[0].parallel
+            last_parallel = self.map_parallel(self.max_latitude)[0].parallel
+            return first_parallel.path + "--" + last_parallel.reverse_path + "--cycle"
 
     def map_parallel(self, latitude):
         p = SphericalPoint(0, latitude)
         radius = p.distance(self.projection.parallel_circle_center)
-        c = Circle(self.projection.parallel_circle_center, radius)
+        center = self.projection.parallel_circle_center
+        c = Circle(center, radius)
         c = self.map_circle(c)
 
-        crossings = self.circle_intersect_borders(c)
-        if crossings:
-            parallels = []
-            for i in range(len(crossings)):
-                a1, c1, b1 = crossings[i - 1]
-                a2, c2, b2 = crossings[i]
-                if a1 > a2:
-                    a2 += 360.0
-                aavg = math.radians(0.5 * (a1 + a2))
-                pavg = c.center + Point(c.radius * math.cos(aavg), c.radius * math.sin(aavg))
-                if self.inside_maparea(pavg):
-                    arc = Arc(c.center, c.radius, a1, a2)
-                    p = self.gridline_factory.parallel(latitude, arc)
-
-                    p.border1 = b1
-                    p.tickangle1 = a1 + 90
-                    if self.rotate_parallel_labels:
-                        if latitude > 0:
-                            p.labelangle1 = a1 + 90
-                        else:
-                            p.labelangle1 = a1 - 90
-                    else:
-                        p.labelangle1 = 0
-
-                    p.border2 = b2
-                    p.tickangle2 = a2 + 90
-                    if self.rotate_parallel_labels:
-                        if latitude > 0:
-                            p.labelangle2 = a2 + 90
-                        else:
-                            p.labelangle2 = a2 - 90
-                    else:
-                        p.labelangle2 = 0
-                    parallels.append(p)
-        else:
-            if self.inside_maparea(c.center):
-                p = self.gridline_factory.parallel(latitude, c)
-                parallels = [p]
-            else:
+        if self.bordered:
+            crossings = self.circle_intersect_borders(c)
+            if crossings:
                 parallels = []
+                for i in range(len(crossings)):
+                    a1, c1, b1 = crossings[i - 1]
+                    a2, c2, b2 = crossings[i]
+                    if a1 > a2:
+                        a2 += 360.0
+                    aavg = math.radians(0.5 * (a1 + a2))
+                    pavg = c.center + Point(c.radius * math.cos(aavg), c.radius * math.sin(aavg))
+                    if self.inside_maparea(pavg):
+                        arc = Arc(c.center, c.radius, a1, a2)
+                        p = self.gridline_factory.parallel(latitude, arc)
+
+                        p.border1 = b1
+                        p.tickangle1 = a1 + 90
+                        if self.gridline_factory.rotate_parallel_labels:
+                            if latitude > 0:
+                                p.labelangle1 = a1 + 90
+                            else:
+                                p.labelangle1 = a1 - 90
+                        else:
+                            p.labelangle1 = 0
+
+                        p.border2 = b2
+                        p.tickangle2 = a2 + 90
+                        if self.gridline_factory.rotate_parallel_labels:
+                            if latitude > 0:
+                                p.labelangle2 = a2 + 90
+                            else:
+                                p.labelangle2 = a2 - 90
+                        else:
+                            p.labelangle2 = 0
+                        parallels.append(p)
+            else:
+                if self.inside_maparea(c.center):
+                    p = self.gridline_factory.parallel(latitude, c)
+                    parallels = [p]
+                else:
+                    parallels = []
+        else:
+            if self.projection.reference_latitude > 0:
+                start_angle = self.map_meridian(self.min_longitude).meridian.angle + 180
+                stop_angle = self.map_meridian(self.max_longitude).meridian.angle + 180
+            else:
+                start_angle = self.map_meridian(self.max_longitude).meridian.angle
+                stop_angle = self.map_meridian(self.min_longitude).meridian.angle
+            a = Arc(c.center, c.radius, start_angle, stop_angle)
+            p = self.gridline_factory.parallel(latitude, a)
+            if self.projection.reference_latitude > 0:
+                p.border1 = 'right'
+            else:
+                p.border1 = 'left'
+            if self.projection.reference_latitude > 0:
+                p.tickangle1 = start_angle + 90
+            else:
+                p.tickangle1 = start_angle - 90
+            if self.gridline_factory.rotate_parallel_labels:
+                if self.projection.reference_latitude > 0:
+                    p.labelangle1 = start_angle + 90
+                else:
+                    p.labelangle1 = start_angle - 90
+            else:
+                p.labelangle1 = 0
+
+            if self.projection.reference_latitude > 0:
+                p.border2 = 'left'
+            else:
+                p.border2 = 'right'
+            if self.projection.reference_latitude > 0:
+                p.tickangle2 = stop_angle + 90
+            else:
+                p.tickangle2 = stop_angle - 90
+            if self.gridline_factory.rotate_parallel_labels:
+                if self.projection.reference_latitude > 0:
+                    p.labelangle2 = stop_angle + 90
+                else:
+                    p.labelangle2 = stop_angle - 90
+            else:
+                p.labelangle2 = 0
+
+            parallels = [p]
 
         return parallels
 
@@ -524,7 +619,6 @@ class EquidistantConicMapArea(MapArea):
                 except DrawError:
                     self.draw_circle(l, linewidth=self.gridline_thickness)
 
-            p.fontsize = "tiny"
             if p.border1 and self.parallel_ticks[p.border1]:
                 t1 = p.tick1
                 if t1:
@@ -556,32 +650,39 @@ class EquidistantConicMapArea(MapArea):
             p2 = SphericalPoint(longitude, self.max_latitude)
 
         l = self.map_line(Line(p1, p2))
-        intersections = self.line_intersect_borders(l)
-        if not intersections:
-            return None
-        if len(intersections) == 1:
-            if self.inside_maparea(l.p1):
-                p2, border2 = intersections[0]
-                p1, border1 = l.p1, None
+        if self.bordered:
+            intersections = self.line_intersect_borders(l)
+            if not intersections:
+                return None
+            if len(intersections) == 1:
+                if self.inside_maparea(l.p1):
+                    p2, border2 = intersections[0]
+                    p1, border1 = l.p1, None
+                else:
+                    p1, border1 = intersections[0]
+                    p2, border2 = l.p2, None
             else:
                 p1, border1 = intersections[0]
-                p2, border2 = l.p2, None
+                p2, border2 = intersections[1]
+
+            if p1.y < p2.y:
+                p1, p2 = p2, p1
+                border1, border2 = border2, border1
+
+            l.p1 = p1
+            l.p2 = p2
         else:
-            p1, border1 = intersections[0]
-            p2, border2 = intersections[1]
-
-        if p1.y < p2.y:
-            p1, p2 = p2, p1
-            border1, border2 = border2, border1
-
-        l.p1 = p1
-        l.p2 = p2
+            border1 = "bottom"
+            border2 = "top"
 
         m = self.gridline_factory.meridian(longitude, l)
         m.border1 = border1
         m.border2 = border2
         m.tickangle1 = l.angle
         m.tickangle2 = l.angle
+        if self.gridline_factory.rotate_meridian_labels:
+            m.labelangle1 = l.angle - 90
+            m.labelangle2 = l.angle - 90
         return m
 
     def draw_meridian(self, longitude, origin_offsets={}):

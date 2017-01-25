@@ -32,6 +32,13 @@ class GridLineFactory(object):
         self.unmarked_ticksize = 0.5
 
         self.label_distance = 2 * self.marked_ticksize
+        self.rotate_meridian_labels = False
+        self.meridian_labeltextfunc = None
+        self.meridian_fontsize = "scriptsize"
+
+        self.rotate_parallel_labels = False
+        self.parallel_labeltextfunc = None
+        self.parallel_fontsize = "scriptsize"
 
     def meridian(self, longitude, meridian):
         m = Meridian(longitude, meridian)
@@ -41,6 +48,9 @@ class GridLineFactory(object):
         m.marked_ticksize = self.marked_ticksize
         m.unmarked_ticksize = self.unmarked_ticksize
         m.label_distance = self.label_distance
+        m.rotate_label = self.rotate_meridian_labels
+        m.labeltextfunc = self.meridian_labeltextfunc
+        m.fontsize = self.meridian_fontsize
         return m
 
     def parallel(self, latitude, parallel):
@@ -51,6 +61,9 @@ class GridLineFactory(object):
         p.marked_ticksize = self.marked_ticksize
         p.unmarked_ticksize = self.unmarked_ticksize
         p.label_distance = self.label_distance
+        p.rotate_label = self.rotate_parallel_labels
+        p.labeltextfunc = self.parallel_labeltextfunc
+        p.fontsize = self.parallel_fontsize
         return p
 
 
@@ -69,7 +82,7 @@ class GridLine(object):
         self.labelpos1 = None
         self.labelpos2 = None
 
-        self.fontsize = "scriptsize"
+        self.fontsize = None
 
         # Settings
         self.tick_interval = None
@@ -80,6 +93,8 @@ class GridLine(object):
         self.unmarked_ticksize = None
 
         self.label_distance = None
+        self.rotate_label = None
+        self.labeltextfunc = None
 
     @property
     def tick1(self):
@@ -195,6 +210,8 @@ class Meridian(GridLine):
         return None
 
     def labeltext(self):
+        if self.labeltextfunc is not None:
+            return self.labeltextfunc(self.longitude)
         h = HourAngle()
         h.from_degrees(self.longitude)
         if h.minutes == 0:
@@ -226,6 +243,8 @@ class Parallel(GridLine):
         return None
 
     def labeltext(self):
+        if self.labeltextfunc is not None:
+            return self.labeltextfunc(self.latitude)
         if self.latitude < 0:
             return "--{}\\textdegree".format(abs(int(self.latitude)))
         elif self.latitude > 0:

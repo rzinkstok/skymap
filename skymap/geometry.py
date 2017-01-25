@@ -1,6 +1,17 @@
 import math
 
 
+def point_to_coordinates(point):
+    x = point.x
+    y = point.y
+    if abs(x) < 1e-4:
+        x = 0.0
+    if abs(y) < 1e-4:
+        y = 0.0
+
+    return "({0}mm,{1}mm)".format(x, y)
+
+
 class HourAngle(object):
     def __init__(self, hours=0, minutes=0, seconds=0):
         self.hours = hours
@@ -230,6 +241,14 @@ class Line(object):
         d = self.p2 - self.p1
         return math.degrees(math.atan2(d.y, d.x))
 
+    @property
+    def path(self):
+        return "{}--{}".format(point_to_coordinates(self.p1), point_to_coordinates(self.p2))
+
+    @property
+    def reverse_path(self):
+        return "{}--{}".format(point_to_coordinates(self.p2), point_to_coordinates(self.p1))
+
 
 class Polygon(object):
     def __init__(self, points=[], closed=True):
@@ -301,6 +320,10 @@ class Circle(object):
                 inclusive_intersections.append(i)
         return inclusive_intersections
 
+    @property
+    def path(self):
+        return "{} circle ({}mm)".format(point_to_coordinates(self.center), self.radius)
+
 
 class Arc(Circle):
     def __init__(self, center, radius, start_angle, stop_angle):
@@ -316,6 +339,46 @@ class Arc(Circle):
 
     def __str__(self):
         return "Arc({}, {}, start={}, stop={})".format(self.center, self.radius, self.start_angle, self.stop_angle)
+
+    def interpolated_points(self, npoints=100):
+        points = []
+        delta_angle = self.stop_angle - self.start_angle
+        for i in range(npoints):
+            angle = self.start_angle + i * delta_angle / float(npoints-1)
+            p = self.center + self.radius * Point(math.cos(math.radians(angle)), math.sin(math.radians(angle)))
+            points.append(p)
+        return points
+
+    def _path(self, reverse=False):
+        if self.radius < 1000:
+            if reverse:
+                start = self.stop_angle
+                stop = self.start_angle
+            else:
+                start = self.start_angle
+                stop = self.stop_angle
+
+            path = "([shift=({}:{}mm)]".format(start, self.radius)
+            path += point_to_coordinates(self.center)[1:]
+            path += " arc ({}:{}:{}mm)".format(start, stop, self.radius)
+        else:
+            path = ""
+            if reverse:
+                pts = reversed(self.interpolated_points())
+            else:
+                pts = self.interpolated_points()
+            for p in pts:
+                path += "{}--".format(point_to_coordinates(p))
+            path = path[:-2]
+        return path
+
+    @property
+    def path(self):
+        return self._path()
+
+    @property
+    def reverse_path(self):
+        return self._path(reverse=True)
 
 
 class Rectangle(object):
@@ -365,6 +428,23 @@ class Rectangle(object):
             else:
                 return 0
             return w*h
+
+    @property
+    def points(self):
+        p1 = self.p1
+        p2 = Point(self.p2.x, self.p1.y)
+        p3 = self.p2
+        p4 = Point(self.p1.x, self.p2.y)
+        return [p1, p2, p3, p4]
+
+    @property
+    def path(self):
+        path = ""
+        for p in self.points:
+            path += point_to_coordinates(p)
+            path += "--"
+        path += "cycle"
+        return path
 
 
 def ensure_angle_range(angle):

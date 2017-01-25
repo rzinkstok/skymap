@@ -56,7 +56,7 @@ if __name__ == "__main__":
     m.draw_meridians(origin_offsets=AZIMUTHAL_MERIDIAN_OFFSETS)
     m.draw_parallels()
     m.draw_internal_parallel_ticks(0, labels=True)
-    with m.clip(m.map_box):
+    with m.clip(m.clipping_path):
         m.draw_constellations()
 
     # Legend
@@ -72,10 +72,12 @@ if __name__ == "__main__":
         m = EquidistantConicMapArea(MAP_LLCORNER, MAP_URCORNER, hmargin=MAP_HMARGIN, vmargin=MAP_VMARGIN, center=(center_longitude, 45), standard_parallel1=30, standard_parallel2=60, latitude_range=LATITUDE_RANGE, celestial=True)
         f.add(m)
         m.gridline_factory.parallel_marked_tick_interval = 5
+        m.gridline_factory.rotate_parallel_labels = True
+        m.gridline_factory.parallel_fontsize = "tiny"
         m.draw_meridians()
         m.draw_parallels()
         m.draw_internal_parallel_ticks(center_longitude)
-        with m.clip(m.map_box):
+        with m.clip(m.clipping_path):
             m.draw_constellations()
 
         # Legend
@@ -91,9 +93,10 @@ if __name__ == "__main__":
         m = EquidistantCylindricalMapArea(MAP_LLCORNER, MAP_URCORNER, hmargin=MAP_HMARGIN, vmargin=MAP_VMARGIN, center_longitude=center_longitude, standard_parallel=20, latitude_range=LATITUDE_RANGE, celestial=True)
         f.add(m)
         m.gridline_factory.parallel_marked_tick_interval = 5
+        m.gridline_factory.parallel_fontsize = "tiny"
         m.draw_meridians()
         m.draw_parallels()
-        with m.clip(m.map_box):
+        with m.clip(m.clipping_path):
             m.draw_constellations()
 
         # Legend
@@ -109,10 +112,12 @@ if __name__ == "__main__":
         m = EquidistantConicMapArea(MAP_LLCORNER, MAP_URCORNER, hmargin=MAP_HMARGIN, vmargin=MAP_VMARGIN, center=(center_longitude, -45), standard_parallel1=-60, standard_parallel2=-30, latitude_range=LATITUDE_RANGE, celestial=True)
         f.add(m)
         m.gridline_factory.parallel_marked_tick_interval = 5
+        m.gridline_factory.parallel_fontsize = "tiny"
+        m.gridline_factory.rotate_parallel_labels = True
         m.draw_meridians()
         m.draw_parallels()
         m.draw_internal_parallel_ticks(center_longitude)
-        with m.clip(m.map_box):
+        with m.clip(m.clipping_path):
             m.draw_constellations()
 
         # Legend
@@ -128,7 +133,7 @@ if __name__ == "__main__":
     m.draw_meridians(origin_offsets=AZIMUTHAL_MERIDIAN_OFFSETS)
     m.draw_parallels()
     m.draw_internal_parallel_ticks(0, labels=True)
-    with m.clip(m.map_box):
+    with m.clip(m.clipping_path):
         m.draw_constellations()
 
     # Legend
