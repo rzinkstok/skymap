@@ -3,13 +3,14 @@ import math
 
 
 class Label(object):
-    def __init__(self, point, text, position, fontsize, angle=0, fill=None):
+    def __init__(self, point, text, position, fontsize, angle=0, fill=None, color="black"):
         self.point = point
         self.text = text
         self.position = position
         self._angle = angle
         self.fontsize = fontsize
         self.fill = fill
+        self.color = color
 
     @property
     def angle(self):
@@ -30,6 +31,7 @@ class GridLineFactory(object):
 
         self.marked_ticksize = 1
         self.unmarked_ticksize = 0.5
+        self.fixed_tick_reach = True
 
         self.label_distance = 2 * self.marked_ticksize
         self.rotate_meridian_labels = False
@@ -40,6 +42,8 @@ class GridLineFactory(object):
         self.parallel_labeltextfunc = None
         self.parallel_fontsize = "scriptsize"
 
+        self.gridline_thickness = 0.25
+
     def meridian(self, longitude, meridian):
         m = Meridian(longitude, meridian)
         m.tick_interval = self.meridian_tick_interval
@@ -47,6 +51,7 @@ class GridLineFactory(object):
         m.line_interval = self.meridian_line_interval
         m.marked_ticksize = self.marked_ticksize
         m.unmarked_ticksize = self.unmarked_ticksize
+        m.fixed_tick_reach = self.fixed_tick_reach
         m.label_distance = self.label_distance
         m.rotate_label = self.rotate_meridian_labels
         m.labeltextfunc = self.meridian_labeltextfunc
@@ -60,6 +65,7 @@ class GridLineFactory(object):
         p.line_interval = self.parallel_line_interval
         p.marked_ticksize = self.marked_ticksize
         p.unmarked_ticksize = self.unmarked_ticksize
+        p.fixed_tick_reach = self.fixed_tick_reach
         p.label_distance = self.label_distance
         p.rotate_label = self.rotate_parallel_labels
         p.labeltextfunc = self.parallel_labeltextfunc
@@ -91,10 +97,12 @@ class GridLine(object):
 
         self.marked_ticksize = None
         self.unmarked_ticksize = None
+        self.fixed_tick_reach = None
 
         self.label_distance = None
         self.rotate_label = None
         self.labeltextfunc = None
+
 
     @property
     def tick1(self):
@@ -116,16 +124,19 @@ class GridLine(object):
 
     def tickdelta(self, angle, border):
         a = math.radians(angle)
-        if border == 'right':
-            delta = Point(1, math.tan(a))
-        elif border == 'left':
-            delta = Point(-1, math.tan(math.pi - a))
-        elif border == 'top':
-            delta = Point(math.tan(math.pi / 2 - a), 1)
-        elif border == 'bottom':
-            delta = Point(math.tan(a - 3 * math.pi / 2), -1)
+        if self.fixed_tick_reach:
+            if border == 'right':
+                delta = Point(1, math.tan(a))
+            elif border == 'left':
+                delta = Point(-1, math.tan(math.pi - a))
+            elif border == 'top':
+                delta = Point(math.tan(math.pi / 2 - a), 1)
+            elif border == 'bottom':
+                delta = Point(math.tan(a - 3 * math.pi / 2), -1)
+            else:
+                raise ValueError("Invalid border: {}".format(border))
         else:
-            raise ValueError("Invalid border: {}".format(border))
+            delta = Point(math.cos(a), math.sin(a))
         return delta
 
     def tick(self, point, angle, border):

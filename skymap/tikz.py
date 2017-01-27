@@ -9,8 +9,6 @@ from skymap.geometry import Point, Rectangle
 
 BASEDIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
 TEX_OUTPUT_FOLDER = os.path.join(BASEDIR, "output")
-print "Basedir:", BASEDIR
-print "Texfolder:", TEX_OUTPUT_FOLDER
 
 PAPERSIZES = {
     "A4": (210.0, 297.0),
@@ -80,7 +78,6 @@ class TikzFigure(object):
         self.landscape = landscape
         if landscape:
             self.papersize = (self.papersize[1], self.papersize[0])
-        print self.papersize
 
         self.left_margin = left_margin
         self.right_margin = right_margin
@@ -108,12 +105,12 @@ class TikzFigure(object):
             self.fp.write("\\documentclass[landscape,{}pt]{{article}}\n".format(self.fontsize))
         else:
             self.fp.write("\\documentclass[{}pt]{{article}}\n".format(self.fontsize))
-        #self.fp.write("\\usepackage[{}paper]{{geometry}}\n".format(self.papersize.lower()))
         self.fp.write("\\usepackage[paperwidth={}mm,paperheight={}mm]{{geometry}}\n".format(self.papersize[0], self.papersize[1]))
         self.fp.write("\\usepackage{mathspec}\n")
         self.fp.write("\\usepackage{tikz}\n")
         self.fp.write("\\usetikzlibrary{positioning}\n")
-        self.fp.write("\\setallmainfonts[Numbers={Lining,Proportional}]{Myriad Pro}\n")
+        self.fp.write("\\defaultfontfeatures{Ligatures=TeX}\n")
+        self.fp.write("\\setallmainfonts[Numbers={Lining,Proportional}]{Myriad Pro SemiCondensed}\n")
 
         self.fp.write("\n")
         self.fp.write("\\makeatletter\n")
@@ -143,6 +140,8 @@ class TikzFigure(object):
         for fontsize, pointsize in self.fontsizes.items():
             self.fp.write("\\pgfmathsetmacro{{\\{}textheight}}{{{}*\\normaltextheight/{}}} % Text height for {} ({} pt)\n".format(fontsize, pointsize, self.fontsize, fontsize, pointsize))
             self.fp.write("\\pgfmathsetmacro{{\\{}textdepth}}{{{}*\\normaltextdepth/{}}} % Text depth for {} ({} pt)\n".format(fontsize, pointsize, self.fontsize, fontsize, pointsize))
+        self.fp.write("\n")
+        self.fp.write("\\newfontfamily\\condensed{Myriad Pro Condensed}[Numbers={Lining,Proportional}]\n")
         self.fp.write("\n")
 
     def close(self):
@@ -330,8 +329,8 @@ class DrawingArea(object):
     def draw_interpolated_arc(self, arc, color="black", linewidth=0.5, dotted=False, dashed=False, delay_write=False):
         self.draw_polygon(arc.interpolated_points(), color=color, linewidth=linewidth, dotted=dotted, dashed=dashed, delay_write=delay_write)
 
-    def draw_bounding_box(self):
-        self.draw_rectangle(self.bounding_box)
+    def draw_bounding_box(self, linewidth=0.5):
+        self.draw_rectangle(self.bounding_box, linewidth=linewidth)
 
     def draw_label(self, label, delay_write=False):
         """pos can be a position string or an angle float"""
@@ -346,10 +345,15 @@ class DrawingArea(object):
             labelfill = ""
 
         text = "{{{}:{{\\{} {}}}}}".format(label.position, label.fontsize, label.text)
-        text = "{{[label distance=0mm, rotate={}, text height={} mm, text depth={} mm{}]".format(label.angle, textheight, textdepth, labelfill) + text[1:]
+        text = "{{[label distance=0mm, rotate={}, text height={} mm, text depth={} mm{}, text={}]".format(label.angle, textheight, textdepth, labelfill, label.color) + text[1:]
 
         self.fp.write("\\node at {} [text height=0mm, text depth=0mm, label={}] {{}};\n".format(p, text))
 
-    def fill_circle(self, point, radius):
+    def fill_circle(self, point, radius, color="black"):
         p = self.point_to_coordinates(point)
-        self.fp.write("\\fill {} circle ({}mm);\n".format(p, radius))
+        self.fp.write("\\fill [{}] {} circle ({}mm);\n".format(color, p, radius))
+
+    def fill_rectangle(self, rectangle, color="black"):
+        p1 = self.point_to_coordinates(rectangle.p1)
+        p2 = self.point_to_coordinates(rectangle.p2)
+        self.fp.write("\\fill [{}] {} rectangle {};\n".format(color, p1, p2))

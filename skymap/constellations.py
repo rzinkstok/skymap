@@ -1,9 +1,8 @@
 import sys
-import os
 import math
 import numpy
 import datetime
-import urllib
+import random
 
 from skymap.database import SkyMapDatabase
 from skymap.geometry import SphericalPoint, ensure_angle_range
@@ -194,6 +193,28 @@ def determine_constellation(ra, de, pc, db):
     return db.query_one(q)['const'].lower()
 
 
+def constellations_in_area(min_longitude, max_longitude, min_latitude, max_latitude, nsamples=1000):
+    constellations = {}
+    db = SkyMapDatabase()
+    pc = PointInConstellationPrecession()
+
+    total = 0
+    for i in range(nsamples):
+        x = min_longitude + (max_longitude - min_longitude) * random.random()
+        y = min_latitude + (max_latitude - min_latitude) * random.random()
+        c = determine_constellation(x, y, pc, db)
+        w = math.cos(math.radians(y))
+        if c not in constellations:
+            constellations[c] = w
+        else:
+            constellations[c] += w
+        total += w
+
+    res = sorted([(v/total, k) for k, v in constellations.items()], reverse=True)
+    print res
+    return [x[1] for x in res]
+
+
 # Constellation boundaries
 class BoundaryEdge(object):
     def __init__(self, p1, p2):
@@ -372,6 +393,7 @@ class BoundaryEdge(object):
 
 def get_constellation_boundaries_for_area(min_longitude, max_longitude, min_latitude, max_latitude, epoch=REFERENCE_EPOCH):
     # Convert longitude to 0-360 values
+    # TODO: sometimes boundaries cross the map but have no vertices within the map area + margin and are not plotted
     min_longitude = ensure_angle_range(min_longitude)
     max_longitude = ensure_angle_range(max_longitude)
     if max_longitude == min_longitude:
@@ -479,67 +501,4 @@ def build_constellation_boundary_database():
 
 
 if __name__ == "__main__":
-    from skymap.stars import Star
-
-    e1 = BoundaryEdge(SphericalPoint(0, 0), SphericalPoint(0, 10))
-    e2 = BoundaryEdge(SphericalPoint(0, 0), SphericalPoint(0, -20))
-    e3 = BoundaryEdge(SphericalPoint(0, 0), SphericalPoint(15, 0))
-
-    e1.connect(e2)
-    e1.connect(e3)
-    e2.connect(e3)
-
-    print "Edge 1"
-    print e1.p1, e1.extension1
-    print e1.p2, e1.extension2
-    print
-    print "Edge 2"
-    print e2.p1, e2.extension1
-    print e2.p2, e2.extension2
-    print
-    print "Edge 3"
-    print e3.p1, e3.extension1
-    print e3.p2, e3.extension2
-    print
-    print "Combined"
-    print e1.extended_edge
-    print e2.extended_edge
-    print e3.extended_edge
-
     build_constellation_boundary_database()
-
-    sys.exit()
-    db = SkyMapDatabase()
-
-    s = Star(db.query_one("SELECT * FROM dummy WHERE proper_name='Acrux'"))
-    pc = PointInConstellationPrecession()
-    print CONSTELLATIONS[determine_constellation(s.right_ascension, s.declination, pc, db)]
-    print
-    ra1 = 0
-    dec1 = 90
-
-
-    e0 = datetime.datetime(2000, 1, 1).date()
-
-    e1 = datetime.datetime(1700, 1, 1).date()
-    pc = PrecessionCalculator(e0, e1)
-    print pc.precess(ra1, dec1)
-    e1 = datetime.datetime(1800, 1, 1).date()
-    pc = PrecessionCalculator(e0, e1)
-    print pc.precess(ra1, dec1)
-    e1 = datetime.datetime(1900, 1, 1).date()
-    pc = PrecessionCalculator(e0, e1)
-    print pc.precess(ra1, dec1)
-    e1 = datetime.datetime(2100, 1, 1).date()
-    pc = PrecessionCalculator(e0, e1)
-    print pc.precess(ra1, dec1)
-    e1 = datetime.datetime(2200, 1, 1).date()
-    pc = PrecessionCalculator(e0, e1)
-    print pc.precess(ra1, dec1)
-    e1 = datetime.datetime(2300, 1, 1).date()
-    pc = PrecessionCalculator(e0, e1)
-    print pc.precess(ra1, dec1)
-
-
-
-

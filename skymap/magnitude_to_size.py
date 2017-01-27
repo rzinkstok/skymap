@@ -1,11 +1,11 @@
 """The magnitude to size relation"""
 
 
-def magnitude_to_size(m, start=0, stop=10, cm_per_degree=1):
+def magnitude_to_size(m, start=0, stop=10, mm_per_degree=1):
     # Based on the Uranometria 2000.0 scale (1.85 cm per degree of declination
     x = 10.0*(m-start)/(stop-start)
     s = -1.86483053 + (4.35447935 + 1.86483053) / pow((1 + pow((x/19.06110112), 1.30821934)), 3.25679589)
-    return cm_per_degree*s/1.85
+    return mm_per_degree*s/18.5
 
 
 if __name__=="__main__":

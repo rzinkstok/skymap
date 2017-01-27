@@ -64,8 +64,6 @@ class MapArea(DrawingArea):
         self.parallel_ticks = {'left': True, 'right': True, 'bottom': False, 'top': False}
         self.meridian_ticks = {'left': False, 'right': False, 'bottom': True, 'top': True}
 
-        self.gridline_thickness = 0.3
-
     def open(self):
         DrawingArea.open(self)
         if self.box and (self.map_hmargin>0 or self.map_vmargin>0):
@@ -102,7 +100,7 @@ class MapArea(DrawingArea):
         return Circle(center, radius)
 
     def draw_map_box(self):
-        self.draw_rectangle(self.map_box, linewidth=self.gridline_thickness)
+        self.draw_rectangle(self.map_box, linewidth=self.gridline_factory.gridline_thickness)
 
     def draw_clipping_path(self):
         path = self.clipping_path
@@ -205,7 +203,7 @@ class MapArea(DrawingArea):
 
             if ticksize > 0:
                 p2 = p1 + ticksize * delta
-                self.draw_line(Line(p1, p2), linewidth=self.gridline_thickness)
+                self.draw_line(Line(p1, p2), linewidth=self.gridline_factory.gridline_thickness)
 
             if labels and latitude % self.gridline_factory.parallel_line_interval == 0:
                 p3 = p1 + 0.75 * delta
@@ -219,20 +217,21 @@ class MapArea(DrawingArea):
                 l = Label(p3, text, label_angle, "tiny", angle=0, fill="white")
                 self.draw_label(l)
 
-    def draw_constellations(self, dashed='dash pattern=on 1.6pt off 0.8pt'):
+    def draw_constellations(self, linewidth=0.3, dashed='dash pattern=on 1.6pt off 0.8pt'):
         self.comment("Constellation boundaries")
-        if self.min_longitude != 0 and self.max_longitude != 360:
-            min_longitude = self.min_longitude - 5
-            max_longitude = self.max_longitude + 5
-        else:
-            min_longitude = self.min_longitude
-            max_longitude = self.max_longitude
-        min_latitude = self.min_latitude - 5
-        max_latitude = self.max_latitude + 5
+        min_longitude = 0
+        max_longitude = 360
+
+        min_latitude = 45 * math.floor(self.min_latitude / 45.0)
+        max_latitude = 45 * math.ceil(self.max_latitude / 45.0)
+        if min_latitude < -90:
+            min_latitude = -90
+        if max_latitude > 90:
+            max_latitude = 90
         boundaries = get_constellation_boundaries_for_area(min_longitude, max_longitude, min_latitude, max_latitude)
         for b in boundaries:
             points = [self.map_point(p) for p in b.interpolated_points]
-            self.draw_polygon(points, linewidth=self.gridline_thickness, dashed=dashed)
+            self.draw_polygon(points, linewidth=linewidth, dashed=dashed)
 
 
 class AzimuthalEquidistantMapArea(MapArea):
@@ -261,11 +260,11 @@ class AzimuthalEquidistantMapArea(MapArea):
             return self.map_box.path
         else:
             if self.north:
-                boundary = self.map_parallel(self.min_latitude)
+                boundary = self.map_parallel(self.min_latitude)[0].parallel
             else:
-                boundary = self.map_parallel(self.max_latitude)
+                boundary = self.map_parallel(self.max_latitude)[0].parallel
 
-            return "{} circle ({}mm);".format(boundary.center, boundary.radius)
+            return boundary.path
 
     def map_parallel(self, latitude):
         c = Circle(SphericalPoint(0, self.projection.origin_latitude), self.projection.origin_latitude - latitude)
@@ -301,14 +300,14 @@ class AzimuthalEquidistantMapArea(MapArea):
             if l:
                 self.comment("Parellel {}".format(latitude))
                 try:
-                    self.draw_arc(l, linewidth=self.gridline_thickness)
+                    self.draw_arc(l, linewidth=self.gridline_factory.gridline_thickness)
                 except DrawError:
-                    self.draw_circle(l, linewidth=self.gridline_thickness)
+                    self.draw_circle(l, linewidth=self.gridline_factory.gridline_thickness)
 
             if p.border1 and self.parallel_ticks[p.border1]:
                 t1 = p.tick1
                 if t1:
-                    self.draw_line(t1, linewidth=self.gridline_thickness)
+                    self.draw_line(t1, linewidth=self.gridline_factory.gridline_thickness)
                 l1 = p.label1
                 if l1:
                     self.draw_label(l1)
@@ -316,7 +315,7 @@ class AzimuthalEquidistantMapArea(MapArea):
             if p.border2 and self.parallel_ticks[p.border2]:
                 t2 = p.tick2
                 if t2:
-                    self.draw_line(t2, linewidth=self.gridline_thickness)
+                    self.draw_line(t2, linewidth=self.gridline_factory.gridline_thickness)
                 l2 = p.label2
                 if l2:
                     self.draw_label(l2)
@@ -340,16 +339,25 @@ class AzimuthalEquidistantMapArea(MapArea):
             p2 = SphericalPoint(longitude, self.max_latitude)
 
         l = self.map_line(Line(p1, p2))
-        p2, border2 = self.line_intersect_borders(l)[0]
-        l.p2 = p2
+        if self.bordered:
+            p2, border2 = self.line_intersect_borders(l)[0]
+            l.p2 = p2
+        else:
+            border2 = "bottom"
 
         m = self.gridline_factory.meridian(longitude, l)
         m.border2 = border2
 
         if xor(self.projection.north, not self.projection.celestial):
-            m.tickangle2 = -longitude
+            m.tickangle2 = -longitude + self.projection.reference_longitude
         else:
-            m.tickangle2 = longitude
+            m.tickangle2 = longitude - self.projection.reference_longitude
+
+        if self.gridline_factory.rotate_meridian_labels:
+            m.labelpos2 = 270
+            m.labelangle2 = l.angle+90
+        else:
+            pass
 
         return m
 
@@ -359,12 +367,12 @@ class AzimuthalEquidistantMapArea(MapArea):
         l = m.meridian
         if l:
             self.comment("Meridian {}".format(longitude))
-            self.draw_line(l, linewidth=self.gridline_thickness)
+            self.draw_line(l, linewidth=self.gridline_factory.gridline_thickness)
 
         if m.border1 and self.meridian_ticks[m.border1]:
             t1 = m.tick1
             if t1:
-                self.draw_line(t1, linewidth=self.gridline_thickness)
+                self.draw_line(t1, linewidth=self.gridline_factory.gridline_thickness)
             l1 = m.label1
             if l1:
                 self.draw_label(l1)
@@ -372,7 +380,7 @@ class AzimuthalEquidistantMapArea(MapArea):
         if m.border2 and self.meridian_ticks[m.border2]:
             t2 = m.tick2
             if t2:
-                self.draw_line(t2, linewidth=self.gridline_thickness)
+                self.draw_line(t2, linewidth=self.gridline_factory.gridline_thickness)
             l2 = m.label2
             if l2:
                 self.draw_label(l2)
@@ -423,12 +431,12 @@ class EquidistantCylindricalMapArea(MapArea):
         l = p.parallel
         if l:
             self.comment("Parallel {}".format(latitude))
-            self.draw_line(l, linewidth=self.gridline_thickness)
+            self.draw_line(l, linewidth=self.gridline_factory.gridline_thickness)
 
         if p.border1 and self.parallel_ticks[p.border1]:
             t1 = p.tick1
             if t1:
-                self.draw_line(t1, linewidth=self.gridline_thickness)
+                self.draw_line(t1, linewidth=self.gridline_factory.gridline_thickness)
             l1 = p.label1
             if l1:
                 self.draw_label(l1)
@@ -436,7 +444,7 @@ class EquidistantCylindricalMapArea(MapArea):
         if p.border2 and self.parallel_ticks[p.border2]:
             t2 = p.tick2
             if t2:
-                self.draw_line(t2, linewidth=self.gridline_thickness)
+                self.draw_line(t2, linewidth=self.gridline_factory.gridline_thickness)
             l2 = p.label2
             if l2:
                 self.draw_label(l2)
@@ -459,12 +467,12 @@ class EquidistantCylindricalMapArea(MapArea):
         l = m.meridian
         if l:
             self.comment("Meridian {}".format(longitude))
-            self.draw_line(l, linewidth=self.gridline_thickness)
+            self.draw_line(l, linewidth=self.gridline_factory.gridline_thickness)
 
         if m.border1 and self.meridian_ticks[m.border1]:
             t1 = m.tick1
             if t1:
-                self.draw_line(t1, linewidth=self.gridline_thickness)
+                self.draw_line(t1, linewidth=self.gridline_factory.gridline_thickness)
             l1 = m.label1
             if l1:
                 self.draw_label(l1)
@@ -472,7 +480,7 @@ class EquidistantCylindricalMapArea(MapArea):
         if m.border2 and self.meridian_ticks[m.border2]:
             t2 = m.tick2
             if t2:
-                self.draw_line(t2, linewidth=self.gridline_thickness)
+                self.draw_line(t2, linewidth=self.gridline_factory.gridline_thickness)
             l2 = m.label2
             if l2:
                 self.draw_label(l2)
@@ -615,14 +623,14 @@ class EquidistantConicMapArea(MapArea):
             if l:
                 self.comment("Parellel {}".format(latitude))
                 try:
-                    self.draw_arc(l, linewidth=self.gridline_thickness)
+                    self.draw_arc(l, linewidth=self.gridline_factory.gridline_thickness)
                 except DrawError:
-                    self.draw_circle(l, linewidth=self.gridline_thickness)
+                    self.draw_circle(l, linewidth=self.gridline_factory.gridline_thickness)
 
             if p.border1 and self.parallel_ticks[p.border1]:
                 t1 = p.tick1
                 if t1:
-                    self.draw_line(t1, linewidth=self.gridline_thickness)
+                    self.draw_line(t1, linewidth=self.gridline_factory.gridline_thickness)
                 l1 = p.label1
                 if l1:
                     self.draw_label(l1)
@@ -630,7 +638,7 @@ class EquidistantConicMapArea(MapArea):
             if p.border2 and self.parallel_ticks[p.border2]:
                 t2 = p.tick2
                 if t2:
-                    self.draw_line(t2, linewidth=self.gridline_thickness)
+                    self.draw_line(t2, linewidth=self.gridline_factory.gridline_thickness)
                 l2 = p.label2
                 if l2:
                     self.draw_label(l2)
@@ -678,7 +686,7 @@ class EquidistantConicMapArea(MapArea):
         m = self.gridline_factory.meridian(longitude, l)
         m.border1 = border1
         m.border2 = border2
-        m.tickangle1 = l.angle
+        m.tickangle1 = l.angle + 180
         m.tickangle2 = l.angle
         if self.gridline_factory.rotate_meridian_labels:
             m.labelangle1 = l.angle - 90
@@ -693,19 +701,19 @@ class EquidistantConicMapArea(MapArea):
         l = m.meridian
         if l:
             self.comment("Meridian {}".format(longitude))
-            self.draw_line(l, linewidth=self.gridline_thickness)
+            self.draw_line(l, linewidth=self.gridline_factory.gridline_thickness)
 
         if m.border1 and self.meridian_ticks[m.border1]:
             t1 = m.tick1
             if t1:
-                self.draw_line(t1, linewidth=self.gridline_thickness)
+                self.draw_line(t1, linewidth=self.gridline_factory.gridline_thickness)
             l1 = m.label1
             if l1:
                 self.draw_label(l1)
         if m.border2 and self.meridian_ticks[m.border2]:
             t2 = m.tick2
             if t2:
-                self.draw_line(t2, linewidth=self.gridline_thickness)
+                self.draw_line(t2, linewidth=self.gridline_factory.gridline_thickness)
             l2 = m.label2
             if l2:
                 self.draw_label(l2)
