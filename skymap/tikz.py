@@ -166,6 +166,7 @@ class TikzFigure(object):
         drawing_area.set_figure(self.fp)
 
     def render(self, filepath=None, open=True):
+        print "Rendering", filepath
         if not self.closed:
             self.close()
         subprocess.check_output(["xelatex", self.name + ".tex"], cwd=TEX_OUTPUT_FOLDER)

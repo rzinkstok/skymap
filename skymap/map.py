@@ -1,12 +1,13 @@
 import os
 import math
 import numpy
-from operator import xor
+from operator import xor, attrgetter
 from skymap.tikz import DrawingArea, DrawError
 from skymap.geometry import Point, SphericalPoint, Line, Circle, Arc, Rectangle, ensure_angle_range
 from skymap.projections import AzimuthalEquidistantProjection, EquidistantCylindricalProjection, EquidistantConicProjection, UnitProjection
 from skymap.gridlines import GridLineFactory, Label
 from skymap.constellations import get_constellation_boundaries_for_area
+from skymap.coordinates import ecliptic_to_equatorial, galactic_to_equatorial
 
 
 class MapArea(DrawingArea):
@@ -219,8 +220,11 @@ class MapArea(DrawingArea):
 
     def draw_constellations(self, linewidth=0.3, dashed='dash pattern=on 1.6pt off 0.8pt'):
         self.comment("Constellation boundaries")
-        min_longitude = 0
-        max_longitude = 360
+        min_longitude = self.min_longitude
+        max_longitude = self.max_longitude
+        if max_longitude - min_longitude < 90:
+            min_longitude -= 45
+            max_longitude += 45
 
         min_latitude = 45 * math.floor(self.min_latitude / 45.0)
         max_latitude = 45 * math.ceil(self.max_latitude / 45.0)
@@ -232,6 +236,87 @@ class MapArea(DrawingArea):
         for b in boundaries:
             points = [self.map_point(p) for p in b.interpolated_points]
             self.draw_polygon(points, linewidth=linewidth, dashed=dashed)
+
+    def draw_coordinate_system(self, transformation, linewidth=0.3, dashed='dashed', tickinterval=None, poles=False):
+        points = []
+        for longitude in numpy.arange(0, 360.1, 0.251):
+            p = transformation(SphericalPoint(longitude, 0))
+
+            points.append(SphericalPoint(self.projection.reduce_longitude(p.longitude), p.latitude))
+
+        points_to_draw = []
+        for i in range(len(points)):
+            prev_p = points[i-1]
+            p = points[i]
+            if i + 1 == len(points):
+                next_p = points[0]
+            else:
+                next_p = points[i+1]
+
+            if self.bordered:
+                prev_p = self.map_point(prev_p)
+                p = self.map_point(p)
+                next_p = self.map_point(next_p)
+
+                if self.inside_maparea(prev_p) or self.inside_maparea(p) or self.inside_maparea(next_p):
+                    points_to_draw.append(p)
+            else:
+                prevpinside = (self.min_longitude <= prev_p.longitude <= self.max_longitude) and (self.min_latitude <= prev_p.latitude <= self.max_latitude)
+                pinside = (self.min_longitude <= p.longitude <= self.max_longitude) and (self.min_latitude <= p.latitude <= self.max_latitude)
+                nextpinside = (self.min_longitude <= next_p.longitude <= self.max_longitude) and (self.min_latitude <= next_p.latitude <= self.max_latitude)
+                if prevpinside or pinside or nextpinside:
+                    points_to_draw.append(self.map_point(p))
+
+        points_to_draw = sorted(points_to_draw, key=attrgetter('x'))
+        if points_to_draw:
+            self.draw_polygon(points_to_draw, linewidth=linewidth, dashed=dashed)
+
+        # Ticks
+        if tickinterval is not None:
+            for i in range(360/int(tickinterval)):
+                l = i * tickinterval
+                p = self.map_point(transformation(SphericalPoint(l, 0)))
+                if self.inside_maparea(p):
+                    v = self.map_point(transformation(SphericalPoint(l+1, 0))) - p
+                    v = v.rotate(90)/v.distance(Point(0, 0))
+                    tp1 = p + 0.5 * v
+                    tp2 = p - 0.5 * v
+                    lp = p + 0.8 * v
+                    tick = Line(tp1, tp2)
+                    self.draw_line(tick, linewidth=linewidth)
+                    self.draw_label(Label(lp, "\\textit{{{}\\textdegree}}".format(l), 270, "miniscule", angle=tick.angle-90, fill="white"))
+
+        # Poles
+        if poles:
+            np = self.map_point(transformation(SphericalPoint(0, 90)))
+            if self.inside_maparea(np):
+                p1 = np + Point(2.5, 0)
+                p2 = np - Point(2.5, 0)
+                l1 = Line(p1, p2)
+                p1 = np + Point(0, 2.5)
+                p2 = np - Point(0, 2.5)
+                l2 = Line(p1, p2)
+                self.fill_circle(np, 1.0, "white")
+                self.draw_line(l1, linewidth=linewidth)
+                self.draw_line(l2, linewidth=linewidth)
+
+            sp = self.map_point(transformation(SphericalPoint(0, -90)))
+            if self.inside_maparea(sp):
+                p1 = sp + Point(2.5, 0)
+                p2 = sp - Point(2.5, 0)
+                l1 = Line(p1, p2)
+                p1 = sp + Point(0, 2.5)
+                p2 = sp - Point(0, 2.5)
+                l2 = Line(p1, p2)
+                self.fill_circle(sp, 1.0, "white")
+                self.draw_line(l1, linewidth=linewidth)
+                self.draw_line(l2, linewidth=linewidth)
+
+    def draw_ecliptic(self, linewidth=0.3, dashed='dashed', tickinterval=None, poles=False):
+        self.draw_coordinate_system(ecliptic_to_equatorial, linewidth, dashed, tickinterval, poles)
+
+    def draw_galactic(self, linewidth=0.3, dashed='dashed', tickinterval=None, poles=False):
+        self.draw_coordinate_system(galactic_to_equatorial, linewidth, dashed, tickinterval, poles)
 
 
 class AzimuthalEquidistantMapArea(MapArea):
@@ -426,7 +511,6 @@ class EquidistantCylindricalMapArea(MapArea):
 
     def draw_parallel(self, latitude):
         p = self.map_parallel(latitude)
-        #p.fontsize = "tiny"
 
         l = p.parallel
         if l:
@@ -575,6 +659,7 @@ class EquidistantConicMapArea(MapArea):
                 stop_angle = self.map_meridian(self.min_longitude).meridian.angle
             a = Arc(c.center, c.radius, start_angle, stop_angle)
             p = self.gridline_factory.parallel(latitude, a)
+
             if self.projection.reference_latitude > 0:
                 p.border1 = 'right'
             else:
@@ -596,9 +681,9 @@ class EquidistantConicMapArea(MapArea):
             else:
                 p.border2 = 'right'
             if self.projection.reference_latitude > 0:
-                p.tickangle2 = stop_angle + 90
-            else:
                 p.tickangle2 = stop_angle - 90
+            else:
+                p.tickangle2 = stop_angle + 90
             if self.gridline_factory.rotate_parallel_labels:
                 if self.projection.reference_latitude > 0:
                     p.labelangle2 = stop_angle + 90

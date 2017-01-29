@@ -21,6 +21,9 @@ MAP_URCORNER = Point(PAPERSIZE[0]-RIGHT_MARGIN, BOTTOM_MARGIN + 299)
 
 LATITUDE_RANGE = 40
 CONIC_MERIDIAN_OFFSETS = {15: 10, 30: 2}
+CONSTELLATION_DASH_PATTERN = 'densely dotted'
+ECLIPTIC_DASH_PATTERN = 'densely dashed'
+GALACTIC_DASH_PATTERN = 'densely dash dot'
 
 
 if not os.path.exists(OUTPUT_FOLDER):
@@ -87,11 +90,13 @@ if __name__ == "__main__":
         p1 = Point(0, 0.5*(MAP_URCORNER.y - MAP_LLCORNER.y - 2*MAP_VMARGIN))
         p2 = p1 + Point(0, m.gridline_factory.marked_ticksize)
         p3 = p1 + Point(0, m.gridline_factory.label_distance)
-        m.draw_line(Line(p1, p2), linewidth=m.gridline_thickness)
+        m.draw_line(Line(p1, p2), linewidth=m.gridline_factory.gridline_thickness)
         m.draw_label(Label(p3, "+90\\textdegree", 90, "tiny"))
 
         with m.clip(m.clipping_path):
-            m.draw_constellations()
+            m.draw_constellations(dashed=CONSTELLATION_DASH_PATTERN)
+        m.draw_ecliptic(tickinterval=5, dashed=ECLIPTIC_DASH_PATTERN)
+        m.draw_galactic(tickinterval=5, dashed=GALACTIC_DASH_PATTERN)
 
         # Legend
         legend(f, chart_number)
@@ -113,7 +118,9 @@ if __name__ == "__main__":
         m.draw_meridians()
         m.draw_parallels()
         with m.clip(m.clipping_path):
-            m.draw_constellations()
+            m.draw_constellations(dashed=CONSTELLATION_DASH_PATTERN)
+        m.draw_ecliptic(tickinterval=5, dashed=ECLIPTIC_DASH_PATTERN)
+        m.draw_galactic(tickinterval=5, dashed=GALACTIC_DASH_PATTERN)
 
         # Legend
         legend(f, chart_number)
@@ -134,7 +141,9 @@ if __name__ == "__main__":
         m.draw_meridians()
         m.draw_parallels()
         with m.clip(m.clipping_path):
-            m.draw_constellations()
+            m.draw_constellations(dashed=CONSTELLATION_DASH_PATTERN)
+        m.draw_ecliptic(tickinterval=5, dashed=ECLIPTIC_DASH_PATTERN)
+        m.draw_galactic(tickinterval=5, dashed=GALACTIC_DASH_PATTERN)
 
         # Legend
         legend(f, chart_number)
@@ -156,7 +165,9 @@ if __name__ == "__main__":
         m.draw_meridians()
         m.draw_parallels()
         with m.clip(m.clipping_path):
-            m.draw_constellations()
+            m.draw_constellations(dashed=CONSTELLATION_DASH_PATTERN)
+        m.draw_ecliptic(tickinterval=5, dashed=ECLIPTIC_DASH_PATTERN)
+        m.draw_galactic(tickinterval=5, dashed=GALACTIC_DASH_PATTERN)
 
         # Legend
         legend(f, chart_number)
@@ -189,16 +200,17 @@ if __name__ == "__main__":
         m.draw_meridians(origin_offsets=CONIC_MERIDIAN_OFFSETS)
         m.draw_parallels()
 
-        m.fill_circle(map_origin, 2)
         # Draw the -90 degrees parallel tick
         p1 = Point(0, -0.5*(MAP_URCORNER.y - MAP_LLCORNER.y - 2*MAP_VMARGIN))
         p2 = p1 + Point(0, -m.gridline_factory.marked_ticksize)
         p3 = p1 + Point(0, -m.gridline_factory.label_distance)
-        m.draw_line(Line(p1, p2), linewidth=m.gridline_thickness)
+        m.draw_line(Line(p1, p2), linewidth=m.gridline_factory.gridline_thickness)
         m.draw_label(Label(p3, "--90\\textdegree", 270, "tiny"))
 
         with m.clip(m.clipping_path):
-            m.draw_constellations()
+            m.draw_constellations(dashed=CONSTELLATION_DASH_PATTERN)
+        m.draw_ecliptic(tickinterval=5, dashed=ECLIPTIC_DASH_PATTERN)
+        m.draw_galactic(tickinterval=5, dashed=GALACTIC_DASH_PATTERN)
 
         # Legend
         legend(f, chart_number)

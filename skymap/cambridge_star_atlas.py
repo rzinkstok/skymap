@@ -21,6 +21,7 @@ MAP_URCORNER = Point(LEFT_MARGIN + 264, PAPERSIZE[1] - TOP_MARGIN)
 
 LATITUDE_RANGE = 56
 AZIMUTHAL_MERIDIAN_OFFSETS = {15: 10, 45: 1, 90: 0}
+GALACTIC_ECLIPTIC_DASH_PATTERN = "densely dashed"
 
 
 if not os.path.exists(OUTPUT_FOLDER):
@@ -50,14 +51,18 @@ if __name__ == "__main__":
     chart_number = 1
     fn = "{:02}".format(chart_number)
     f = figure(fn)
-    m = AzimuthalEquidistantMapArea(MAP_LLCORNER, MAP_URCORNER, latitude_range=LATITUDE_RANGE, hmargin=MAP_HMARGIN, vmargin=MAP_VMARGIN, celestial=True, north=True)
+
+    m = AzimuthalEquidistantMapArea(MAP_LLCORNER, MAP_URCORNER, hmargin=MAP_HMARGIN, vmargin=MAP_VMARGIN,
+                                    latitude_range=LATITUDE_RANGE, celestial=True, north=True)
     f.add(m)
-    #m.draw_parallel_ticks_on_reference_meridian = True
+
     m.draw_meridians(origin_offsets=AZIMUTHAL_MERIDIAN_OFFSETS)
     m.draw_parallels()
     m.draw_internal_parallel_ticks(0, labels=True)
     with m.clip(m.clipping_path):
         m.draw_constellations()
+    m.draw_ecliptic(tickinterval=10, dashed=GALACTIC_ECLIPTIC_DASH_PATTERN, poles=False)
+    m.draw_galactic(tickinterval=10, dashed=GALACTIC_ECLIPTIC_DASH_PATTERN, poles=True)
 
     # Legend
     legend(f, chart_number)
@@ -69,8 +74,12 @@ if __name__ == "__main__":
         center_longitude = 30 + i * 60
         fn = "{:02}".format(chart_number)
         f = figure(fn)
-        m = EquidistantConicMapArea(MAP_LLCORNER, MAP_URCORNER, hmargin=MAP_HMARGIN, vmargin=MAP_VMARGIN, center=(center_longitude, 45), standard_parallel1=30, standard_parallel2=60, latitude_range=LATITUDE_RANGE, celestial=True)
+
+        m = EquidistantConicMapArea(MAP_LLCORNER, MAP_URCORNER, hmargin=MAP_HMARGIN, vmargin=MAP_VMARGIN,
+                                    center=(center_longitude, 45), standard_parallel1=30, standard_parallel2=60,
+                                    latitude_range=LATITUDE_RANGE, celestial=True)
         f.add(m)
+
         m.gridline_factory.parallel_marked_tick_interval = 5
         m.gridline_factory.rotate_parallel_labels = True
         m.gridline_factory.parallel_fontsize = "tiny"
@@ -79,6 +88,8 @@ if __name__ == "__main__":
         m.draw_internal_parallel_ticks(center_longitude)
         with m.clip(m.clipping_path):
             m.draw_constellations()
+        m.draw_ecliptic(tickinterval=10, dashed=GALACTIC_ECLIPTIC_DASH_PATTERN, poles=False)
+        m.draw_galactic(tickinterval=10, dashed=GALACTIC_ECLIPTIC_DASH_PATTERN, poles=True)
 
         # Legend
         legend(f, chart_number)
@@ -90,14 +101,20 @@ if __name__ == "__main__":
         center_longitude = 30 + i * 60
         fn = "{:02}".format(chart_number)
         f = figure(fn)
-        m = EquidistantCylindricalMapArea(MAP_LLCORNER, MAP_URCORNER, hmargin=MAP_HMARGIN, vmargin=MAP_VMARGIN, center_longitude=center_longitude, standard_parallel=20, latitude_range=LATITUDE_RANGE, celestial=True)
+        m = EquidistantCylindricalMapArea(MAP_LLCORNER, MAP_URCORNER, hmargin=MAP_HMARGIN, vmargin=MAP_VMARGIN,
+                                          center_longitude=center_longitude, standard_parallel=20,
+                                          latitude_range=LATITUDE_RANGE, lateral_scale=0.958695, celestial=True)
         f.add(m)
+
         m.gridline_factory.parallel_marked_tick_interval = 5
         m.gridline_factory.parallel_fontsize = "tiny"
         m.draw_meridians()
         m.draw_parallels()
+        m.draw_ecliptic()
         with m.clip(m.clipping_path):
             m.draw_constellations()
+        m.draw_ecliptic(tickinterval=10, dashed=GALACTIC_ECLIPTIC_DASH_PATTERN, poles=False)
+        m.draw_galactic(tickinterval=10, dashed=GALACTIC_ECLIPTIC_DASH_PATTERN, poles=True)
 
         # Legend
         legend(f, chart_number)
@@ -109,7 +126,9 @@ if __name__ == "__main__":
         center_longitude = 30 + i * 60
         fn = "{:02}".format(chart_number)
         f = figure(fn)
-        m = EquidistantConicMapArea(MAP_LLCORNER, MAP_URCORNER, hmargin=MAP_HMARGIN, vmargin=MAP_VMARGIN, center=(center_longitude, -45), standard_parallel1=-60, standard_parallel2=-30, latitude_range=LATITUDE_RANGE, celestial=True)
+        m = EquidistantConicMapArea(MAP_LLCORNER, MAP_URCORNER, hmargin=MAP_HMARGIN, vmargin=MAP_VMARGIN,
+                                    center=(center_longitude, -45), standard_parallel1=-60, standard_parallel2=-30,
+                                    latitude_range=LATITUDE_RANGE, celestial=True)
         f.add(m)
         m.gridline_factory.parallel_marked_tick_interval = 5
         m.gridline_factory.parallel_fontsize = "tiny"
@@ -119,6 +138,8 @@ if __name__ == "__main__":
         m.draw_internal_parallel_ticks(center_longitude)
         with m.clip(m.clipping_path):
             m.draw_constellations()
+        m.draw_ecliptic(tickinterval=10, dashed=GALACTIC_ECLIPTIC_DASH_PATTERN, poles=False)
+        m.draw_galactic(tickinterval=10, dashed=GALACTIC_ECLIPTIC_DASH_PATTERN, poles=True)
 
         # Legend
         legend(f, chart_number)
@@ -128,13 +149,16 @@ if __name__ == "__main__":
     chart_number = 20
     fn = "{:02}".format(chart_number)
     f = figure(fn)
-    m = AzimuthalEquidistantMapArea(MAP_LLCORNER, MAP_URCORNER, latitude_range=LATITUDE_RANGE, hmargin=MAP_HMARGIN, vmargin=MAP_VMARGIN, celestial=True, north=False)
+    m = AzimuthalEquidistantMapArea(MAP_LLCORNER, MAP_URCORNER, hmargin=MAP_HMARGIN, vmargin=MAP_VMARGIN,
+                                    latitude_range=LATITUDE_RANGE, celestial=True, north=False)
     f.add(m)
     m.draw_meridians(origin_offsets=AZIMUTHAL_MERIDIAN_OFFSETS)
     m.draw_parallels()
     m.draw_internal_parallel_ticks(0, labels=True)
     with m.clip(m.clipping_path):
         m.draw_constellations()
+    m.draw_ecliptic(tickinterval=10, dashed=GALACTIC_ECLIPTIC_DASH_PATTERN, poles=False)
+    m.draw_galactic(tickinterval=10, dashed=GALACTIC_ECLIPTIC_DASH_PATTERN, poles=True)
 
     # Legend
     legend(f, chart_number)

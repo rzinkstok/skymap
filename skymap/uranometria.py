@@ -30,7 +30,10 @@ RMAP_URCORNER = Point(PAPERSIZE[0] - SPINE_MARGIN, PAPERSIZE[1] - TOP_MARGIN)
 AZIMUTHAL_OFFSETS = {15: 2, 30: 1, 90: 0}
 
 MM_PER_DEGREE = 18.5
-
+ECLIPTIC_DASH_PATTERN = 'densely dashed'
+GALACTIC_DASH_PATTERN = 'densely dash dot'
+ECLIPTIC_LINEWIDTH = 0.35
+GALACTIC_LINEWIDTH = 0.35
 
 CONICS = [
     {
@@ -186,21 +189,21 @@ def rightlegend(figure, chart_number, min_longitude, max_longitude, min_latitude
     l.draw_label(Label(Point(EDGE_MARGIN, -1.5), "\\textbf{{{}}}".format(chart_number), 90, "huge"))
 
     # Thumb index
-    p1 = figure.urcorner + Point(EDGE_MARGIN - 10, TOP_MARGIN - 137 - 17)
-    p2 = p1 + Point(10, 17)
-    l = DrawingArea(p1, p2, box=False)
-    figure.add(l)
-    if max_latitude >= 0:
-        maxlatlabel = "+{:02}\\textdegree".format(max_latitude)
-    else:
-        maxlatlabel = "--{:02}\\textdegree".format(abs(max_latitude))
-    if min_latitude >= 0:
-        minlatlabel = "+{:02}\\textdegree".format(min_latitude)
-    else:
-        minlatlabel = "--{:02}\\textdegree".format(abs(min_latitude))
-    l.fill_rectangle(Rectangle(Point(0, 0), Point(10, 17)), "black")
-    l.draw_label(Label(Point(5, 0.3), "\\condensed\\textbf{{{}}}".format(minlatlabel), 90, "large", color="white"))
-    l.draw_label(Label(Point(5, 11.6), "\\condensed\\textbf{{{}}}".format(maxlatlabel), 90, "large", color="white"))
+    # p1 = figure.urcorner + Point(EDGE_MARGIN - 10, TOP_MARGIN - 137 - 17)
+    # p2 = p1 + Point(10, 17)
+    # l = DrawingArea(p1, p2, box=False)
+    # figure.add(l)
+    # if max_latitude >= 0:
+    #     maxlatlabel = "+{:02}\\textdegree".format(max_latitude)
+    # else:
+    #     maxlatlabel = "--{:02}\\textdegree".format(abs(max_latitude))
+    # if min_latitude >= 0:
+    #     minlatlabel = "+{:02}\\textdegree".format(min_latitude)
+    # else:
+    #     minlatlabel = "--{:02}\\textdegree".format(abs(min_latitude))
+    # l.fill_rectangle(Rectangle(Point(0, 0), Point(10, 17)), "black")
+    # l.draw_label(Label(Point(5, 0.3), "\\condensed\\textbf{{{}}}".format(minlatlabel), 90, "large", color="white"))
+    # l.draw_label(Label(Point(5, 11.6), "\\condensed\\textbf{{{}}}".format(maxlatlabel), 90, "large", color="white"))
 
 
 # Azimuthal map areas
@@ -413,6 +416,8 @@ if __name__ == "__main__":
 
     with m.clip(m.clipping_path):
         m.draw_constellations(linewidth=0.3)
+        m.draw_ecliptic(linewidth=ECLIPTIC_LINEWIDTH, tickinterval=1, dashed=ECLIPTIC_DASH_PATTERN, poles=True)
+        m.draw_galactic(linewidth=GALACTIC_LINEWIDTH, tickinterval=1, dashed=GALACTIC_DASH_PATTERN, poles=True)
 
     # Legend
     leftlegend(f, chart_number)
@@ -428,6 +433,8 @@ if __name__ == "__main__":
 
     with m.clip(m.clipping_path):
         m.draw_constellations(linewidth=0.3)
+        m.draw_ecliptic(linewidth=ECLIPTIC_LINEWIDTH, tickinterval=1, dashed=ECLIPTIC_DASH_PATTERN, poles=True)
+        m.draw_galactic(linewidth=GALACTIC_LINEWIDTH, tickinterval=1, dashed=GALACTIC_DASH_PATTERN, poles=True)
 
     # Legend
     rightlegend(f, chart_number, 0, 360, 84, 90)
@@ -439,8 +446,6 @@ if __name__ == "__main__":
         for i in range(n):
             center_longitude = i * conic['longitude_step']
             chart_number += 1
-
-            print center_longitude, conic['min_latitude'], conic['max_latitude']
 
             # Left page
             chart_side = 'left'
@@ -455,6 +460,8 @@ if __name__ == "__main__":
             m.draw_parallels()
             with m.clip(m.clipping_path):
                 m.draw_constellations(linewidth=0.3)
+                m.draw_ecliptic(linewidth=ECLIPTIC_LINEWIDTH, tickinterval=1, dashed=ECLIPTIC_DASH_PATTERN, poles=True)
+                m.draw_galactic(linewidth=GALACTIC_LINEWIDTH, tickinterval=1, dashed=GALACTIC_DASH_PATTERN, poles=True)
 
             # Legend
             leftlegend(f, chart_number)
@@ -473,6 +480,8 @@ if __name__ == "__main__":
             m.draw_parallels()
             with m.clip(m.clipping_path):
                 m.draw_constellations(linewidth=0.3)
+                m.draw_ecliptic(linewidth=ECLIPTIC_LINEWIDTH, tickinterval=1, dashed=ECLIPTIC_DASH_PATTERN, poles=True)
+                m.draw_galactic(linewidth=GALACTIC_LINEWIDTH, tickinterval=1, dashed=GALACTIC_DASH_PATTERN, poles=True)
 
             # Legend
             rightlegend(f, chart_number, center_longitude - conic['longitude_range'], center_longitude + conic['longitude_range'], conic['min_latitude'], conic['max_latitude'])
@@ -504,6 +513,8 @@ if __name__ == "__main__":
         m.draw_parallels()
         with m.clip(m.clipping_path):
             m.draw_constellations(linewidth=0.3)
+            m.draw_ecliptic(linewidth=ECLIPTIC_LINEWIDTH, tickinterval=1, dashed=ECLIPTIC_DASH_PATTERN, poles=True)
+            m.draw_galactic(linewidth=GALACTIC_LINEWIDTH, tickinterval=1, dashed=GALACTIC_DASH_PATTERN, poles=True)
 
         # Legend
         leftlegend(f, chart_number)
@@ -522,6 +533,8 @@ if __name__ == "__main__":
         m.draw_parallels()
         with m.clip(m.clipping_path):
             m.draw_constellations(linewidth=0.3)
+            m.draw_ecliptic(linewidth=ECLIPTIC_LINEWIDTH, tickinterval=1, dashed=ECLIPTIC_DASH_PATTERN, poles=True)
+            m.draw_galactic(linewidth=GALACTIC_LINEWIDTH, tickinterval=1, dashed=GALACTIC_DASH_PATTERN, poles=True)
 
         # Legend
         rightlegend(f, chart_number, center_longitude - longitude_range, center_longitude + longitude_range, -max_latitude, max_latitude)
@@ -551,6 +564,8 @@ if __name__ == "__main__":
             m.draw_parallels()
             with m.clip(m.clipping_path):
                 m.draw_constellations(linewidth=0.3)
+                m.draw_ecliptic(linewidth=ECLIPTIC_LINEWIDTH, tickinterval=1, dashed=ECLIPTIC_DASH_PATTERN, poles=True)
+                m.draw_galactic(linewidth=GALACTIC_LINEWIDTH, tickinterval=1, dashed=GALACTIC_DASH_PATTERN, poles=True)
 
             # Legend
             leftlegend(f, chart_number)
@@ -569,14 +584,15 @@ if __name__ == "__main__":
             m.draw_parallels()
             with m.clip(m.clipping_path):
                 m.draw_constellations(linewidth=0.3)
+                m.draw_ecliptic(linewidth=ECLIPTIC_LINEWIDTH, tickinterval=1, dashed=ECLIPTIC_DASH_PATTERN, poles=True)
+                m.draw_galactic(linewidth=GALACTIC_LINEWIDTH, tickinterval=1, dashed=GALACTIC_DASH_PATTERN, poles=True)
 
             # Legend
-            rightlegend(f, chart_number, center_longitude - conic['longitude_range'], center_longitude + conic['longitude_range'], conic['min_latitude'], conic['max_latitude'])
+            rightlegend(f, chart_number, center_longitude - conic['longitude_range'], center_longitude + conic['longitude_range'], -conic['min_latitude'], -conic['max_latitude'])
             f.render(os.path.join(OUTPUT_FOLDER, "{:02}B.pdf".format(chart_number)), open=False)
 
-    chart_number = 220
-
     # South azimuthal maps
+    #chart_number = 220
     # Left page
     f, m = azimuthal_map(chart_number, 'left', False)
     p1 = Point(-PAPERSIZE[0], -PAPERSIZE[1])
@@ -587,6 +603,8 @@ if __name__ == "__main__":
 
     with m.clip(m.clipping_path):
         m.draw_constellations(linewidth=0.3)
+        m.draw_ecliptic(linewidth=ECLIPTIC_LINEWIDTH, tickinterval=1, dashed=ECLIPTIC_DASH_PATTERN, poles=True)
+        m.draw_galactic(linewidth=GALACTIC_LINEWIDTH, tickinterval=1, dashed=GALACTIC_DASH_PATTERN, poles=True)
 
     # Legend
     leftlegend(f, chart_number)
@@ -602,6 +620,8 @@ if __name__ == "__main__":
 
     with m.clip(m.clipping_path):
         m.draw_constellations(linewidth=0.3)
+        m.draw_ecliptic(linewidth=ECLIPTIC_LINEWIDTH, tickinterval=1, dashed=ECLIPTIC_DASH_PATTERN, poles=True)
+        m.draw_galactic(linewidth=GALACTIC_LINEWIDTH, tickinterval=1, dashed=GALACTIC_DASH_PATTERN, poles=True)
 
     # Legend
     rightlegend(f, chart_number, 0, 360, -84, -90)
