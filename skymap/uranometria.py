@@ -593,6 +593,7 @@ if __name__ == "__main__":
 
     # South azimuthal maps
     #chart_number = 220
+    chart_number += 1
     # Left page
     f, m = azimuthal_map(chart_number, 'left', False)
     p1 = Point(-PAPERSIZE[0], -PAPERSIZE[1])

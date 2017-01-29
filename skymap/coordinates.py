@@ -43,20 +43,19 @@ def galactic_pole(epoch=REFERENCE_EPOCH):
     return SphericalPoint(p.precess(ra, dec))
 
 
-def galactic_to_equatorial(p):
+def galactic_to_equatorial(p, epoch=REFERENCE_EPOCH):
     l = math.radians(p.longitude)
     b = math.radians(p.latitude)
 
-    pole = galactic_pole()
-    pl = math.radians(pole.longitude)
-    pb = math.radians(pole.latitude)
-
+    pl = math.radians(192.25)
+    pb = math.radians(27.4)
     l -= math.radians(33.0)
 
     longitude = math.degrees(math.atan2(math.cos(b) * math.cos(l), (math.sin(b) * math.cos(pb) - math.cos(b) * math.sin(pb) * math.sin(l))) + pl)
     latitude = math.degrees(math.asin(math.cos(b) * math.cos(pb) * math.sin(l) + math.sin(b) * math.sin(pb)))
 
-    return SphericalPoint(longitude, latitude)
+    p = PrecessionCalculator(datetime.datetime(1950, 1, 1).date(), epoch)
+    return SphericalPoint(p.precess(longitude, latitude))
 
 
 # Precession
