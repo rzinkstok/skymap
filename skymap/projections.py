@@ -97,11 +97,7 @@ class AzimuthalEquidistantProjection(object):
         return SphericalPoint(longitude, -rho * self.reference_scale + self.origin_latitude)
 
     def reduce_longitude(self, longitude):
-        while longitude >= 360:
-            longitude -= 360
-        while longitude < 0:
-            longitude += 360
-        return longitude
+        return ensure_angle_range(longitude, self.reference_longitude)
 
 
 class EquidistantCylindricalProjection(object):
@@ -134,11 +130,7 @@ class EquidistantCylindricalProjection(object):
         return SphericalPoint(longitude, latitude)
 
     def reduce_longitude(self, longitude):
-        while longitude >= self.center_longitude + 180:
-            longitude -= 360
-        while longitude < self.center_longitude - 180:
-            longitude += 360
-        return longitude
+        return ensure_angle_range(longitude, self.center_longitude)
 
 
 class EquidistantConicProjection(object):
@@ -190,11 +182,7 @@ class EquidistantConicProjection(object):
         return SphericalPoint(longitude, latitude)
 
     def reduce_longitude(self, longitude):
-        while longitude >= self.reference_longitude + 180:
-            longitude -= 360
-        while longitude < self.reference_longitude - 180:
-            longitude += 360
-        return longitude
+        return ensure_angle_range(longitude, self.reference_longitude)
 
 
 def calculate_reference_parallels(angle, delta_latitude, central_longitude):

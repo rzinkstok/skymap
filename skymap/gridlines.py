@@ -44,6 +44,9 @@ class GridLineFactory(object):
 
         self.gridline_thickness = 0.25
 
+        self.rotate_poles = False
+        self.pole_marker_size = 2.5
+
     def meridian(self, longitude, meridian):
         m = Meridian(longitude, meridian)
         m.tick_interval = self.meridian_tick_interval
@@ -151,7 +154,7 @@ class GridLine(object):
             return None
 
         delta = self.tickdelta(angle, border)
-        if delta.distance(Point(0,0)) > 4:
+        if delta.norm > 4:
             return None
         p1 = point
         p2 = point + ticklength * delta
@@ -164,7 +167,7 @@ class GridLine(object):
             return None
         angle = self.labelangle1
         delta = self.tickdelta(self.tickangle1, self.border1)
-        if delta.distance(Point(0,0)) > 4:
+        if delta.norm > 4:
             return None
         point = self.p1 + self.label_distance * delta
         return self.label(point, self.border1, angle, self.labelpos1)
@@ -175,7 +178,7 @@ class GridLine(object):
             return None
         angle = self.labelangle2
         delta = self.tickdelta(self.tickangle2, self.border2)
-        if delta.distance(Point(0,0)) > 4:
+        if delta.norm > 4:
             return None
         point = self.p2 + self.label_distance * delta
         return self.label(point, self.border2, angle, self.labelpos2)

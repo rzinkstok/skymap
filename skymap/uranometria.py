@@ -2,7 +2,7 @@ import sys
 import os
 from skymap.tikz import BASEDIR, TikzFigure, DrawingArea
 from skymap.map import EquidistantCylindricalMapArea, AzimuthalEquidistantMapArea, EquidistantConicMapArea
-from skymap.geometry import Point, Line, SphericalPoint, HourAngle, Rectangle
+from skymap.geometry import Point, Line, SphericalPoint, HourAngle, Rectangle, ensure_angle_range
 from skymap.gridlines import Label
 from skymap.constellations import constellations_in_area
 
@@ -273,6 +273,7 @@ def azimuthal_map(chart_number, chart_side, north, delta=None):
 
     m.gridline_factory.rotate_meridian_labels = True
     m.gridline_factory.meridian_labeltextfunc = azimuthal_meridian_label
+    m.gridline_factory.rotate_poles = True
 
     m.min_longitude = 0
     m.max_longitude = 360
@@ -344,6 +345,7 @@ def conic_map(chart_number, chart_side, min_longitude, max_longitude, min_latitu
 
     m.gridline_factory.rotate_meridian_labels = True
     m.gridline_factory.meridian_labeltextfunc = meridian_label
+    m.gridline_factory.rotate_poles = True
 
     m.min_longitude = min_longitude
     m.max_longitude = max_longitude
@@ -373,7 +375,10 @@ def equatorial_map(chart_number, chart_side, min_longitude, max_longitude, max_l
 
     sp = 2*max_latitude/3.0
 
-    m = EquidistantCylindricalMapArea(map_llcorner, map_urcorner, MAP_HMARGIN, MAP_VMARGIN, center_longitude, map_origin, sp, latitude_range, celestial=True, box=False)
+    m = EquidistantCylindricalMapArea(map_llcorner, map_urcorner, hmargin=MAP_HMARGIN, vmargin=MAP_VMARGIN,
+                                      center_longitude=center_longitude, origin=map_origin,
+                                      standard_parallel=sp, latitude_range=latitude_range,
+                                      celestial=True, box=False)
     f.add(m)
 
     m.bordered = False
@@ -394,6 +399,7 @@ def equatorial_map(chart_number, chart_side, min_longitude, max_longitude, max_l
 
     m.gridline_factory.rotate_meridian_labels = True
     m.gridline_factory.meridian_labeltextfunc = meridian_label
+    m.gridline_factory.rotate_poles = True
 
     m.min_longitude = min_longitude
     m.max_longitude = max_longitude
@@ -444,7 +450,7 @@ if __name__ == "__main__":
     for conic in CONICS:
         n = 360/abs(conic['longitude_step'])
         for i in range(n):
-            center_longitude = i * conic['longitude_step']
+            center_longitude = ensure_angle_range(i * conic['longitude_step'])
             chart_number += 1
 
             # Left page
@@ -497,7 +503,7 @@ if __name__ == "__main__":
     n = 360/abs(longitude_step)
 
     for i in range(n):
-        center_longitude = i * longitude_step
+        center_longitude = ensure_angle_range(i * longitude_step)
         chart_number += 1
 
         # Left page
@@ -545,7 +551,7 @@ if __name__ == "__main__":
     for conic in reversed(CONICS):
         n = 360/abs(conic['longitude_step'])
         for i in range(n):
-            center_longitude = i * conic['longitude_step']
+            center_longitude = ensure_angle_range(i * conic['longitude_step'])
             chart_number += 1
 
             # Left page

@@ -427,7 +427,5 @@ def build_constellation_boundary_database():
         db.insert_row("skymap_constellation_boundaries", ["ra1", "dec1", "ra2", "dec2"], [e.p1.ra, e.p1.dec, e.p2.ra, e.p2.dec])
 
 
-
-
 if __name__ == "__main__":
     build_constellation_boundary_database()

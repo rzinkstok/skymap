@@ -104,22 +104,22 @@ class Point(object):
     def __add__(self, other):
         x = self.x + other.x
         y = self.y + other.y
-        return Point(x, y)
+        return self.__class__(x, y)
 
     def __sub__(self, other):
         x = self.x - other.x
         y = self.y - other.y
-        return Point(x, y)
+        return self.__class__(x, y)
 
     def __mul__(self, other):
-        return Point(other * self.x, other * self.y)
+        return self.__class__(other * self.x, other * self.y)
 
     def __rmul__(self, other):
         return self.__mul__(other)
 
     def __div__(self, other):
         other = float(other)
-        return Point(self.x/other, self.y/other)
+        return self.__class__(self.x/other, self.y/other)
 
     def __eq__(self, other):
         return self.distance(other) < 1e-10
@@ -137,7 +137,11 @@ class Point(object):
         new_dy = dx*math.sin(angle) + dy*math.cos(angle)
         x = origin.x + new_dx
         y = origin.y + new_dy
-        return Point(x, y)
+        return self.__class__(x, y)
+
+    @property
+    def norm(self):
+        return self.distance(Point(0,0))
 
 
 class SphericalPoint(Point):
@@ -447,9 +451,9 @@ class Rectangle(object):
         return path
 
 
-def ensure_angle_range(angle):
-    while angle < 0:
+def ensure_angle_range(angle, center=180):
+    while angle < center - 180.0:
         angle += 360.0
-    while angle >= 360.0:
+    while angle >= center + 180.0:
         angle -= 360
     return angle

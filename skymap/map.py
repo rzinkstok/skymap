@@ -81,6 +81,9 @@ class MapArea(DrawingArea):
         else:
             return True
 
+    def inside_coordinate_range(self, p):
+        return (self.min_longitude <= p.longitude <= self.max_longitude) and (self.min_latitude <= p.latitude <= self.max_latitude)
+
     def map_point(self, spherical_point):
         return self.projection(spherical_point)
 
@@ -241,7 +244,6 @@ class MapArea(DrawingArea):
         points = []
         for longitude in numpy.arange(0, 360.1, 0.251):
             p = transformation(SphericalPoint(longitude, 0))
-
             points.append(SphericalPoint(self.projection.reduce_longitude(p.longitude), p.latitude))
 
         points_to_draw = []
@@ -261,9 +263,9 @@ class MapArea(DrawingArea):
                 if self.inside_maparea(prev_p) or self.inside_maparea(p) or self.inside_maparea(next_p):
                     points_to_draw.append(p)
             else:
-                prevpinside = (self.min_longitude <= prev_p.longitude <= self.max_longitude) and (self.min_latitude <= prev_p.latitude <= self.max_latitude)
-                pinside = (self.min_longitude <= p.longitude <= self.max_longitude) and (self.min_latitude <= p.latitude <= self.max_latitude)
-                nextpinside = (self.min_longitude <= next_p.longitude <= self.max_longitude) and (self.min_latitude <= next_p.latitude <= self.max_latitude)
+                prevpinside = self.inside_coordinate_range(prev_p)
+                pinside = self.inside_coordinate_range(p)
+                nextpinside = self.inside_coordinate_range(next_p)
                 if prevpinside or pinside or nextpinside:
                     points_to_draw.append(self.map_point(p))
 
@@ -275,47 +277,75 @@ class MapArea(DrawingArea):
         if tickinterval is not None:
             for i in range(360/int(tickinterval)):
                 l = i * tickinterval
-                p = self.map_point(transformation(SphericalPoint(l, 0)))
-                if self.inside_maparea(p):
-                    v = self.map_point(transformation(SphericalPoint(l+1, 0))) - p
-                    v = v.rotate(90)/v.distance(Point(0, 0))
-                    tp1 = p + 0.5 * v
-                    tp2 = p - 0.5 * v
-                    lp = p + 0.8 * v
-                    tick = Line(tp1, tp2)
-                    self.draw_line(tick, linewidth=linewidth)
-                    self.draw_label(Label(lp, "\\textit{{{}\\textdegree}}".format(l), 270, "miniscule", angle=tick.angle-90, fill="white"))
+                p = transformation(SphericalPoint(l, 0))
+                p.longitude = self.projection.reduce_longitude(p.longitude)
+                if self.bordered:
+                    p = self.map_point(p)
+                    if not self.inside_maparea(p):
+                        continue
+                else:
+                    if not self.inside_coordinate_range(p):
+                        continue
+                    p = self.map_point(p)
+
+                v = self.map_point(transformation(SphericalPoint(l+1, 0))) - p
+                v = v.rotate(90)/v.norm
+                tp1 = p + 0.5 * v
+                tp2 = p - 0.5 * v
+                lp = p + 0.8 * v
+                tick = Line(tp1, tp2)
+                self.draw_line(tick, linewidth=linewidth)
+                self.draw_label(Label(lp, "\\textit{{{}\\textdegree}}".format(l), 270, "miniscule", angle=tick.angle-90, fill="white"))
 
         # Poles
         if poles:
-            np = self.map_point(transformation(SphericalPoint(0, 90)))
-            if self.inside_maparea(np):
-                p1 = np + Point(2.5, 0)
-                p2 = np - Point(2.5, 0)
-                l1 = Line(p1, p2)
-                p1 = np + Point(0, 2.5)
-                p2 = np - Point(0, 2.5)
-                l2 = Line(p1, p2)
-                self.fill_circle(np, 1.0, "white")
-                self.draw_line(l1, linewidth=linewidth)
-                self.draw_line(l2, linewidth=linewidth)
+            p = transformation(SphericalPoint(0, 90))
+            np = self.map_point(p)
+            if self.gridline_factory.rotate_poles:
+                delta1 = self.map_point(p + SphericalPoint(1, 0)) - np
+                delta2 = self.map_point(p + SphericalPoint(0, 1)) - np
+            else:
+                delta1 = Point(1, 0)
+                delta2 = Point(0, 1)
 
-            sp = self.map_point(transformation(SphericalPoint(0, -90)))
+            delta1 *= self.gridline_factory.pole_marker_size/delta1.norm
+            delta2 *= self.gridline_factory.pole_marker_size/delta2.norm
+
+            if self.inside_maparea(np):
+                bl1 = Line(np + 1.25 * delta1, np - 1.25 * delta1)
+                l1 = Line(np + delta1, np - delta1)
+                bl2 = Line(np + 1.25 * delta2, np - 1.25 * delta2)
+                l2 = Line(np + delta2, np - delta2)
+                self.draw_line(bl1, linewidth=3 * linewidth, color="white")
+                self.draw_line(bl2, linewidth=3 * linewidth, color="white")
+                self.draw_line(l1, linewidth=self.gridline_factory.gridline_thickness)
+                self.draw_line(l2, linewidth=self.gridline_factory.gridline_thickness)
+
+            p = transformation(SphericalPoint(0, -90))
+            sp = self.map_point(p)
+            if self.gridline_factory.rotate_poles:
+                delta1 = self.map_point(p + SphericalPoint(1, 0)) - sp
+                delta2 = self.map_point(p + SphericalPoint(0, 1)) - sp
+            else:
+                delta1 = Point(1, 0)
+                delta2 = Point(0, 1)
+
             if self.inside_maparea(sp):
-                p1 = sp + Point(2.5, 0)
-                p2 = sp - Point(2.5, 0)
-                l1 = Line(p1, p2)
-                p1 = sp + Point(0, 2.5)
-                p2 = sp - Point(0, 2.5)
-                l2 = Line(p1, p2)
-                self.fill_circle(sp, 1.0, "white")
-                self.draw_line(l1, linewidth=linewidth)
-                self.draw_line(l2, linewidth=linewidth)
+                bl1 = Line(np + 1.25 * delta1, np - 1.25 * delta1)
+                l1 = Line(np + delta1, np - delta1)
+                bl2 = Line(np + 1.25 * delta2, np - 1.25 * delta2)
+                l2 = Line(np + delta2, np - delta2)
+                self.draw_line(bl1, linewidth=3 * linewidth, color="white")
+                self.draw_line(bl2, linewidth=3 * linewidth, color="white")
+                self.draw_line(l1, linewidth=self.gridline_factory.gridline_thickness)
+                self.draw_line(l2, linewidth=self.gridline_factory.gridline_thickness)
 
     def draw_ecliptic(self, linewidth=0.3, dashed='dashed', tickinterval=None, poles=False):
+        self.comment("Ecliptic")
         self.draw_coordinate_system(ecliptic_to_equatorial, linewidth, dashed, tickinterval, poles)
 
     def draw_galactic(self, linewidth=0.3, dashed='dashed', tickinterval=None, poles=False):
+        self.comment("Galactic equator")
         self.draw_coordinate_system(galactic_to_equatorial, linewidth, dashed, tickinterval, poles)
 
 
