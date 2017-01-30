@@ -547,7 +547,7 @@ if __name__ == "__main__":
         f.render(os.path.join(OUTPUT_FOLDER, "{:02}B.pdf".format(chart_number)), open=False)
 
     # South conic maps
-    #chart_number = 120
+    # chart_number = 120
     for conic in reversed(CONICS):
         n = 360/abs(conic['longitude_step'])
         for i in range(n):
@@ -598,7 +598,7 @@ if __name__ == "__main__":
             f.render(os.path.join(OUTPUT_FOLDER, "{:02}B.pdf".format(chart_number)), open=False)
 
     # South azimuthal maps
-    #chart_number = 220
+    # chart_number = 220
     chart_number += 1
     # Left page
     f, m = azimuthal_map(chart_number, 'left', False)

@@ -694,10 +694,9 @@ class EquidistantConicMapArea(MapArea):
                 p.border1 = 'right'
             else:
                 p.border1 = 'left'
-            if self.projection.reference_latitude > 0:
-                p.tickangle1 = start_angle + 90
-            else:
-                p.tickangle1 = start_angle - 90
+
+            p.tickangle1 = start_angle + 90
+
             if self.gridline_factory.rotate_parallel_labels:
                 if self.projection.reference_latitude > 0:
                     p.labelangle1 = start_angle + 90
@@ -710,10 +709,9 @@ class EquidistantConicMapArea(MapArea):
                 p.border2 = 'left'
             else:
                 p.border2 = 'right'
-            if self.projection.reference_latitude > 0:
-                p.tickangle2 = stop_angle - 90
-            else:
-                p.tickangle2 = stop_angle + 90
+
+            p.tickangle2 = stop_angle - 90
+
             if self.gridline_factory.rotate_parallel_labels:
                 if self.projection.reference_latitude > 0:
                     p.labelangle2 = stop_angle + 90
