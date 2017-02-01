@@ -330,11 +330,14 @@ class MapArea(DrawingArea):
                 delta1 = Point(1, 0)
                 delta2 = Point(0, 1)
 
+            delta1 *= self.gridline_factory.pole_marker_size / delta1.norm
+            delta2 *= self.gridline_factory.pole_marker_size / delta2.norm
+
             if self.inside_maparea(sp):
-                bl1 = Line(np + 1.25 * delta1, np - 1.25 * delta1)
-                l1 = Line(np + delta1, np - delta1)
-                bl2 = Line(np + 1.25 * delta2, np - 1.25 * delta2)
-                l2 = Line(np + delta2, np - delta2)
+                bl1 = Line(sp + 1.25 * delta1, sp - 1.25 * delta1)
+                l1 = Line(sp + delta1, sp - delta1)
+                bl2 = Line(sp + 1.25 * delta2, sp - 1.25 * delta2)
+                l2 = Line(sp + delta2, sp - delta2)
                 self.draw_line(bl1, linewidth=3 * linewidth, color="white")
                 self.draw_line(bl2, linewidth=3 * linewidth, color="white")
                 self.draw_line(l1, linewidth=self.gridline_factory.gridline_thickness)

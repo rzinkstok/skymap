@@ -274,6 +274,7 @@ def azimuthal_map(chart_number, chart_side, north, delta=None):
     m.gridline_factory.rotate_meridian_labels = True
     m.gridline_factory.meridian_labeltextfunc = azimuthal_meridian_label
     m.gridline_factory.rotate_poles = True
+    m.gridline_factory.pole_marker_size = 1
 
     m.min_longitude = 0
     m.max_longitude = 360
@@ -346,6 +347,7 @@ def conic_map(chart_number, chart_side, min_longitude, max_longitude, min_latitu
     m.gridline_factory.rotate_meridian_labels = True
     m.gridline_factory.meridian_labeltextfunc = meridian_label
     m.gridline_factory.rotate_poles = True
+    m.gridline_factory.pole_marker_size = 1
 
     m.min_longitude = min_longitude
     m.max_longitude = max_longitude
@@ -400,6 +402,7 @@ def equatorial_map(chart_number, chart_side, min_longitude, max_longitude, max_l
     m.gridline_factory.rotate_meridian_labels = True
     m.gridline_factory.meridian_labeltextfunc = meridian_label
     m.gridline_factory.rotate_poles = True
+    m.gridline_factory.pole_marker_size = 1
 
     m.min_longitude = min_longitude
     m.max_longitude = max_longitude
