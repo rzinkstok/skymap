@@ -61,4 +61,16 @@ This means multiple systems can be found by the following:
 * Find all entries linked by a common CCDM identifier
 * Find all entries with number of components greater than 1; these have a multiplicity flag equal to C, and their component data is found in part C of the Double and Multiple Systems Annex)
 
-Dubious multiple systems can be found by looking at entries where 
+If required, dubious multiple systems can be found by looking at entries where the multiplicity flag is set but unequal to C (that is, G, O, V or X).
+
+Using this method, all double and multiple systems can be found, grouped by the CCDM identifier.
+
+| Entries with a CCDM id  | 19393 |
+| Number of CCDM pairs    |  1714 |
+| Number of CCDM triplets |    43 |
+| Number of CCDM quartets |     5 |
+
+
+### Linking Tycho-2 stars to Hipparcos
+
+
