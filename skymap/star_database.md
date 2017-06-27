@@ -65,11 +65,21 @@ If required, dubious multiple systems can be found by looking at entries where t
 
 Using this method, all double and multiple systems can be found, grouped by the CCDM identifier.
 
-| Entries with a CCDM id  | 19393 |
-| Number of CCDM pairs    |  1714 |
-| Number of CCDM triplets |    43 |
-| Number of CCDM quartets |     5 |
+| Description             | Number |
+| ----------------------- | ------ |
+| Entries with a CCDM id  |  19393 |
+| Number of CCDM pairs    |   1714 |
+| Number of CCDM triplets |     43 |
+| Number of CCDM quartets |      5 |
 
+Example query:
+
+```SQL
+SELECT COUNT(*) FROM (
+	SELECT CCDM, count(*) as n_entries from hiptyc_hip_main GROUP BY CCDM
+) AS bla
+WHERE n_entries = 2
+```
 
 ### Linking Tycho-2 stars to Hipparcos
 
