@@ -18,18 +18,21 @@ precision is 0.0015 mag, while Tycho-1 is limited to 0.012 mag (Vt).
 
 ### Hipparcos
 Identifier: HIP
+
 Catalogue parts:
 * Main catalogue: astrometrics, photometrics
-* Double and Multiples: component information for entries resolved into 2 or more components
+* Double and Multiple System Annex: component information for entries resolved into 2 or more components
 * Variability Annex: variability data
 
 ### Tycho
 Identifier: TYC1, TYC2, TYC3, HIP
+
 Catalogue parts:
 * Main catalogue
 
 ### Tycho-2
 Identifier: TYC1, TYC2, TYC3, HIP
+
 Catalogue parts:
 * Main catalogue
 * Supplement 1 (Hipparcos/Tycho-1 stars not in Tycho-2)
@@ -44,9 +47,18 @@ link to Hipparcos. Tycho-2 does not have a duplicity flag (one assumes all multi
 does give the CCDM component identifiers. The new Hipparcos reduction gives information on the number of components, and the
 solution type also indicates double stars. Aligning all this data is quite a task.
 
-### When is a star single?
+### Hipparcos multiplicity
 
-In Hipparcos, listing in the Double and Multiples Annex 
+A star can be part of a multiple system when:
+* Its entry shares the CCDM identifier with one or more other entries
+* It is resolved into separate components: it has one entry with number of components larger than 1
+ 
+In the latter case, the components are described in part C of the Double and Multiple Systems Annex, which deals with
+component solutions. Other parts of the Annex describe less clear solutions (acceleration terms, orbital solutions, 
+variability induced movers and stochastic solutions). These are not counted as resolved.
 
-### Hipparcos single stars
+This means multiple systems can be found by the following:
+* Find all entries linked by a common CCDM identifier
+* Find all entries with number of components greater than 1; these have a multiplicity flag equal to C, and their component data is found in part C of the Double and Multiple Systems Annex)
 
+Dubious multiple systems can be found by looking at entries where 
