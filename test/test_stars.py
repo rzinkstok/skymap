@@ -9,6 +9,7 @@ class StarDatabaseTest(unittest.TestCase):
     # Unicity
     def test_hip_unique(self):
         """Check whether HIP identification is unique within Hipparcos"""
+
         q = """
             SELECT COUNT(*) AS n FROM
             (
@@ -20,6 +21,7 @@ class StarDatabaseTest(unittest.TestCase):
 
     def test_tyc1_unique(self):
         """Check whether TYC identification is unique within Tycho-1"""
+
         q = """
             SELECT COUNT(*) AS n FROM (
                 SELECT tyc FROM
@@ -167,17 +169,17 @@ class StarDatabaseTest(unittest.TestCase):
         in Tycho-2. These stars are labeled in Tycho-1 with an 'H' in the 'Source' field.
         Tycho-1 stars that are resolved into multiple Tycho-2 stars are all labeled as Tycho-1 stars, but have different
         Tycho-2 ids. Such multiple stars share the same TYC1 and TYC2. The original Tycho-1 stars has TYC3 equal to 1,
-        so the other components have higher TYC3 numbers. These are excluded as they will not be found in Tycho-1.
+        so the other components have higher TYC3 numbers. There are 1866 such stars.
         """
 
         q = """
             SELECT COUNT(*) AS n FROM
             (
-                SELECT TYC1, TYC2, TYC3 FROM tyc2_tyc2 WHERE TYC='T' AND TYC3=1
+                SELECT TYC1, TYC2, TYC3 FROM tyc2_tyc2 WHERE TYC='T'
                 UNION ALL
-                SELECT TYC1, TYC2, TYC3 FROM tyc2_suppl_1 WHERE TYC='T' AND TYC3=1
+                SELECT TYC1, TYC2, TYC3 FROM tyc2_suppl_1 WHERE TYC='T'
                 UNION ALL
-                SELECT TYC1, TYC2, TYC3 FROM tyc2_suppl_2 WHERE TYC='T' AND TYC3=1
+                SELECT TYC1, TYC2, TYC3 FROM tyc2_suppl_2 WHERE TYC='T'
             ) AS t2
             LEFT JOIN
             (
@@ -187,12 +189,13 @@ class StarDatabaseTest(unittest.TestCase):
             WHERE t1.TYC1 IS NULL
         """
 
-        self.assertEqual(self.db.query_one(q)['n'], 0)
+        self.assertEqual(self.db.query_one(q)['n'], 1866)
 
     # Tycho-2 internal
     def test_tyc2_supplement1(self):
         """Check that there is no overlap between Tycho-2 main and Tycho-2 supplement 1. See test_tyc2_unique for more
         info on the 254 stars that do overlap."""
+
         q = """
             SELECT COUNT(*) AS n
             FROM tyc2_tyc2 as t2
@@ -204,6 +207,7 @@ class StarDatabaseTest(unittest.TestCase):
 
     def test_tyc2_supplement2(self):
         """Check that there is no overlap between Tycho-2 main and Tycho-2 supplement 1"""
+
         q = """
             SELECT COUNT(*) AS n
             FROM tyc2_tyc2 as t2
@@ -213,8 +217,9 @@ class StarDatabaseTest(unittest.TestCase):
 
         self.assertEqual(self.db.query_one(q)['n'], 0)
 
-    def test_supplement1_supplement2(self):
+    def test_tyc2_supplement1_supplement2(self):
         """Check that there is no overlap between Tycho-2 supplement 1 and Tycho-2 supplement 2"""
+
         q = """
             SELECT COUNT(*) AS n
             FROM tyc2_suppl_1 as ts1
@@ -228,6 +233,7 @@ class StarDatabaseTest(unittest.TestCase):
     def test_hip_tyc2(self):
         """Check whether all Hipparcos stars are found in Tycho-2. The 263 Hipparcos star without an astrometric
         solution are not included in Tycho-2."""
+
         q = """
             SELECT COUNT(*) AS n FROM
             hiptyc_hip_main AS h
@@ -246,6 +252,7 @@ class StarDatabaseTest(unittest.TestCase):
 
     def test_tyc2_hip(self):
         """Check whether all Tycho-2 stars labeled as Hipparcos stars are found in Hipparcos"""
+
         q = """
             SELECT COUNT(*) AS n FROM (
                 SELECT TYC1, TYC2, TYC3, HIP FROM tyc2_tyc2
@@ -297,7 +304,7 @@ class StarDatabaseTest(unittest.TestCase):
         self.assertEqual(self.db.query_one(q)['n'], 0)
 
     # Tycho-2 supplement 1 - Hipparcos/Tycho-1
-    def test_supplement1_hip(self):
+    def test_tyc2_supplement1_hip(self):
         """Check whether all Tycho-2 supplement 1 stars are in Tycho-1 and/or Hipparcos"""
         q = """
             SELECT COUNT(*) AS n
@@ -322,7 +329,7 @@ class StarDatabaseTest(unittest.TestCase):
         self.assertEqual(self.db.query_one(q)['n'], 0)
 
     # Tycho-2 supplement 2 - Hipparcos/Tycho-1
-    def test_supplement2_hip(self):
+    def test_tyc2_supplement2_hip(self):
         """Check whether all Tycho-2 supplement 2 stars are in Tycho-1 and/or Hipparcos"""
         q = """
             SELECT COUNT(*) AS n
@@ -346,21 +353,17 @@ class StarDatabaseTest(unittest.TestCase):
 
         self.assertEqual(self.db.query_one(q)['n'], 0)
 
+    def test_hd_hip_tyc1(self):
+        pass
+
+    def test_hd_tyc1_tyc2(self):
+        pass
+
 
 def checks():
     # Goal 1: clean combination of Hipparcos, Hipparos New Reduction, Tycho-1 and Tycho-2
     # Goal 2: correct assignment of HD numbers
     # Goal 3: correct naming
-
-
-
-
-
-
-
-
-
-
 
     # Check HD numbers between Tycho-1 and Hipparcos
     # 1) HIP entries that correspond to a single TYC entry: 42 contradictions (TYC2_HD makes a decision)

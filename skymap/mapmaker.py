@@ -1,3 +1,21 @@
+"""
+MapMaker
+\-> TikzFigure
+    \-> DrawingArea
+        units of mm relative to some origin
+\-> AzimuthalEquidistantMap
+    //vertical scale of 2 (horizontal scale is derived) mapped to the map vertical height
+    bounding box in mm, vertical latitude range
+    \-> AzimuthalEquidistantProjection
+        //projects a specified parallel at a distance of 1 from origin
+        half the latitude range, half the vertical map size (mm)
+    \-> EquidistantCylindricalProjection
+        half the latitude range, half the vertical map size (mm)
+    \-> EquidistantConicProjection
+
+
+"""
+
 import math
 import itertools
 
@@ -7,19 +25,25 @@ from skymap.stars import select_stars
 from skymap.map import *
 from skymap.labels import LabelManager
 from skymap.geometry import Rectangle
+from skymap.tikz import TikzFigure
 
-
-A4_SIZE = (297.0, 210.0)
-A3_SIZE = (420.0, 297.0)
-A2_SIZE = (594.0, 420.0)
+PAPERSIZES = {
+    "A4": (210.0, 297.0),
+    "A3": (297.0, 420.0),
+    "A2": (420.0, 594.0)
+}
 LINEWIDTH = 0.5
 FAINTEST_MAGNITUDE = 12
 
 
 class SkyMapMaker(object):
-    def __init__(self, filename=None, paper_size=A3_SIZE, margin_lr=(20, 20), margin_bt=(20, 20)):
+    def __init__(self, filename=None, paper_size="A3", landscape=False, margin_lr=(20, 20), margin_bt=(20, 20)):
         self.filename = filename
         self.paper_size = paper_size
+        self.landscape = landscape
+        self.size = PAPERSIZES[paper_size]
+        if landscape:
+            self.size = (self.size[1], self.size[0])
         self.margin_lr = margin_lr
         self.margin_bt = margin_bt
         self.map = None
@@ -29,13 +53,17 @@ class SkyMapMaker(object):
     def set_filename(self, filename):
         self.filename = filename
         basename = os.path.splitext(os.path.split(self.filename)[-1])[0]
-        self.figure = MetaPostFigure(basename)
+
+        self.figure = TikzFigure(basename, papersize=self.paper_size, landscape=self.landscape) #MetaPostFigure(basename)
+
+        self.drawing_area = self.figure.drawing_area(self.figure.llcorner, self.figure.urcorner-Point(80,0))
 
     # Map types
-    def set_polar(self, filename, north=True, vertical_range=50):
+    def set_polar(self, filename, north=True, latitude_range=50):
         self.set_filename(filename)
         self.labelmanager = LabelManager()
-        self.map = AzimuthalEquidistantMap(self.paper_size, self.margin_lr, self.margin_bt, north=north, reference_scale=vertical_range/2.0, celestial=True)
+        mapsize = (self.size[0]-self.margin_lr[0]-self.margin_lr[1], self.size[1]-self.margin_bt[0]-self.margin_bt[1])
+        self.map = AzimuthalEquidistantMap(mapsize, (10,10), (10,10), north=north, latitude_range=latitude_range, celestial=True)
 
     def set_intermediate(self, filename, center, standard_parallel1=30, standard_parallel2=60, vertical_range=50):
         self.set_filename(filename)
@@ -57,9 +85,9 @@ class SkyMapMaker(object):
         for latitude in range(min_latitude, int(self.map.max_latitude) + 1, int(increment)):
             parallel = self.map.map_parallel(latitude)
             if isinstance(parallel, Circle):
-                self.figure.draw_circle(parallel, linewidth=LINEWIDTH)
+                self.drawing_area.draw_circle(parallel, linewidth=LINEWIDTH)
             else:
-                self.figure.draw_line(parallel, linewidth=LINEWIDTH)
+                self.drawing_area.draw_line(parallel, linewidth=LINEWIDTH)
             marker = "{0}$^{{\\circ}}$".format(latitude)
             self.draw_ticks(parallel, marker, self.map.draw_parallel_ticks_on_horizontal_axis, self.map.draw_parallel_ticks_on_vertical_axis)
 
@@ -76,9 +104,9 @@ class SkyMapMaker(object):
         for longitude in range(min_longitude, max_longitude, int(increment)):
             meridian = self.map.map_meridian(longitude)
             if isinstance(meridian, Circle):
-                self.figure.draw_circle(meridian, linewidth=LINEWIDTH)
+                self.drawing_area.draw_circle(meridian, linewidth=LINEWIDTH)
             else:
-                self.figure.draw_line(meridian, linewidth=LINEWIDTH)
+                self.drawing_area.draw_line(meridian, linewidth=LINEWIDTH)
             if self.map.projection.celestial:
                 ha = HourAngle()
                 ha.from_degrees(longitude)
@@ -95,13 +123,13 @@ class SkyMapMaker(object):
         if horizontal_axis:
             for border, pos in [(self.map.bottom_border, "bot"), (self.map.top_border, "top")]:
                 points = draw_object.inclusive_intersect_line(border)
-                for p in points:
-                    self.figure.draw_text(p, text, pos, size="small", delay_write=True)
+                #for p in points:
+                #    self.drawing_area.draw_text(p, text, pos, size="small", delay_write=True)
         if vertical_axis:
             for border, pos in [(self.map.right_border, "rt"), (self.map.left_border, "lft")]:
                 points = draw_object.inclusive_intersect_line(border)
-                for p in points:
-                    self.figure.draw_text(p, text, pos, size="small", delay_write=True)
+                #for p in points:
+                #    self.drawing_area.draw_text(p, text, pos, size="small", delay_write=True)
 
     def draw_constellation_boundaries(self):
         print
@@ -112,7 +140,7 @@ class SkyMapMaker(object):
         for e in edges:
             points = [self.map.map_point(p) for p in e.interpolated_points]
             polygon = Polygon(points, closed=False)
-            self.figure.draw_polygon(polygon, linewidth=LINEWIDTH, dashed=True)
+            self.drawing_area.draw_polygon(polygon, linewidth=LINEWIDTH, dashed=True)
 
     def draw_stars(self):
         print
@@ -135,30 +163,30 @@ class SkyMapMaker(object):
 
     def draw_star(self, star):
         p = self.map.map_point(star.position)
-        if not self.map.inside_viewport(p):
+        if not self.map.inside_maparea(p):
             return
 
         # Print the star itself
         if star.is_variable:
             min_size = self.magnitude_to_size(star.min_magnitude)
             max_size = self.magnitude_to_size(star.max_magnitude)
-            self.figure.draw_point(p, max_size + 0.3*LINEWIDTH, color="white")
+            self.drawing_area.draw_point(p, max_size + 0.3*LINEWIDTH, color="white")
             c = Circle(p, 0.5 * max_size)
-            self.figure.draw_circle(c, linewidth=0.3*LINEWIDTH)
+            self.drawing_area.draw_circle(c, linewidth=0.3*LINEWIDTH)
             if star.min_magnitude < FAINTEST_MAGNITUDE:
-                self.figure.draw_point(p, min_size)
+                self.drawing_area.draw_point(p, min_size)
             size = max_size
         else:
             size = self.magnitude_to_size(star.magnitude)
-            self.figure.draw_point(p, size + 0.3*LINEWIDTH, color="white")
-            self.figure.draw_point(p, size)
+            self.drawing_area.draw_point(p, size + 0.3*LINEWIDTH, color="white")
+            self.drawing_area.draw_point(p, size)
 
         # Print the multiple bar
         if star.is_multiple:
             p1 = Point(p[0] - 0.5 * size - 0.2, p[1])
             p2 = Point(p[0] + 0.5 * size + 0.2, p[1])
             l = Line(p1, p2)
-            self.figure.draw_line(l, linewidth=0.25)
+            self.drawing_area.draw_line(l, linewidth=0.25)
             print "MULTIPLE:", star, star.magnitude, star.position
 
         o = Circle(p, 0.5 * size)
@@ -234,10 +262,10 @@ class SkyMapMaker(object):
 
         self.figure.comment("Milky way outline")
         if self.map.north is None:
-            self.figure.draw_connected_curves(curves, linewidth=0.5, color="black")
+            self.drawing_area.draw_connected_curves(curves, linewidth=0.5, color="black")
         else:
-            self.figure.draw_curve(north_curve, linewidth=LINEWIDTH, color="black")
-            self.figure.draw_curve(south_curve, linewidth=LINEWIDTH, color="black")
+            self.drawing_area.draw_curve(north_curve, linewidth=LINEWIDTH, color="black")
+            self.drawing_area.draw_curve(south_curve, linewidth=LINEWIDTH, color="black")
 
         self.figure.comment("Milky way holes")
         for h in holes:
@@ -245,40 +273,51 @@ class SkyMapMaker(object):
                 continue
             h = [self.map.map_point(p) for p in h]
             self.figure.fill_curve(h, color="(1, 1, 1)")
-            self.figure.draw_curve(h, closed=True, linewidth=0.5, color="black")
+            self.drawing_area.draw_curve(h, closed=True, linewidth=0.5, color="black")
 
         self.figure.comment("Magellanic clouds")
         for m in magellan:
             m = [self.map.map_point(p) for p in m]
             self.figure.fill_curve(m, color="(0.6, 0.8, 1.0)")
-            self.figure.draw_curve(m, closed=True, linewidth=0.5, color="black")
+            self.drawing_area.draw_curve(m, closed=True, linewidth=0.5, color="black")
 
     def render(self, open=False):
+        """
+        Order to draw things:
+
+        :param open:
+        :return:
+        """
+
+        self.drawing_area.clip(self.map.bounding_box())
         #self.draw_milky_way()
         self.draw_parallels()
         self.draw_meridians()
-        self.draw_constellation_boundaries()
-        self.draw_stars()
+        #self.draw_constellation_boundaries()
+        self.drawing_area.close_clip()
+
+        #self.draw_stars()
 
         print "Drawing labels"
-        self.labelmanager.draw_labels(self.figure)
+        #self.labelmanager.draw_labels(self.figure)
 
         #Clip the map area
-        llborder = Point(self.margin_lr[0], self.margin_bt[0])
-        urborder = Point(self.paper_size[0] - self.margin_lr[1], self.paper_size[1] - self.margin_bt[1])
-        self.figure.clip(llborder, urborder)
+        #llborder = Point(self.margin_lr[0], self.margin_bt[0])
+        #urborder = Point(self.paper_size[0] - self.margin_lr[1], self.paper_size[1] - self.margin_bt[1])
+        #self.figure.clip(llborder, urborder)
 
         # Draw border
-        self.figure.draw_rectangle(Rectangle(llborder, urborder))
-        llborder = Point(self.margin_lr[0] - 10, self.margin_bt[0] - 10)
-        urborder = Point(self.paper_size[0] - self.margin_lr[1] + 10, self.paper_size[1] - self.margin_bt[1] + 10)
-        self.figure.draw_rectangle(Rectangle(llborder, urborder), linewidth=1.0)
+        self.drawing_area.draw_bounding_box()
+        self.drawing_area.draw_rectangle(self.map.bounding_box())
+        #llborder = Point(self.margin_lr[0] - 10, self.margin_bt[0] - 10)
+        #urborder = Point(self.paper_size[0] - self.margin_lr[1] + 10, self.paper_size[1] - self.margin_bt[1] + 10)
+        #self.drawing_area.draw_rectangle(Rectangle(llborder, urborder), linewidth=1.0)
 
         # Create bounding box for page
-        llcorner = Point(0, 0)
-        urcorner = Point(self.paper_size[0], self.paper_size[1])
-        self.figure.draw_rectangle(Rectangle(llcorner, urcorner), linewidth=0)
+        # llcorner = Point(0, 0)
+        # urcorner = Point(self.paper_size[0], self.paper_size[1])
+        # self.drawing_area.draw_rectangle(Rectangle(llcorner, urcorner), linewidth=0)
 
         # Finish
-        self.figure.end_figure()
+        #self.figure.end_figure()
         self.figure.render(self.filename, open=open)

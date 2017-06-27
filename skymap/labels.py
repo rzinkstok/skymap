@@ -207,5 +207,53 @@ class LabelManager(object):
         print "\n"
 
 
+
+"""
+Labels, points, lines
+Only labels are movable
+
+Generate points, lines, other objects (geometrical objects)
+
+For each labeled object:
+    Get label text, fontsize, etc
+    Generate label bounding box
+    distance = default
+    number of angles = 8
+    until penalty is acceptable:
+        Generate possible positions for bounding box using distance and number of angles
+        Check collisions with objects (not labels), use penalty system
+        select 8 best
+        distance *= 2
+        number of angles *= 2
+    Put in database
+
+n = len(labeloptions)
+for i in range(n):
+    for j in range(i, n):
+        l1 = label1
+        lo1 = labeled_object1
+        l2 = label2
+        lo2 = labeled_object2
+
+        if lo1 == lo2:
+            pass
+        else:
+            determine collision penalty, add to both label positions
+
+
+Minimize total penalty
+
+simple way:
+sort labeled objects according to minimum of label position penalties, from high to low (?)
+for labeled_object in labeled_objects:
+    select and place label with lowest penalty
+
+better way:
+optimization algorithm? Which one?
+
+"""
+
+
+
 if __name__ == "__main__":
     build_label_database()

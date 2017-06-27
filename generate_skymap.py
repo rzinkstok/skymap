@@ -7,12 +7,12 @@ def build_cambridge_star_atlas(path="atlas"):
     if not os.path.exists(path):
         os.makedirs(path)
 
-    m = SkyMapMaker()
+    m = SkyMapMaker(landscape=True)
 
-    m.set_polar("atlas/01.pdf", north=True, vertical_range=50)
+    m.set_polar("atlas/01.pdf", north=True, latitude_range=80)
     m.render()
     return
-    m.set_polar("atlas/20.pdf", north=False, vertical_range=50)
+    m.set_polar("atlas/20.pdf", north=False, latitude_range=50)
     m.render()
 
     for i, center_longitude in enumerate(range(0, 360, 60)):

@@ -207,8 +207,8 @@ def build_star_database():
             )
             SELECT
                 t2.TYC1, t2.TYC2, t2.TYC3, t2.HIP, t2hd.HD1, t2hd.HD2,
-                t2.mRAdeg,
-                t2.mDEdeg,
+                t2.RAmdeg,
+                t2.DEmdeg,
                 t2.pmRA, t2.pmDE,
                 t2.BTmag, t2.VTmag,
                 t2.CCDM
@@ -227,6 +227,7 @@ def build_star_database():
 
     # Data from Tycho2 supplement 1 with HD from Tyc2_HD
     # Astrometry is position at epoch J1991.25 (ICRS), which is converted to J2000 using the proper motion
+    # TODO: Leave out the 254 duplicate stars?
     print "Inserting Tycho-2 supplement 1 data"
     t1 = time.time()
     q = """
@@ -271,7 +272,9 @@ def build_star_database():
     print "{:.1f} s".format(t2 - t1)
 
     # Overwrite photometry, add variability, multiplicity and DM ids from Tycho1
-    print "Inserting Tycho data"
+    # Leave out Hipparcos stars not measured by Tycho-1 (Source=H)
+    # TODO: Leave out Tycho-1 stars resolved into multiple stars by Tycho-2
+    print "Inserting Tycho-1 data"
     t1 = time.time()
 
     q = """
@@ -286,13 +289,14 @@ def build_star_database():
             WHERE hiptyc_tyc_main.TYC1=skymap_stars.tyc1
             AND hiptyc_tyc_main.TYC2=skymap_stars.tyc2
             AND hiptyc_tyc_main.TYC3=skymap_stars.tyc3
+            AND hiptyc_tyc_main.Source != 'H'
         """
     #db.commit_query(q)
     t2 = time.time()
     print "{:.1f} s".format(t2 - t1)
 
-    # Overwrite astrometry from Hipparcos New Reduction TODO
-    # Overwrtie photometry, add multiplicity from Hipparcos
+    # Overwrite astrometry from Hipparcos New Reduction
+    # Overwrite photometry, add multiplicity from Hipparcos
     # Hipparcos stars that are resolved into multiple Tycho stars are excluded
     # The 263 stars that lack proper astrometry are excluded
     # Astrometry is position at J1991.25 (ICRS), which is converted to J2000 using the proper motion
@@ -325,6 +329,7 @@ def build_star_database():
     print "{:.1f} s".format(t2 - t1)
 
     # Add data from Hipparcos variability annex
+    # Hipparcos stars that are resolved into multiple Tycho stars are excluded
     print "Inserting Hipparcos Variability Annex data"
     t1 = time.time()
     q = """
@@ -494,6 +499,59 @@ def select_stars(magnitude, constellation=None, ra_range=None, dec_range=None):
     return result
 
 
+def sum_magnitudes(m1, m2):
+    return -2.5*math.log10(pow(10, -m1/2.5) + pow(10, -m2/2.5))
+
 
 if __name__ == "__main__":
     build_star_database()
+
+
+
+"""
+Multiplicity
+------------
+
+Hipparcos:
+
+Primary: CCDM
+
+- Proximity flag (Proxy), values H or T for Hipparcos or Tycho.
+  Indicates component within 10 arcseconds. Component is either an entry or a component of an entry. Hip entries with
+  G, O, V or X in field MultFlag are not counted (so only multiple stars with component solutions or single stars),
+  just as entries with S in Qual (suspected non-single). If both H and T apply, then H is used.
+- Reference flag for astrometrics (AstroRef), values A-G, S, *, +
+  Indicates for which component (or the photocenter, or the center of mass) the astrometrics are given
+- Reference flag for Tycho photometrics BT and VT (m_BTmag), values A-E, S, *, -
+  Indicates for which component (or all, or several) the photometrics are given
+- Reference flag for Hipparcos photometrics Hpmag, values A-E, S, *, -
+  Indicates for which component (or all) the photometrics are given
+- CCDM: CCDM identifier (CCDM)
+- Historical status of the CCDM identifier (n_CCDM), values H, I, M
+- Nsys: Number of catalogue entries with the same CCDM identifier
+- Ncomp: Number of components into which the entry was resolved
+- MultFlag: Double and Multiple Systems Annex flag, values C, G, O, V, X
+  Only value C refers to real resolved multiple systems
+- Source: Source of the absolute astrometry, values F, I, L, P, S, blank
+  F, I and L are secondary components, P is primary; S means multiple system processed as single star;
+- Solution quality flag, values A-D, S
+  S means suspected; can be regarded as single.
+- Component designation, values AB, BA, etc
+  Data for these components are presented in the following fields, with the first component mentioned being the brightest
+- Position angle, separation, magnitude difference, ...
+
+Tycho-1:
+- TYC3 component number
+  Components must be within 15 arcseconds to be included in the same TYC1/TYC2 number
+- Proximity flag (Proxy), values H or T
+  Whether star or component within 10 arcseconds. Includes Hipparcos components that are merged into single Tycho entry
+- Unresolved duplicity flag, values D, R, S, Y, Z, blank
+  Resolved stars have seperate entries. Duplicity is clearly indicated for unresolved entries only when this flag is D
+- CCDM component identifier [A-Z, AB, TT=ABC] (5898 have more than 1 component)
+
+Tycho-2:
+- TYC3 component number
+- CCDM component identifier (5082 have 2 components, 2 have 3 components)
+
+
+"""
