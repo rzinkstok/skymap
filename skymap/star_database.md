@@ -1,6 +1,12 @@
 # Star database
 
-The stars plotted in SkyMap all come from the Hipparcos, Tycho and Tycho-2 catalogues published by ESA.
+The stars plotted in SkyMap all come from the Hipparcos, Tycho and Tycho-2 catalogues published by ESA:
+
+* The Hipparcos and Tycho Catalogues (ESA 1997), http://cdsarc.u-strasbg.fr/viz-bin/Cat?cat=I%2F239
+* The Tycho-2 Catalogue of the 2.5 Million Brightest Stars, Hog et al., Astron. Astrophys. 355, L27 (2000), http://cdsarc.u-strasbg.fr/viz-bin/Cat?I/259
+* Hipparcos, the new Reduction of the Raw data, van Leeuwen F., Astron. Astrophys. 474, 653 (2007), http://cdsarc.u-strasbg.fr/viz-bin/Cat?I/311
+
+For ease of use, these were converted to MySQL databases: all queries below are performed on these databases.
 
 ## History
 
