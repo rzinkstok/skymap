@@ -10,12 +10,12 @@ For ease of use, these were converted to MySQL databases: all queries below are 
 
 ## History
 
-The Hipparcos catalogue (118218 stars) was first published in 1997, together with the larger Tycho catalogue (1058332 stars). 
-In 2000, the Tycho-2 catalogue was published, containing even more stars (2539913) at a slightly higher accuracy than Tycho-1.
-For all practical purposes, the newer Tycho-2 supersedes Tycho-1 completely. In 2007, an new reduction of the Hipparcos 
-catalogue was published with more accurate astrometrics.
+The Hipparcos catalogue (118,218 stars) was first published in 1997, together with the larger Tycho catalogue (1,058,332 stars). 
+In 2000, the Tycho-2 catalogue was published, containing even more stars (2,539,913) at a slightly higher accuracy than Tycho-1.
+For all practical purposes, the newer Tycho-2 supersedes the earlier Tycho catalogue (from now on, Tycho-1) completely. For the 
+Hipparcos catalogue, a new reduction of the raw data was published in 2007, bringing much more accurate astrometrics.
 
-The astrometric accuracy of the Hipparcos catalogue is much better: for Hp < 9 mag, the median precision for the position 
+The astrometric accuracy of the Hipparcos catalogue is much better than that of the Tycho catalogues: for Hp < 9 mag, the median precision for the position 
 is 0.77/0.64 mas (RA/dec), and for proper motion 0.88/0.74 mas/yr (RA/dec). The Tycho catalogue does not get better than
 7 mas for stars with Vt < 9 mag. The photometric accuracy of Hipparcos is better as well: for Hp < 9 mag, the median photometric 
 precision is 0.0015 mag, while Tycho-1 is limited to 0.012 mag (Vt).
@@ -80,33 +80,24 @@ the data of both entries combined. Three-pointing and four-pointing systems are 
 all entries linked by a common CCDM identifier are two-, three- or four-pointing: for some cases, the astrometrics are solved
 for each entry separately.
 
-| Description             | Number |
-| ----------------------- | ------ |
-| Entries with a CCDM id  |  19393 |
-| Number of CCDM pairs    |   1714 |
-| Number of CCDM triplets |     43 |
-| Number of CCDM quartets |      5 |
-
-Example query:
-
-```SQL
-SELECT COUNT(*) FROM (
-	SELECT CCDM from hiptyc_hip_main WHERE nsys=2 GROUP BY CCDM
-) t1;
-```
-
-Checking some numbers: first the total number of components 
 | Description                               | Number |
-| -----------------------                   | ------ |
+| ----------------------------------------- | ------ |
+| Entries with a CCDM id                    |  19393 |
+| Number of CCDM pairs                      |   1714 |
+| Number of CCDM triplets                   |     43 |
+| Number of CCDM quartets                   |      5 |
 | Components in main with CCDM id           | 30770  |
 | Components in part C                      | 24588  |
 | Single entry CCDM                         | 15816  |
-| Single-pointing systems with 2 components | 11048  |
-| Single-pointing systems with 3 components |   129  |
-| Single-pointing systems with 4 components |     6  |
-| 
 
-````SQL
+Queries used:
+
+```SQL
+-- Number of CCDM pairs in main
+SELECT COUNT(*) FROM (
+	SELECT CCDM from hiptyc_hip_main WHERE nsys=2 GROUP BY CCDM
+) t1;
+
 -- Number of components in main 
 SELECT COUNT(*)
 FROM hiptyc_hip_main AS main
@@ -123,12 +114,34 @@ WHERE main.CCDM != '';
 SELECT COUNT(*) FROM (
 	SELECT CCDM from hiptyc_hip_main WHERE nsys=1 GROUP BY CCDM
 ) t1;
+```
 
+On page 125 of the 'Hipparcos and Tycho Catalogue' book, a full analysis of the number of double and multiple systems is
+presented. In order to get a feel of the data, the core numbers are reproduced here:
+ 
+| Components in system | Single-pointing | Two-pointing | Three-pointing |
+| -------------------- | --------------- | ------------ | -------------- |
+| 2                    |           11048 |          957 |              0 |
+| 3                    |             129 |           50 |              3 |
+| 4                    |               6 |            1 |              1 |
+
+Queries used:
+
+````SQL
 -- Number of single-pointing entries/systems with 2 components (11048; 3 components 129; 4 components 6)
 SELECT COUNT(*) FROM hiptyc_hip_main WHERE Source IN ('',  'S') AND MultFlag='C' AND nComp=2;
 
--- Number of two- and three-pointing systems (2028)
-SELECT COUNT(*) FROM hiptyc_hip_main WHERE Source IN ('F', 'I', 'L', 'P') AND MultFlag='C';
+-- Number of two-pointing systems with 2 components (957; 3 components 50; 4 components 1)
+-- Number of three-pointing systems with 2 components (0; 3 components 3; 4 components 1)
+-- Funny enough, this query does not yield correct results when applied to single-pointing systems...
+SELECT COUNT(*) FROM (
+	SELECT COUNT(DISTINCT m.hip) AS npointing, COUNT(DISTINCT d.pk) AS ncomponents
+	FROM hiptyc_hip_main AS m 
+	LEFT JOIN hiptyc_h_dm_com AS d ON d.HIP = m.HIP
+	WHERE m.Source IN ('F', 'I', 'L', 'P') 
+	GROUP BY d.CCDM 
+) t2
+WHERE npointing=2 AND ncomponents=2;
 ````
 
 
