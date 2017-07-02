@@ -1,4 +1,4 @@
-# Star database
+# Stellar database
 
 The stars plotted in SkyMap all come from the Hipparcos, Tycho and Tycho-2 catalogues published by ESA:
 
@@ -23,26 +23,29 @@ precision is 0.0015 mag, while Tycho-1 is limited to 0.012 mag (Vt).
 ## Structure of the databases
 
 ### Hipparcos
-Identifier: HIP
-
-Catalogue parts:
-* Main catalogue: astrometrics, photometrics
-* Double and Multiple System Annex (DMSA): component information for entries resolved into 2 or more components
-* Variability Annex: variability data
+* Identifier: HIP
+* Reference system: ICRS
+* Position epoch: J1991.25
+* Catalogue parts:
+  * Main catalogue: astrometrics, photometrics
+  * Double and Multiple System Annex (DMSA): component information for entries resolved into 2 or more components
+  * Variability Annex: variability data
 
 ### Tycho
-Identifier: TYC1, TYC2, TYC3, HIP
-
-Catalogue parts:
-* Main catalogue
+* Identifier: TYC1, TYC2, TYC3, HIP
+* Reference system: ICRS
+* Position epoch: J1991.25
+* Catalogue parts:
+  * Main catalogue
 
 ### Tycho-2
-Identifier: TYC1, TYC2, TYC3, HIP
-
-Catalogue parts:
-* Main catalogue
-* Supplement 1 (Hipparcos/Tycho-1 stars not in Tycho-2)
-* Supplement 2 (Tycho-1 stars either false or heavily disturbed)
+* Identifier: TYC1, TYC2, TYC3, HIP
+* Reference system: ICRS
+* Position epoch: J2000
+* Catalogue parts:
+  * Main catalogue
+  * Supplement 1 (Hipparcos/Tycho-1 stars not in Tycho-2)
+  * Supplement 2 (Tycho-1 stars either false or heavily disturbed)
 
 ## Combining the databases
 
@@ -81,14 +84,14 @@ all entries linked by a common CCDM identifier are two-, three- or four-pointing
 for each entry separately.
 
 | Description                               | Number |
-| ----------------------------------------- | ------ |
+| ----------------------------------------- | -----: |
 | Entries with a CCDM id                    |  19393 |
 | Number of CCDM pairs                      |   1714 |
 | Number of CCDM triplets                   |     43 |
 | Number of CCDM quartets                   |      5 |
-| Components in main with CCDM id           | 30770  |
-| Components in part C                      | 24588  |
-| Single entry CCDM                         | 15816  |
+| Components in main with CCDM id           |  30770 |
+| Components in part C                      |  24588 |
+| Single entry CCDM                         |  15816 |
 
 Queries used:
 
@@ -116,11 +119,11 @@ SELECT COUNT(*) FROM (
 ) t1;
 ```
 
-On page 125 of the 'Hipparcos and Tycho Catalogue' book, a full analysis of the number of double and multiple systems is
+On page 125 of the *Hipparcos and Tycho Catalogue*, a full analysis of the number of double and multiple systems is
 presented. In order to get a feel of the data, the core numbers are reproduced here:
  
 | Components in system | Single-pointing | Two-pointing | Three-pointing |
-| -------------------- | --------------- | ------------ | -------------- |
+| -------------------- | --------------: | -----------: | -------------: |
 | 2                    |           11048 |          957 |              0 |
 | 3                    |             129 |           50 |              3 |
 | 4                    |               6 |            1 |              1 |
@@ -148,7 +151,15 @@ WHERE npointing=2 AND ncomponents=2;
 ### Linking Tycho-2 stars to Hipparcos
 
 A simple join of the main Hipparcos file with part C of the DMSA would yield a complete list of all resolved stars in
-Hipparcos. Every record in this list is uniquely identified by the HIP identifier and the CCDM component identifier. In
+Hipparcos: this is a list of 129595 records. Every record in this list is uniquely identified by the HIP identifier and the CCDM component identifier. In
 principle, each of these records should correspond to an entry in the Tycho-2 main database, or it is listed in the Tycho-2
 Supplement 1 (Hipparcos/Tycho-1 stars not in Tycho-2).
+
+```SQL
+-- The number of resolved stars in Hipparcos
+SELECT COUNT(*) FROM hiptyc_hip_main AS m LEFT JOIN hiptyc_h_dm_com AS d ON m.HIP=d.HIP
+
+-- The number of Hipparcos stars in Tycho-2 main
+
+```
 
