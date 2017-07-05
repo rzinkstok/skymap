@@ -2,7 +2,7 @@
 
 The stars plotted in SkyMap all come from the Hipparcos, Tycho and Tycho-2 catalogues published by ESA:
 
-* The Hipparcos and Tycho Catalogues (ESA 1997), http://cdsarc.u-strasbg.fr/viz-bin/Cat?cat=I%2F239
+* The Hipparcos and Tycho Catalogues (ESA 1997), http://cdsarc.u-strasbg.fr/viz-bin/Cat?I/239
 * The Tycho-2 Catalogue of the 2.5 Million Brightest Stars, Hog et al., Astron. Astrophys. 355, L27 (2000), http://cdsarc.u-strasbg.fr/viz-bin/Cat?I/259
 * Hipparcos, the new Reduction of the Raw data, van Leeuwen F., Astron. Astrophys. 474, 653 (2007), http://cdsarc.u-strasbg.fr/viz-bin/Cat?I/311
 
@@ -12,7 +12,8 @@ For ease of use, these were converted to MySQL databases: all queries below are 
 
 The Hipparcos catalogue (118,218 stars) was first published in 1997, together with the larger Tycho catalogue (1,058,332 stars). 
 In 2000, the Tycho-2 catalogue was published, containing even more stars (2,539,913) at a slightly higher accuracy than Tycho-1.
-For all practical purposes, the newer Tycho-2 supersedes the earlier Tycho catalogue (from now on, Tycho-1) completely. For the 
+For all practical purposes, the newer Tycho-2 supersedes the earlier Tycho catalogue (from now on, Tycho-1) completely. The
+only exceptions is the variability data in Tycho-1: Tycho-2 does not say anything about that. For the 
 Hipparcos catalogue, a new reduction of the raw data was published in 2007, bringing much more accurate astrometrics.
 
 The astrometric accuracy of the Hipparcos catalogue is much better than that of the Tycho catalogues: for Hp < 9 mag, the median precision for the position 
@@ -55,6 +56,25 @@ Hipparcos. Tycho-1 does not indicate much about multiplicity: only a duplicity f
 link to Hipparcos. Tycho-2 does not have a duplicity flag (one assumes all multiples in Tycho-1 were resolved in Tycho-2), but
 does give the CCDM component identifiers. The new Hipparcos reduction gives information on the number of components, and the
 solution type also indicates double stars: it seems that no new doubles or multiples are identified.
+
+The general idea will be as follows:
+* Use all Hipparcos data
+* Use all data from Tycho-1 except Hipparcos stars (Tycho-1 stars with HIP number) and Tycho-2 supplement 2 stars
+* Use all data from Tycho-2 except Hipparcos stars (Tycho-2 stars with HIP number); overwrite astrometrics for Tycho-1 stars
+
+Further data will come from other sources:
+* Variability data from GCVS
+* HD numbers
+* Bayer, Flamsteed
+* Proper names from IAU
+* Constellation assignment
+
+Issues:
+* Propagation of star positions to a common epoch (maybe not required)
+* Hipparcos double/multiple stars that are not resolved in Tycho-1 (5898 cases, see p. 159 of the *Hipparcos and Tycho Catalogue*; ignore the Tycho-1 data?)
+* Hipparcos stars resolved into multiple Tycho-1 stars: this does not occur (only one of the stars is assigned the Hipparcus number)
+* Tycho-1 stars that are resolved into multiple Tycho-2 stars: (ignore Tycho-1 data?) 
+* 
 
 ### Hipparcos multiplicity
 
@@ -148,18 +168,61 @@ WHERE npointing=2 AND ncomponents=2;
 ````
 
 
-### Linking Tycho-2 stars to Hipparcos
+### Linking Hipparcos and Tycho-1
 
 A simple join of the main Hipparcos file with part C of the DMSA would yield a complete list of all resolved stars in
-Hipparcos: this is a list of 129595 records. Every record in this list is uniquely identified by the HIP identifier and the CCDM component identifier. In
-principle, each of these records should correspond to an entry in the Tycho-2 main database, or it is listed in the Tycho-2
-Supplement 1 (Hipparcos/Tycho-1 stars not in Tycho-2).
+Hipparcos: this is a list of 129,595 records. Every record in this list is uniquely identified by the HIP identifier 
+and the CCDM component identifier. In principle, each of these records should correspond to an entry in the Tycho-1
+database.
+
+However, there are 5,898 entries in Hipparcos that contain 2 or 3 stars (specified in the DMSA) that are not resolved in 
+Tycho-1, comprising 5,896 Hipparcos numbers. In Tycho-1, the m_HIP field contains both component IDs (AB, AC, etc) for
+the double stars or TT for the three cases where it is a triple system, where the component IDs are in fact ABC. For
+these unresolved systems, we ignore the Tycho-1 data.
+
+The 263 stars in Hipparcos that have no proper astrometry are not found in Tycho, and are suppressed.
+
+In order to generate a list of all individual stars in Hipparcos and Tycho-1, the following method is used:
+* Left join Hipparcos main to the DMSA part C yields all individual stars in Hipparcos; call this IndiHip
+* Right join IndiHip and Tycho-1 on the HIP number and component ID, omitting all 5,898 unresolved entries where 
+LENGTH(TRIM(m_HIP)) > 1; call this IndiHipTyc
+* Add to IndiHipTyc the Hipparcos records for the unresolved doubles
+* Add to IndiHipTyc the Hipparcos records for the unresolved triples
+
+
+| Description                                    | Number    |
+| ---------------------------------------------- | --------: |
+| Stars in Tycho-1                               | 1,058,332 |
+| Resolved Hipparcos stars in Tycho-1            | 1,052,434 |
+| Hipparcos double stars not resolved in Tycho-1 |    11,790 |
+| Hipparcos triple stars not resolved in Tycho-1 |         9 |
+
 
 ```SQL
--- The number of resolved stars in Hipparcos
-SELECT COUNT(*) FROM hiptyc_hip_main AS m LEFT JOIN hiptyc_h_dm_com AS d ON m.HIP=d.HIP
+-- Combine Hipparcos with Tycho-1
 
--- The number of Hipparcos stars in Tycho-2 main
+-- All stars from Tycho-1 with added Hipparcos data for those Hipparcos stars that are resolved in Tycho 
+SELECT h.HIP, h.comp_id, t.TYC, t.HIP, t.m_HIP FROM (
+	SELECT m.HIP, d.comp_id
+	FROM hiptyc_hip_main AS m 
+	LEFT JOIN hiptyc_h_dm_com AS d ON m.HIP=d.HIP
+) as h
+RIGHT JOIN (
+	SELECT * FROM hiptyc_tyc_main WHERE LENGTH(TRIM(m_HIP)) < 2
+) AS t ON t.HIP=h.hip AND t.m_HIP=COALESCE(h.comp_id, '')
+
+UNION
+
+-- All stars from Hipparcos that are not resolved in Tycho-1, where NULL values are inserted for the Tycho data
+SELECT h.HIP, h.comp_id, NULL as TYC, NULL as HIP, NULL as m_HIP FROM (
+SELECT m.HIP, d.comp_id
+	FROM hiptyc_hip_main AS m 
+	LEFT JOIN hiptyc_h_dm_com AS d ON m.HIP=d.HIP
+) as h
+LEFT JOIN (
+	SELECT * FROM hiptyc_tyc_main WHERE LENGTH(TRIM(m_HIP)) > 1
+) as t ON t.HIP=h.hip
+WHERE t.pk is not NULL
 
 ```
 
