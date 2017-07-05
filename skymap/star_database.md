@@ -1,4 +1,4 @@
-# Stellar database
+# SkyMap's stellar database
 
 The stars plotted in SkyMap all come from the Hipparcos, Tycho and Tycho-2 catalogues published by ESA:
 
@@ -8,7 +8,7 @@ The stars plotted in SkyMap all come from the Hipparcos, Tycho and Tycho-2 catal
 
 For ease of use, these were converted to MySQL databases: all queries below are performed on these databases.
 
-## History
+## Background
 
 The Hipparcos catalogue (118,218 stars) was first published in 1997, together with the larger Tycho catalogue (1,058,332 stars). 
 In 2000, the Tycho-2 catalogue was published, containing even more stars (2,539,913) at a slightly higher accuracy than Tycho-1.
@@ -71,14 +71,14 @@ Further data will come from other sources:
 
 Issues:
 * Propagation of star positions to a common epoch (maybe not required)
-* Hipparcos double/multiple stars that are not resolved in Tycho-1 (5898 cases, see p. 159 of the *Hipparcos and Tycho Catalogue*; ignore the Tycho-1 data?)
+* Hipparcos double/multiple stars that are not resolved in Tycho-1 (5898 cases, see p. 159 of the *Hipparcos and Tycho Catalogue*; we ignore the Tycho-1 data for these stars)
 * Hipparcos stars resolved into multiple Tycho-1 stars: this does not occur (only one of the stars is assigned the Hipparcus number)
 * Tycho-1 stars that are resolved into multiple Tycho-2 stars: (ignore Tycho-1 data?) 
-* 
 
 ### Hipparcos multiplicity
 
-A star can be part of a multiple system when:
+Where Tycho-1 and Tycho-2 have separate entries for each resolved component, Hipparcos is structured in a different way.
+A Hipparcos star is part of a multiple system when:
 * Its entry shares the CCDM identifier with one or more other entries
 * It is resolved into separate components: it has one entry with number of components larger than 1
  
@@ -201,28 +201,42 @@ LENGTH(TRIM(m_HIP)) > 1; call this IndiHipTyc
 ```SQL
 -- Combine Hipparcos with Tycho-1
 
--- All stars from Tycho-1 with added Hipparcos data for those Hipparcos stars that are resolved in Tycho 
-SELECT h.HIP, h.comp_id, t.TYC, t.HIP, t.m_HIP FROM (
+-- Join Hipparcos main with DMSA part C to build IndiHip
+SELECT COUNT(*) FROM hiptyc_hip_main AS h
+LEFT JOIN hiptyc_h_dm_com AS d ON d.HIP = h.HIP;
+
+-- Right join Tycho-1 with IndiHip
+SELECT COUNT(*) FROM (
+    SELECT h.HIP, d.comp_id FROM hiptyc_hip_main AS h
+    LEFT JOIN hiptyc_h_dm_com AS d ON d.HIP = h.HIP
+) AS IndiHip
+RIGHT JOIN (
+    SELECT t.HIP, t.m_HIP, t.TYC FROM hiptyc_tyc_main AS t WHERE LENGTH(TRIM(t.m_HIP)) < 2
+) AS ResolvedTyc ON ResolvedTyc.HIP=IndiHip.HIP AND ResolvedTyc.m_HIP=COALESCE(IndiHip.comp_id, '');
+
+-- Hipparcos double components not resolved in Tycho-1
+SELECT COUNT(*) FROM (
 	SELECT m.HIP, d.comp_id
 	FROM hiptyc_hip_main AS m 
 	LEFT JOIN hiptyc_h_dm_com AS d ON m.HIP=d.HIP
 ) as h
-RIGHT JOIN (
-	SELECT * FROM hiptyc_tyc_main WHERE LENGTH(TRIM(m_HIP)) < 2
-) AS t ON t.HIP=h.hip AND t.m_HIP=COALESCE(h.comp_id, '')
+LEFT JOIN (
+	SELECT * FROM hiptyc_tyc_main WHERE LENGTH(TRIM(m_HIP)) >1
+) as t ON t.HIP=h.hip 
+WHERE t.pk is not NULL AND h.comp_id in (substring(t.m_HIP, 1, 1), substring(t.m_HIP, 2, 1));
 
-UNION
-
--- All stars from Hipparcos that are not resolved in Tycho-1, where NULL values are inserted for the Tycho data
-SELECT h.HIP, h.comp_id, NULL as TYC, NULL as HIP, NULL as m_HIP FROM (
-SELECT m.HIP, d.comp_id
+-- Hipparcos triple components not resolved in Tycho-1
+SELECT COUNT(*) FROM (
+	SELECT m.HIP, d.comp_id
 	FROM hiptyc_hip_main AS m 
 	LEFT JOIN hiptyc_h_dm_com AS d ON m.HIP=d.HIP
 ) as h
 LEFT JOIN (
-	SELECT * FROM hiptyc_tyc_main WHERE LENGTH(TRIM(m_HIP)) > 1
-) as t ON t.HIP=h.hip
-WHERE t.pk is not NULL
-
+	SELECT * FROM hiptyc_tyc_main WHERE m_HIP = 'TT'
+) as t ON t.HIP=h.hip 
+WHERE t.pk is not NULL AND h.comp_id in ('A', 'B', 'C');
 ```
+
+### Linking Tycho-2 data to the combined Hipparcos and Tycho-1 data
+
 
