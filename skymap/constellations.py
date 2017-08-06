@@ -100,10 +100,12 @@ CONSTELLATIONS = {
 }
 
 
+# The epoch for which the constellation boundaries where defined by Delporte
 CONST_BOUND_EPOCH = datetime.datetime(1875, 1, 1).date()
 
 
 class PointInConstellationPrecession(PrecessionCalculator):
+    """Convenience class to precess a coordinate from """
     def __init__(self, epoch=None):
         if epoch is None:
             epoch = REFERENCE_EPOCH

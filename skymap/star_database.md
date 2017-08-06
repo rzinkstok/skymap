@@ -71,7 +71,7 @@ Further data will come from other sources:
 * Constellation assignment (calculated)
 
 Issues:
-* Propagation of star positions to a common epoch (maybe not required, considering the use case)
+* Propagation of star positions to a common epoch using proper motion (maybe not required, considering the use case)
 * Hipparcos double/multiple stars that are not resolved in Tycho-1 (5898 cases, see p. 159 of the *Hipparcos and Tycho Catalogue*; we ignore the Tycho-1 data for these stars)
 * Hipparcos stars resolved into multiple Tycho-1 stars: this does not occur (only one of the stars is assigned the Hipparcus number)
 * Tycho-1 stars that are resolved into multiple Tycho-2 stars: in this case, the additional component gets a new TYC3 identifier and the Tycho-1 data can be ignored
@@ -249,7 +249,7 @@ to be components that have acquired a different TYC3 identifier in Tycho-2. Take
 star is resolved into two components: TYC 1935 132 1 and TYC 1935 132 2, corresponding to CCDM components A and B. In Tycho-2,
 only TYC 1935 132 3 can be found, corresponding to CCDM component A. In supplement 1, TYC 1935 132 2 is found, corresponding
 to CCDM component B. So it would appear that the A component moved from TYC3 = 1 to TYC3 = 3, while TIC1 = 1 is not used
-anymore.
+anymore. It is assumed that the later Tycho-2 assignments are the correct ones.
 
 Tycho-2 supplement 2: remove? leave alone?
 Tycho-2 supplement 1: ignore, these are present in Hipparcos and/or Tycho-1
