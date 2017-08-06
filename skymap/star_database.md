@@ -60,20 +60,22 @@ solution type also indicates double stars: it seems that no new doubles or multi
 The general idea will be as follows:
 * Use all Hipparcos data
 * Use all data from Tycho-1 except Hipparcos stars (Tycho-1 stars with HIP number) and Tycho-2 supplement 2 stars
-* Use all data from Tycho-2 except Hipparcos stars (Tycho-2 stars with HIP number); overwrite astrometrics for Tycho-1 stars
+* Use all data from Tycho-2 except Hipparcos stars (Tycho-2 stars with HIP number); overwrite astrometrics and photometrics 
+for Tycho-1 stars
 
 Further data will come from other sources:
 * Variability data from GCVS
 * HD numbers
 * Bayer, Flamsteed
 * Proper names from IAU
-* Constellation assignment
+* Constellation assignment (calculated)
 
 Issues:
-* Propagation of star positions to a common epoch (maybe not required)
+* Propagation of star positions to a common epoch (maybe not required, considering the use case)
 * Hipparcos double/multiple stars that are not resolved in Tycho-1 (5898 cases, see p. 159 of the *Hipparcos and Tycho Catalogue*; we ignore the Tycho-1 data for these stars)
 * Hipparcos stars resolved into multiple Tycho-1 stars: this does not occur (only one of the stars is assigned the Hipparcus number)
-* Tycho-1 stars that are resolved into multiple Tycho-2 stars: (ignore Tycho-1 data?) 
+* Tycho-1 stars that are resolved into multiple Tycho-2 stars: in this case, the additional component gets a new TYC3 identifier and the Tycho-1 data can be ignored
+* Tycho-1 stars that are not found in Tycho-2: most of these have uncertain astrometrics (Q=9). 
 
 ### Hipparcos multiplicity
 
@@ -239,4 +241,36 @@ WHERE t.pk is not NULL AND h.comp_id in ('A', 'B', 'C');
 
 ### Linking Tycho-2 data to the combined Hipparcos and Tycho-1 data
 
+5281 Tycho-1 stars are not found in Tycho-2 main, supplement 1 or 2. Of these, 5075 stars have very low-quality astrometrics in
+Tycho-1 (Q=9), and these are excluded from Tycho-2 altogether (see the *Guide to the Tycho-2 Catalogue*, paragraph 2.2).
 
+The remaining 206 Tycho-1 stars not found in Tycho-2 are more mysterious: these appear
+to be components that have acquired a different TYC3 identifier in Tycho-2. Take for example HIP 39607. In Tycho-1, this
+star is resolved into two components: TYC 1935 132 1 and TYC 1935 132 2, corresponding to CCDM components A and B. In Tycho-2,
+only TYC 1935 132 3 can be found, corresponding to CCDM component A. In supplement 1, TYC 1935 132 2 is found, corresponding
+to CCDM component B. So it would appear that the A component moved from TYC3 = 1 to TYC3 = 3, while TIC1 = 1 is not used
+anymore.
+
+Tycho-2 supplement 2: remove? leave alone?
+Tycho-2 supplement 1: ignore, these are present in Hipparcos and/or Tycho-1
+Tycho-2 main: add stars not in Hipparcos/Tycho-1.
+
+```SQL
+-- Tycho-1 stars found in Tycho-2
+SELECT COUNT(*) FROM (
+	SELECT TYC1, TYC2, TYC3 from tyc2_tyc2
+    UNION
+    SELECT TYC1, TYC2, TYC3 from tyc2_suppl_1
+    UNION
+    SELECT TYC1, TYC2, TYC3 from tyc2_suppl_2
+) as t2 INNER JOIN hiptyc_tyc_main AS t1 ON t1.TYC1=t2.TYC1 AND t1.TYC2=t2.TYC2 AND t1.TYC3=t2.TYC3;
+
+-- Tycho-1 stars not found in Tycho-2
+SELECT COUNT(*) FROM (
+	SELECT TYC1, TYC2, TYC3 from tyc2_tyc2
+    UNION
+    SELECT TYC1, TYC2, TYC3 from tyc2_suppl_1
+    UNION
+    SELECT TYC1, TYC2, TYC3 from tyc2_suppl_2
+) as t2 RIGHT JOIN hiptyc_tyc_main AS t1 ON t1.TYC1=t2.TYC1 AND t1.TYC2=t2.TYC2 AND t1.TYC3=t2.TYC3 WHERE t2.TYC1 IS NULL;
+```

@@ -11,17 +11,18 @@ REFERENCE_EPOCH = datetime.datetime(2000, 1, 1).date()
 # Ecliptic
 def obliquity_of_the_ecliptic(epoch):
     # From Astronomical Almanac 2010
-    a = 23.0 + 26/60.0 + 21/3600.0
-    b = 46.836769/3600.0
-    c = 0.0001831/3600.0
+    a = 23.0 + 26/60.0 + 21.406/3600.0
+    b = -46.836769/3600.0
+    c = -0.0001831/3600.0
     d = 0.00200340/3600.0
-    e = 0.576e-6
-    f = 4.34e-8
+    e = -0.576e-6
+    f = -4.34e-8
     t = (epoch - REFERENCE_EPOCH).days / 36525.0
     return a + b * t + c * t ** 2 + d * t ** 3 + e * t ** 4 + f * t ** 5
 
 
 def ecliptic_to_equatorial(p):
+    # Only used to draw the ecliptic
     eps = math.radians(obliquity_of_the_ecliptic(REFERENCE_EPOCH))
     ceps = math.cos(eps)
     seps = math.sin(eps)
@@ -37,6 +38,7 @@ def ecliptic_to_equatorial(p):
 
 # Galactic coordinate system
 def galactic_pole(epoch=REFERENCE_EPOCH):
+    # Only used to draw the galactic poles
     ra = HourAngle(12, 49).to_degrees()
     dec = 27.4
     p = PrecessionCalculator(datetime.datetime(1950, 1, 1).date(), epoch)
@@ -44,6 +46,7 @@ def galactic_pole(epoch=REFERENCE_EPOCH):
 
 
 def galactic_to_equatorial(p, epoch=REFERENCE_EPOCH):
+    # Only used to draw the galactic equator
     l = math.radians(p.longitude)
     b = math.radians(p.latitude)
 
@@ -60,6 +63,10 @@ def galactic_to_equatorial(p, epoch=REFERENCE_EPOCH):
 
 # Precession
 class PrecessionCalculator(object):
+    """Zeta, z and theta parametrizations from:
+     Expressions for IAU 2000 precession quantities, N. Capitaine, P. T. Wallace, and J. Chapront,
+     Astronomy & Astrophysics 412, 567–586 (2003)."""
+
     def __init__(self, epoch1, epoch2):
         self.epoch1 = epoch1
         self.epoch2 = epoch2
