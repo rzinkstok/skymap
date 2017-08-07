@@ -42,6 +42,18 @@ GREEK_LETTERS = {
 
 
 def propagate_position(from_epoch, to_epoch, right_ascension, declination, proper_motion_ra, proper_motion_dec):
+    """
+    Simple propagation in angular coordinates.
+
+    :param from_epoch: datetime
+    :param to_epoch: datetime
+    :param right_ascension: in degrees
+    :param declination: in degrees
+    :param proper_motion_ra: in mas/year, corrected for declination
+    :param proper_motion_dec: in mas/year
+    :return: new position
+    """
+
     delta = to_epoch - from_epoch
     dt = delta.days / 365.25  # dt in years
 
@@ -53,6 +65,27 @@ def propagate_position(from_epoch, to_epoch, right_ascension, declination, prope
     ra = right_ascension + dt * pmra / 3.6e6
     dec = declination + dt * pmdec / 3.6e6
     return ra, dec
+
+
+
+def propagate_position2(from_epoch, to_epoch, right_ascension, declination, proper_motion_ra, proper_motion_dec, distance=1, radial_velocity=0.0):
+    """
+    Rigorous propagation in Cartesian coordinates
+
+    :param from_epoch: datetime
+    :param to_epoch: datetime
+    :param right_ascension: in degrees
+    :param declination: in degrees
+    :param proper_motion_ra: in mas/year
+    :param proper_motion_dec: in mas/year
+    :param distance: in parsec
+    :param radial_velocity: in
+    :return:
+    """
+    delta = to_epoch - from_epoch
+    dt = delta.days / 365.25  # dt in years
+
+
 
 
 class Star(object):

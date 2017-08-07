@@ -185,7 +185,7 @@ these unresolved systems, we ignore the Tycho-1 data.
 The 263 stars in Hipparcos that have no proper astrometry are not found in Tycho, and are suppressed.
 
 In order to generate a list of all individual stars in Hipparcos and Tycho-1, the following method is used:
-* Left join Hipparcos main to the DMSA part C yields all individual stars in Hipparcos; call this IndiHip
+* Left join Hipparcos main (excluding stars without proper astrometrics) to the DMSA part C yields all individual stars in Hipparcos; call this IndiHip
 * Right join IndiHip and Tycho-1 on the HIP number and component ID, omitting all 5,898 unresolved entries where 
 LENGTH(TRIM(m_HIP)) > 1; call this IndiHipTyc
 * Add to IndiHipTyc the Hipparcos records for the unresolved doubles
@@ -249,10 +249,12 @@ to be components that have acquired a different TYC3 identifier in Tycho-2. Take
 star is resolved into two components: TYC 1935 132 1 and TYC 1935 132 2, corresponding to CCDM components A and B. In Tycho-2,
 only TYC 1935 132 3 can be found, corresponding to CCDM component A. In supplement 1, TYC 1935 132 2 is found, corresponding
 to CCDM component B. So it would appear that the A component moved from TYC3 = 1 to TYC3 = 3, while TIC1 = 1 is not used
-anymore. It is assumed that the later Tycho-2 assignments are the correct ones.
+anymore. It is assumed that the later Tycho-2 assignments are the correct ones, so the 206 Tycho-1 stars should be deleted from the Hipparcos/Tycho-1 dataset.
 
-Tycho-2 supplement 2: remove? leave alone?
-Tycho-2 supplement 1: ignore, these are present in Hipparcos and/or Tycho-1
+Perhaps also delete the 5075 stars with very poor astrometrics?
+
+Tycho-2 supplement 2 stars are removed from the database, while Tycho-2 supplement 1 are ignore as these are present in Hipparcos and/or Tycho-1.
+
 Tycho-2 main: add stars not in Hipparcos/Tycho-1.
 
 ```SQL
@@ -273,4 +275,26 @@ SELECT COUNT(*) FROM (
     UNION
     SELECT TYC1, TYC2, TYC3 from tyc2_suppl_2
 ) as t2 RIGHT JOIN hiptyc_tyc_main AS t1 ON t1.TYC1=t2.TYC1 AND t1.TYC2=t2.TYC2 AND t1.TYC3=t2.TYC3 WHERE t2.TYC1 IS NULL;
+```
+
+
+## Alternative approach
+
+Simply use the T flag and HIP identifier in Tycho-2 to filter out Hipparcos/Tycho-1 stars, and use the HIP identifier in Tycho-1 to filter out Hipparcos
+stars.
+
+* take all Tycho-2 main stars
+* maybe remove stars with questionable astrometry?
+* remove all stars with T flag, unless the TYC1/TYC2/TYC3 identifier is not found in Tycho-1
+* remove all stars with a HIP number
+* take all Tycho-1 stars unless found in Tycho-2 supplement 2 or Q=9
+* remove all stars with a HIP number
+* take all Hipparcos stars (components) unless found in Tycho-2 supplement 2 or astrometrics is bad; add TYC ids from Tycho-2
+* merge the three sets of stars
+
+```SQL
+-- 1504589 vs 1505322
+SELECT COUNT(*) FROM tyc2_tyc2 WHERE CONCAT(TYC1, '-', TYC2, '-', TYC3) NOT IN (
+	SELECT CONCAT(TYC1, '-', TYC2, '-', TYC3) FROM hiptyc_tyc_main
+) AND HIP IS NULL
 ```

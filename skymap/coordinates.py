@@ -67,7 +67,7 @@ def galactic_to_equatorial(p, epoch=REFERENCE_EPOCH):
 
 # Precession
 class PrecessionCalculator(object):
-    """Calculate changes in celestial coordinates due to Earth's axial precession.
+    """Calculate changes in celestial coordinates due to Earth's axial precession. Nutation is not included.
 
     Zeta, z and theta parametrizations from:
     Expressions for IAU 2000 precession quantities, N. Capitaine, P. T. Wallace, and J. Chapront,
