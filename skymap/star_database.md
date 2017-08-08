@@ -293,8 +293,45 @@ stars.
 * merge the three sets of stars
 
 ```SQL
--- 1504589 vs 1505322
+-- Tycho-2 stars
 SELECT COUNT(*) FROM tyc2_tyc2 WHERE CONCAT(TYC1, '-', TYC2, '-', TYC3) NOT IN (
 	SELECT CONCAT(TYC1, '-', TYC2, '-', TYC3) FROM hiptyc_tyc_main
-) AND HIP IS NULL
+) AND HIP IS NULL;
+
+-- Tycho-1 stars
+SELECT COUNT(*) from hiptyc_tyc_main WHERE CONCAT(TYC1, '-', TYC2, '-', TYC3) NOT IN (
+	SELECT CONCAT(TYC1, '-', TYC2, '-', TYC3) FROM tyc2_suppl_2
+) AND HIP IS NULL AND Q != 9;
+
+-- Hipparcos stars (separate components), with added TYC numbering (from Tycho-2 and its supplement 1)
+SELECT 
+    h.*, d.*, t.TYC1, t.TYC2, t.TYC3, t.CCDM
+FROM
+    hiptyc_hip_main AS h
+    LEFT JOIN
+        hiptyc_h_dm_com AS d 
+        ON d.HIP = h.HIP
+    LEFT JOIN
+        (
+		    (
+                SELECT 
+                    TYC1, TYC2, TYC3, HIP, CCDM
+                FROM
+                    tyc2_tyc2
+			) 
+	        UNION ALL 
+		    (
+		        SELECT 
+			        TYC1, TYC2, TYC3, HIP, CCDM
+		        FROM
+			        tyc2_suppl_1
+			)
+	    ) AS t 
+        ON t.HIP = h.HIP
+	    AND (
+		    IFNULL(d.comp_id, '') = TRIM(IFNULL(t.CCDM, '')) -- Single or no component in Tycho record 
+            OR
+            TRIM(d.comp_id) IN (SUBSTR(t.CCDM, 1, 1) , SUBSTR(t.CCDM, 2, 1), SUBSTR(t.CCDM, 3, 1)) -- Multiple components in single Tycho record
+	    )
+WHERE h.RAdeg IS NOT NULL;
 ```
