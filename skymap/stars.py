@@ -8,9 +8,13 @@ from datetime import datetime
 from skymap.database import SkyMapDatabase
 from skymap.geometry import ensure_angle_range, SphericalPoint
 from skymap.constellations import determine_constellation, PointInConstellationPrecession
+from skymap.coordinates import julian_year_difference
+
 
 RAD_TO_DEG = 360.0/(2*math.pi)
 J1991_TO_J2000_PM_CONVERSION_FACTOR = ((datetime(2000, 1, 1).date() - datetime(1991, 4, 1).date()).days/365.25)/3.6e6
+KM_PER_S_TO_PARSEC_PER_YEAR = 1/977780.0
+MAS_FOR_FULL_CIRCLE = 360*60*60*1000
 
 
 GREEK_LETTERS = {
@@ -54,8 +58,7 @@ def propagate_position(from_epoch, to_epoch, right_ascension, declination, prope
     :return: new position
     """
 
-    delta = to_epoch - from_epoch
-    dt = delta.days / 365.25  # dt in years
+    dt = julian_year_difference(to_epoch, from_epoch)
 
     # mas/year = 1e-3 as/year = 1e-3/60.0 amin/year = 1e-3/3600 degrees/year
     pmra = proper_motion_ra
@@ -67,8 +70,7 @@ def propagate_position(from_epoch, to_epoch, right_ascension, declination, prope
     return ra, dec
 
 
-
-def propagate_position2(from_epoch, to_epoch, right_ascension, declination, proper_motion_ra, proper_motion_dec, distance=1, radial_velocity=0.0):
+def propagate_position2(from_epoch, to_epoch, right_ascension, declination, proper_motion_ra, proper_motion_dec, distance=1.0, radial_velocity=0.0):
     """
     Rigorous propagation in Cartesian coordinates
 
@@ -79,13 +81,53 @@ def propagate_position2(from_epoch, to_epoch, right_ascension, declination, prop
     :param proper_motion_ra: in mas/year
     :param proper_motion_dec: in mas/year
     :param distance: in parsec
-    :param radial_velocity: in
-    :return:
+    :param radial_velocity: in km/s
+    :return: new position
     """
-    delta = to_epoch - from_epoch
-    dt = delta.days / 365.25  # dt in years
 
+    # Convert time difference to Julian years
+    dt = julian_year_difference(to_epoch, from_epoch)
 
+    # Convert degrees to radians
+    right_ascension = math.radians(right_ascension)
+    declination = math.radians(declination)
+
+    # Convert proper motion (mas/year) to linear velocity in km/s
+    velocity_ra = proper_motion_ra * 2 * math.pi * distance/(MAS_FOR_FULL_CIRCLE * KM_PER_S_TO_PARSEC_PER_YEAR)
+    velocity_dec = proper_motion_dec * 2 * math.pi * distance/(MAS_FOR_FULL_CIRCLE * KM_PER_S_TO_PARSEC_PER_YEAR)
+
+    # Convert spherical location to Cartesian location in parsecs
+    # +x towards RA 0h, DEC 0
+    # +y towards RA 6h, DEC 0
+    # +z towards DEC 90
+    x = distance * math.cos(declination) * math.cos(right_ascension)
+    y = distance * math.cos(declination) * math.sin(right_ascension)
+    z = distance * math.sin(declination)
+
+    # Convert spherical velocities to Cartesian, in km/s
+    vx = (radial_velocity * math.cos(declination) * math.cos(right_ascension)) - (velocity_ra * math.sin(right_ascension)) - (velocity_dec * math.sin(declination) * math.cos(right_ascension))
+    vy = (radial_velocity * math.cos(declination) * math.sin(right_ascension)) + (velocity_ra * math.cos(right_ascension)) - (velocity_dec * math.sin(declination) * math.sin(right_ascension))
+    vz = radial_velocity * math.sin(declination) + velocity_dec * math.cos(declination)
+
+    # Convert velocities from km/s to parsec/yr
+    vx *= KM_PER_S_TO_PARSEC_PER_YEAR
+    vy *= KM_PER_S_TO_PARSEC_PER_YEAR
+    vz *= KM_PER_S_TO_PARSEC_PER_YEAR
+
+    # Propagate position in parsecs
+    x += vx * dt
+    y += vy * dt
+    z += vz * dt
+
+    # Convert new position to spherical
+    dxy = math.sqrt(x**2 + y**2)
+    right_ascension = math.degrees(math.atan2(y, x))
+    declination = math.degrees(math.atan2(z, dxy))
+
+    if right_ascension < 0:
+        right_ascension += 360.0
+
+    return right_ascension, declination
 
 
 class Star(object):

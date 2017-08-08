@@ -8,6 +8,18 @@ from skymap.geometry import SphericalPoint, HourAngle
 REFERENCE_EPOCH = datetime.datetime(2000, 1, 1).date()
 
 
+def julian_year_difference(date1, date2):
+    """
+    Returns the difference date1 - date2 in Julian years
+
+    :param date1: date to be subtracted from (datetime)
+    :param date2: date to be subtracted (datetime)
+    :return: the difference in Julian years
+    """
+    tds = (date1 - date2).total_seconds()
+    return tds/(365.25 * 86400)
+
+
 # Ecliptic
 def obliquity_of_the_ecliptic(epoch):
     """Calculates the time-dependent angle between the celestial equator and the ecliptic"""
@@ -18,7 +30,7 @@ def obliquity_of_the_ecliptic(epoch):
     d = 0.00200340/3600.0
     e = -0.576e-6
     f = -4.34e-8
-    t = (epoch - REFERENCE_EPOCH).days / 36525.0
+    t = 0.01 * julian_year_difference(epoch, REFERENCE_EPOCH), #(epoch - REFERENCE_EPOCH).days / 36525.0
     return a + b * t + c * t ** 2 + d * t ** 3 + e * t ** 4 + f * t ** 5
 
 
@@ -71,7 +83,7 @@ class PrecessionCalculator(object):
 
     Zeta, z and theta parametrizations from:
     Expressions for IAU 2000 precession quantities, N. Capitaine, P. T. Wallace, and J. Chapront,
-    Astronomy & Astrophysics 412, 567–586 (2003).
+    Astronomy & Astrophysics 412, 567-586 (2003).
     """
 
     def __init__(self, epoch1, epoch2):
@@ -79,9 +91,9 @@ class PrecessionCalculator(object):
         self.epoch1 = epoch1
         self.epoch2 = epoch2
 
-        t1 = (epoch1 - REFERENCE_EPOCH).days / 36525.0
+        t1 = 0.01 * julian_year_difference(epoch1, REFERENCE_EPOCH) # (epoch1 - REFERENCE_EPOCH).days / 36525.0
         m1 = self._inverse_rotation_matrix(t1)
-        t2 = (epoch2 - REFERENCE_EPOCH).days / 36525.0
+        t2 = 0.01 * julian_year_difference(epoch2, REFERENCE_EPOCH) # epoch2 - REFERENCE_EPOCH).days / 36525.0
         m2 = self._rotation_matrix(t2)
         self._matrix = numpy.dot(m2, m1)
 
