@@ -58,15 +58,20 @@ def propagate_position(from_epoch, to_epoch, right_ascension, declination, prope
     :return: new position
     """
 
+    if not proper_motion_dec or not proper_motion_ra:
+        return right_ascension, declination
+
     dt = julian_year_difference(to_epoch, from_epoch)
 
-    # mas/year = 1e-3 as/year = 1e-3/60.0 amin/year = 1e-3/3600 degrees/year
-    pmra = proper_motion_ra
-    pmdec = proper_motion_dec
-    if not pmra or not pmdec:
-        return right_ascension, declination
-    ra = right_ascension + dt * pmra / 3.6e6
-    dec = declination + dt * pmdec / 3.6e6
+    # Convert proper motions to degrees per Julian year
+    # 1 mas/year = 1e-3 as/year = 1e-3/60.0 amin/year = 1e-3/3600 degrees/year
+    pm_ra = proper_motion_ra / 3.6e6
+    pm_dec = proper_motion_dec / 3.6e6
+
+    # Calculate the new positions
+    ra = right_ascension + dt * pm_ra/math.cos(declination)
+    dec = declination + dt * pm_dec
+
     return ra, dec
 
 
