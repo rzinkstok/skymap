@@ -4,7 +4,7 @@ import mysql.connector
 
 DATA_FOLDER = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), "data")
 DATABASE_FILE = os.path.join(DATA_FOLDER, "skymap.db")
-DATATYPES = {int: "INT", str: "VARCHAR(512)", float: "FLOAT"}
+DATATYPES = {int: "INT", str: "VARCHAR(512)", float: "DOUBLE"}
 
 
 class SkyMapDatabase(object):

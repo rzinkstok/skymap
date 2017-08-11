@@ -335,3 +335,49 @@ FROM
 	    )
 WHERE h.RAdeg IS NOT NULL;
 ```
+
+
+## Database colums
+
+Identification:
+* ID
+* HIP
+* TYC1
+* TYC2
+* TYC3
+* CCDM (Catalogue of the Components of Double and Multiple stars), including component identifier
+* HD (Henry Draper)
+* HR (Harvard Revisited, Bright Star Catalogue)
+* BD (Bonner Durchmustering)
+* COD (Cordoba Durchmustering)
+* CPD (Cape Photographic Durchmustering)
+* Bayer
+* Flamsteed
+* Variable name
+* Proper name
+* Constellation
+
+Astrometrics:
+* RAdeg
+* DEdeg
+* pmRA
+* pmDE
+* IsMultiple
+
+Photometrics:
+* Johnson V (calculated for Tycho-2)
+* Johnson B-V (calculated for Tycho-2)
+* BTmag
+* VTmag
+* Hpmag (Hipparcos only)
+* Hpmax (Hipparcos only)
+* Hpmin (Hipparcos only)
+* VTmax (Tycho-1 only)
+* VTmin (Tycho-1 only)
+* MagMax
+* MagMin
+* IsVariable
+
+Other:
+* Source (Hipparcos/Tycho-1/Tycho-2)
+Separate tables for collapsed components at a certain threshold (e.g. 30'')

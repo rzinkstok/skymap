@@ -56,12 +56,6 @@ def parse_readme(foldername):
                     d['label'] = g[6]
                     datadict.append(d)
 
-    # for f, dds in datadicts.items():
-    #     print
-    #     print f
-    #     for dd in dds:
-    #         print dd
-
     return datadicts
 
 
@@ -213,10 +207,10 @@ def split_tyc():
 
 if __name__ == "__main__":
     # build_database("VI/42", "cst_id")
-    #build_database("VI/49", "cst_bound")
-    #build_database("I/311", "hipnew", indices=["HIP"])
-
-    build_database("I/239", "hiptyc", indices=["HIP"], extra_function=split_tyc)
+    # build_database("VI/49", "cst_bound")
+    # build_database("I/311", "hipnew", indices=["HIP"])
+    #
+    # build_database("I/239", "hiptyc", indices=["HIP"], extra_function=split_tyc)
     # build_database("I/259", "tyc2", indices=["TYC1", "TYC2", "TYC3"])
     # build_database("IV/25", "tyc2hd", indices=["TYC1", "TYC2", "TYC3", "HD"])
     # build_database("IV/27A", "cross_index", indices=["HD"])
@@ -225,3 +219,6 @@ if __name__ == "__main__":
     # build_database("B/gcvs", "gcvs")
     # build_database("I/276", "tdsc")
     # build_database("VII/118", "ngc")
+    build_database("V/50", "bsc", indices=['HR', 'HD'])
+
+    pass

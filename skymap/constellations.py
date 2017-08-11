@@ -105,36 +105,44 @@ CONST_BOUND_EPOCH = datetime.datetime(1875, 1, 1).date()
 
 
 class PointInConstellationPrecession(PrecessionCalculator):
-    """Convenience class to precess a coordinate from """
+    """Convenience class to precess a coordinate to the epoch of the Delporte boundaries."""
     def __init__(self, epoch=None):
         if epoch is None:
             epoch = REFERENCE_EPOCH
         PrecessionCalculator.__init__(self, epoch, CONST_BOUND_EPOCH)
 
 
-# Point in constellation determination
-def determine_constellation(ra, de, pc, db):
-    ra, de = pc.precess(ra, de)
-    ra /= 15.0  # Convert to fractional hours of right ascension
+class ConstellationFinder(object):
+    def __init__(self, epoch=None):
+        self.db = SkyMapDatabase()
+        self.precessor = PointInConstellationPrecession(epoch)
 
-    q = """
-            SELECT const
-            FROM skymap.cst_id_data
-            WHERE DE_low < {0} AND RA_low <= {1}  AND RA_up > {1} ORDER BY pk LIMIT 1
-        """.format(de, ra)
-    return db.query_one(q)['const'].lower()
+    def find(self, ra, de):
+        ra, de = self.precessor.precess(ra, de)
+        ra /= 15.0  # Convert to fractional hours of right ascension
+
+        q = """
+                SELECT const
+                FROM skymap.cst_id_data
+                WHERE DE_low < {0} AND RA_low <= {1}  AND RA_up > {1} ORDER BY pk LIMIT 1
+            """.format(de, ra)
+        return self.db.query_one(q)['const'].lower()
 
 
 def constellations_in_area(min_longitude, max_longitude, min_latitude, max_latitude, nsamples=1000):
+    """
+    Generates a list of all constellations that overlap with the given area.
+    Uses a simple Monte Carlo strategy.
+    """
+
     constellations = {}
-    db = SkyMapDatabase()
-    pc = PointInConstellationPrecession()
+    cf = ConstellationFinder()
 
     total = 0
     for i in range(nsamples):
         x = min_longitude + (max_longitude - min_longitude) * random.random()
         y = min_latitude + (max_latitude - min_latitude) * random.random()
-        c = determine_constellation(x, y, pc, db)
+        c = cf.find(x, y)
         w = math.cos(math.radians(y))
         if c not in constellations:
             constellations[c] = w
@@ -151,8 +159,8 @@ class BoundaryEdge(object):
     def __init__(self, p1, p2):
         self.epoch = CONST_BOUND_EPOCH
 
-        self.p1 = p1 #SphericalPoint(row['ra1'], row['dec1'])
-        self.p2 = p2 #SphericalPoint(row['ra2'], row['dec2'])
+        self.p1 = p1
+        self.p2 = p2
         self.interpolated_points = []
         self.extension1 = None
         self.extension2 = None
