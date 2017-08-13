@@ -381,6 +381,7 @@ def add_hipparcos(db):
                     johnsonV, johnsonBV,
                     bt_magnitude, vt_magnitude,
                     hp_magnitude, hp_max, hp_min,
+                    variable,
                     hd1, bd, cod, cpd,
                     source
                 )
@@ -395,6 +396,7 @@ def add_hipparcos(db):
                       IFNULL(d.VT, h.VTmag),
                       IFNULL(d.Hp, h.Hpmag),
                       h.Hpmax, h.Hpmin,
+                      CASE WHEN (HVarType='P' OR (HVarType='U' AND Hpmin - Hpmax > 0.2)) THEN 1 ELSE 0 END,
                       h.HD, h.BD, h.CoD, h.CPD,
                       'H'
                 FROM 
@@ -439,8 +441,10 @@ def add_indexes(db):
     db.add_index("skymap_stars", "TYC1")
     db.add_index("skymap_stars", "TYC2")
     db.add_index("skymap_stars", "TYC3")
+    db.add_multiple_column_index("skymap_stars", ("TYC1", "TYC2", "TYC3"), "TYC", unique=True)
     db.add_index("skymap_stars", "HD1")
     db.add_index("skymap_stars", "HD2")
+    db.add_index("skymap_stars", "HR")
     t2 = time.time()
     print "{:.1f} s".format(t2 - t1)
 

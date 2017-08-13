@@ -4,6 +4,7 @@ import re
 import time
 import ftplib
 import urllib
+import types
 import gzip
 from functools import partial
 
@@ -175,9 +176,9 @@ def build_database(catalogue, foldername, indices=(), extra_function=None):
         real_files = [fn for fn in files if fn.startswith(f)]
         for real_file in real_files:
             parse_datafile(db, foldername, real_file, table, dds, columns)
-        for i in indices:
-            if i in columns:
-                db.add_index(table, i)
+        for ind in indices:
+            if ind in columns:
+                db.add_index(table, ind)
 
     t2 = time.time()
     print
@@ -203,6 +204,12 @@ def split_tyc():
     db.add_index("hiptyc_tyc_main", "TYC1")
     db.add_index("hiptyc_tyc_main", "TYC2")
     db.add_index("hiptyc_tyc_main", "TYC3")
+    db.add_multiple_column_index("hiptyc_tyc_main", ("TYC1", "TYC2", "TYC3"), "TYC", unique=True)
+
+
+def add_tyc2_index():
+    db = SkyMapDatabase()
+    db.add_multiple_column_index("tyc2_tyc2", ("TYC1", "TYC2", "TYC3"), "TYC", unique=True)
 
 
 if __name__ == "__main__":
@@ -211,7 +218,7 @@ if __name__ == "__main__":
     # build_database("I/311", "hipnew", indices=["HIP"])
     #
     # build_database("I/239", "hiptyc", indices=["HIP"], extra_function=split_tyc)
-    # build_database("I/259", "tyc2", indices=["TYC1", "TYC2", "TYC3"])
+    # build_database("I/259", "tyc2", indices=["TYC1", "TYC2", "TYC3", "HIP"], extra_function=add_tyc2_index)
     # build_database("IV/25", "tyc2hd", indices=["TYC1", "TYC2", "TYC3", "HD"])
     # build_database("IV/27A", "cross_index", indices=["HD"])
 

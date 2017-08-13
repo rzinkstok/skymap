@@ -31,8 +31,21 @@ class SkyMapDatabase(object):
         q += """PRIMARY KEY (pk))"""
         self.commit_query(q)
 
-    def add_index(self, table, column):
-        self.commit_query("""ALTER TABLE `{}` ADD INDEX `{}` (`{}`)""".format(table, column, column))
+    def add_index(self, table, column, name=None, unique=False):
+        if name is None:
+            name = column
+        q = """ALTER TABLE `{}` ADD """.format(table)
+        if unique:
+            q += """UNIQUE """
+        q += """INDEX `{}` (`{}`)""".format(name, column)
+        self.commit_query(q)
+
+    def add_multiple_column_index(self, table, columns, name, unique=False):
+        q = """ALTER TABLE `{}` ADD """.format(table)
+        if unique:
+            q += """UNIQUE """
+        q += """INDEX `{}` ({})""".format(name, "`" + "`, `".join(columns) + "`")
+        self.commit_query(q)
 
     def drop_table(self, table):
         try:
