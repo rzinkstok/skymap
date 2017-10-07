@@ -113,6 +113,9 @@ class PointInConstellationPrecession(PrecessionCalculator):
 
 
 class ConstellationFinder(object):
+    """
+    Find the constellation for a given coordinate.
+    """
     def __init__(self, epoch=None):
         self.db = SkyMapDatabase()
         self.precessor = PointInConstellationPrecession(epoch)

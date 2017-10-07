@@ -380,4 +380,5 @@ Photometrics:
 
 Other:
 * Source (Hipparcos/Tycho-1/Tycho-2)
+
 Separate tables for collapsed components at a certain threshold (e.g. 30'')
