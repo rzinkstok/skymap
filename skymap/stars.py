@@ -4,7 +4,7 @@ import math
 import urllib
 from bs4 import BeautifulSoup
 from datetime import datetime
-
+from multiprocessing import Process, current_process
 from skymap.database import SkyMapDatabase
 from skymap.geometry import ensure_angle_range, SphericalPoint
 from skymap.constellations import ConstellationFinder
@@ -13,8 +13,8 @@ from skymap.coordinates import julian_year_difference, REFERENCE_EPOCH
 
 RAD_TO_DEG = 360.0/(2*math.pi)
 J1991_TO_J2000_PM_CONVERSION_FACTOR = ((datetime(2000, 1, 1).date() - datetime(1991, 4, 1).date()).days/365.25)/3.6e6
-KM_PER_S_TO_PARSEC_PER_YEAR = 1/977780.0
-MAS_FOR_FULL_CIRCLE = 360*60*60*1000
+KM_PER_S_TO_PARSEC_PER_YEAR = 1.0/977780.0
+MAS_FOR_FULL_CIRCLE = 360*60*60*1000.0
 HIPPARCOS_EPOCH = datetime(1991, 4, 1).date()
 TYCHO2_EPOCH = REFERENCE_EPOCH
 
@@ -79,7 +79,7 @@ def propagate_position(from_epoch, to_epoch, right_ascension, declination, prope
 
 def propagate_position2(from_epoch, to_epoch, right_ascension, declination, proper_motion_ra, proper_motion_dec, distance=1.0, radial_velocity=0.0):
     """
-    Rigorous propagation in Cartesian coordinates
+    Rigorous propagation in Cartesian coordinates, using parallax information.
 
     :param from_epoch: datetime
     :param to_epoch: datetime
@@ -137,8 +137,47 @@ def propagate_position2(from_epoch, to_epoch, right_ascension, declination, prop
     return right_ascension, declination
 
 
+def angular_separation_seconds_of_arc(ra1, de1, ra2, de2):
+    """
+    Calculates the angular separation of two points.
+
+    :param ra1: Right ascension of first point in degrees
+    :param de1: Declination of first point in degrees
+    :param ra2: Right ascension of second point in degrees
+    :param de2: Declination of second point in degrees
+    :return: The angular separation in seconds of arc.
+    """
+
+    dra = ra1 - ra2
+    dde = de1 - de2
+    return 3600 * math.sqrt((dra * math.cos(math.radians(de2))) ** 2 + dde ** 2)
+
+
+def angular_sep_to_local_degrees(ra, de, sep):
+    """
+    Comverts the given angular separation from seconds of arc to local degrees.
+
+    :param ra: The right ascension of the point at which to convert the angular separation, in degrees
+    :param de: The declination of the point at which to convert the angular separation, in degrees
+    :param sep: The angular separation to convert, in seconds of arc
+    :return: A tuple containing the separation in degrees in RA and DE direction, both equal to the input separation
+    """
+
+    return sep/(3600.0*math.cos(de)), sep/3600.0
+
+
 class Star(object):
+    """
+    A star.
+    """
+
     def __init__(self, row):
+        """
+        Initialize the star object from a SkyMapDatabase star record.
+
+        :param row: The database record for the star
+        """
+
         self.data = row
 
     @property
@@ -197,7 +236,7 @@ class Star(object):
 
     def propagate_position(self, date=None):
         """Propagates the position of the star to the given date"""
-        epoch = datetime(2000, 1, 1).date()
+        epoch = datetime(2000, 1, 1).date()  # TODO: Use constant, and use that constant epoch as well for building the database
         return propagate_position(epoch, date, self.right_ascension, self.declination, self.proper_motion_ra, self.proper_motion_dec)
 
     @property
@@ -222,19 +261,31 @@ class Star(object):
 
 
 def build_star_database():
+    """
+    Builds the SkyMapDatabase using data from Tycho 2, Tycho, Hipparcos.
+    Adds supplementary data from the HD-DM-GC-HR-HIP-Bayer-Flamsteed Cross Index, the Bright Star Catalog and the IAU list of proper names.
+    Adds constellations.
+    """
+
     db = SkyMapDatabase()
-    #create_table(db)
-    #add_tycho2(db)
-    #add_tycho1(db)
-    #add_hipparcos(db)
-    #add_indexes(db)
-    #add_cross_index(db)
+    create_table(db)
+    add_tycho2(db)
+    add_tycho1(db)
+    add_hipparcos(db)
+    add_indexes(db)
+    add_cross_index(db)
     add_bright_star_catalog(db)
-    #add_proper_names(db)
-    #add_constellations(db)
+    add_proper_names(db)
+    add_constellations(db)
 
 
 def create_table(db):
+    """
+    Create the skymap_stars table in the SkyMapDatabase
+
+    :param db: An open SkyMapDatabase instance
+    """
+
     db.drop_table("skymap_stars")
 
     print "Creating table"
@@ -290,8 +341,14 @@ def create_table(db):
 
 
 def add_tycho2(db):
-    # Data from Tycho2 with HD from Tyc2_HD
-    # Astrometry is mean position at epoch J2000 (ICRS)
+    """
+    Add all Tycho-2 stars to the database that are not found in Hipparcos or Tycho-1.
+    The HD number is added from Tyc2_HD.
+    Astrometry is mean position at epoch J2000 (ICRS).
+
+    :param db: An open SkyMapDatabase instance
+    """
+
     print "Inserting Tycho-2 data"
     t1 = time.time()
     q = """
@@ -310,7 +367,8 @@ def add_tycho2(db):
                     IFNULL(t2.DEmdeg, t2.DEdeg) as DEdeg,
                     t2.pmRA, t2.pmDE,
                     t2.BTmag, t2.VTmag,
-                    t2.VTmag − 0.090 * (B−V)T
+                    t2.VTmag - 0.090 * (t2.BTmag - t2.VTmag),
+                    0.085 * (t2.BTmag - t2.VTmag),
                     'T2'
                 FROM tyc2_tyc2 AS t2
                 LEFT JOIN (
@@ -330,8 +388,14 @@ def add_tycho2(db):
 
 
 def add_tycho1(db):
-    # Tycho-1 stars with HD from Tyc2_HD
-    # Astrometry is mean position at epoch J1991.25 (ICRS)
+    """
+    Add all Tycho-1 stars to the database that are not found in Hipparcos or Tycho-2 supplement 2, and for which the
+    Tycho quality flag is not equal to 9.
+    The HD number is added from Tyc2_HD.
+    Astrometry is mean position at epoch J1991.25 (ICRS).
+
+    :param db: An open SkyMapDatabase instance
+    """
     print "Inserting Tycho-1 data"
     t1 = time.time()
     q = """
@@ -368,8 +432,13 @@ def add_tycho1(db):
 
 
 def add_hipparcos(db):
-    # Hipparcos stars
-    # Astrometry is mean position at epoch J1991.25 (ICRS)
+    """
+    Add data from the Hipparcos catalog to the star database.
+    Astrometry is mean position at epoch J1991.25 (ICRS).
+
+    :param db: An open SkyMapDatabase instance
+    """
+
     print "Inserting Hipparcos data"
     t1 = time.time()
     q = """
@@ -434,14 +503,19 @@ def add_hipparcos(db):
 
 
 def add_indexes(db):
-    # Add indexes on TYC1-3, HIP, HD
+    """
+    Add indexes to the star table on the TYC1-3, HIP, HD columns.
+
+    :param db: An open SkyMapDatabase instance
+    """
+
     print "Adding indexes"
     t1 = time.time()
     db.add_index("skymap_stars", "HIP")
     db.add_index("skymap_stars", "TYC1")
     db.add_index("skymap_stars", "TYC2")
     db.add_index("skymap_stars", "TYC3")
-    db.add_multiple_column_index("skymap_stars", ("TYC1", "TYC2", "TYC3"), "TYC", unique=True)
+    db.add_multiple_column_index("skymap_stars", ("TYC1", "TYC2", "TYC3"), "TYC")
     db.add_index("skymap_stars", "HD1")
     db.add_index("skymap_stars", "HD2")
     db.add_index("skymap_stars", "HR")
@@ -450,7 +524,12 @@ def add_indexes(db):
 
 
 def add_cross_index(db):
-    # Add cross index data
+    """
+    Add information from the HD-DM-GC-HR-HIP-Bayer-Flamsteed Cross Index (IV/27A). Bayer, Flamsteed, HR numbers.
+
+    :param db: An open SkyMapDatabase instance
+    """
+
     print "Adding New Cross Index data"
     t1 = time.time()
     q = """
@@ -467,7 +546,12 @@ def add_cross_index(db):
 
 
 def add_bright_star_catalog(db):
-    # Add HR numbers
+    """
+    Adds HR numbers from the Bright Star Catalog
+
+    :param db: An open SkyMapDatabase instance
+    """
+
     print "Adding Bright Star Catalog data"
     t1 = time.time()
     q = """
@@ -482,14 +566,21 @@ def add_bright_star_catalog(db):
 
 
 def add_proper_names(db):
-    # Add star names
-    print "Adding proper names"
+    """
+    Adds the IAU proper names to the star database.
 
+    :param db: An open SkyMapDatabase instance
+    """
+
+    print "Adding proper names"
     t1 = time.time()
+
+    # Retrieve the proper name list
     url = "https://www.iau.org/public/themes/naming_stars/"
     r = urllib.urlopen(url).read()
     soup = BeautifulSoup(r, "html5lib")
 
+    # Loop over all stars in the list
     for tr in soup.find_all("tbody")[0].find_all("tr"):
         tds = tr.find_all("td")
         if not tds:
@@ -509,13 +600,15 @@ def add_proper_names(db):
 
         proper_name = tds[2].get_text().strip()
         date = tds[9].get_text().strip()
+
+        # Omit the stars that were added because of exoplanets
         if date == '2015-12-15':
             continue
 
+        # Find and update the database record
         row = db.query_one("""SELECT id FROM skymap_stars WHERE hip={} ORDER BY hp_magnitude ASC LIMIT 1""".format(hip))
         if row is None:
             row = db.query_one("""SELECT id FROM skymap_stars WHERE hd1={0} OR hd2={0} ORDER BY hp_magnitude ASC LIMIT 1""".format(hd))
-
         q = """UPDATE skymap_stars SET proper_name="{}" WHERE id={}""".format(proper_name, row['id'])
         db.commit_query(q)
 
@@ -529,6 +622,7 @@ def add_proper_names(db):
         54035: "Lalande 21185",
         114622: "Bradley 3077"
     }
+
     for hip, proper_name in special_cases.items():
         rid = db.query_one("""SELECT id FROM skymap_stars WHERE hip={} ORDER BY hp_magnitude ASC LIMIT 1""".format(hip))['id']
         q = """UPDATE skymap_stars SET proper_name="{}" WHERE id={}""".format(proper_name, rid)
@@ -539,31 +633,52 @@ def add_proper_names(db):
 
 
 def add_constellations(db):
-    # Add constellation
+    """
+    Update the star database to include the correct constellation designation for each star.
+
+    :param db: An open SkyMapDatabase instance
+    """
+
     print "Adding constellations"
     t1 = time.time()
     rows = db.query("""SELECT id, right_ascension, declination, source FROM skymap_stars""")
     nrecords = len(rows)
+
+    # Prepare ConstellationFinders for Tycho and Hipparcos
     cftyc = ConstellationFinder(TYCHO2_EPOCH)
     cfhip = ConstellationFinder(HIPPARCOS_EPOCH)
+
+    # Loop over all stars
     for i, r in enumerate(rows):
+        # Display progress
         if i % 1000 == 0:
             sys.stdout.write("\r{0:.1f}%".format(i * 100.0 / (nrecords - 1)))
             sys.stdout.flush()
+
         if r['source'] == 'T2':
             cf = cftyc
         else:
             cf = cfhip
         c = cf.find(r['right_ascension'], r['declination'])
         db.commit_query("UPDATE skymap_stars SET constellation='{}' WHERE id={}".format(c, r['id']))
+
     t2 = time.time()
     print
     print "{:.1f} s".format(t2 - t1)
 
 
 def select_stars(magnitude, constellation=None, ra_range=None, dec_range=None):
-    db = SkyMapDatabase()
-    result = []
+    """
+    Select a set of stars brighter than the given magnitude, based on coordinate range and/or constellation membership.
+
+    :param magnitude: The maximum magnitude to include
+    :param constellation: The constellation name; if given, only stars from that constellation are returned
+    :param ra_range: The range (min_ra, max_ra) of right ascension to include, in degrees
+    :param dec_range: The range (min_dec, max_dec) of declination to include, in degrees
+    :return: A list of Star objects
+    """
+
+    # Build the query
     q = """SELECT * FROM skymap_stars WHERE magnitude<={0}""".format(magnitude)
 
     if constellation:
@@ -583,8 +698,7 @@ def select_stars(magnitude, constellation=None, ra_range=None, dec_range=None):
             pass
 
     if dec_range:
-        min_dec = dec_range[0]
-        max_dec = dec_range[1]
+        min_dec, max_dec = dec_range
 
         if min_dec < -90 or min_dec > 90 or max_dec < -90 or max_dec > 90 or max_dec <= min_dec:
             raise ValueError("Illegal DEC range!")
@@ -593,43 +707,136 @@ def select_stars(magnitude, constellation=None, ra_range=None, dec_range=None):
     # Order stars from brightest to weakest so displaying them is easier
     q += """ ORDER BY magnitude ASC"""
 
+    # Execute the query
+    db = SkyMapDatabase()
     rows = db.query(q)
-    for row in rows:
-        result.append(Star(row))
-
+    result = [Star(row) for row in rows]
     db.close()
+
     return result
 
 
+
+"""
+Multiples:
+
+For each star, find stars within a certain angular separation. 
+Create table with IDs and for each star of the bunch add a reference to the brightest star of the bunch, and add the
+angular separation to the brightest.
+
+  
+
+"""
+
 def sum_magnitudes(m1, m2):
+    """
+    Computes the combined magnitude of two separate stars. Used when combining multiples into one displayed star.
+
+    :param m1: Magnitude of first star
+    :param m2: Magnitude of second star
+    :return: The combined magnitude
+    """
+
     return -2.5*math.log10(pow(10, -m1/2.5) + pow(10, -m2/2.5))
 
 
-def get_stars_around_coordinate(ra, dec, distance):
-    pass
+def get_stars_around_coordinate(ra, dec, angular_separation, db):
+    """
+    Retrieves all stars from the database that are found within a specified angular separation from the given coordinate.
+
+    :param ra: The right ascension around which to search, in degrees
+    :param dec: The declination around which to search, in degrees
+    :param angular_separation: The maximum distance from the coordinate to include, in seconds of arc
+    :param db: An opened SkyMapDatabase instance
+    :return: A query result containing all found stars
+    """
+
+    # Transform the angular separation from seconds of arc to (local) degrees. Multiply by 1.2 for extra margin
+    delta_ra = 1.2 * angular_separation / (3600.0 * math.cos(dec))
+    delta_de = 1.2 * angular_separation / 3600.0
+
+    # Build the query
+    q = """SELECT * FROM skymap_stars WHERE """
+
+    if ra - delta_ra < 0:
+        q += """(right_ascension < {} OR right_ascension > {}) AND """.format(ra + delta_ra, ra - delta_ra + 360)
+    elif ra + delta_ra > 360:
+        q += """(right_ascension < {} OR right_ascension > {}) AND """.format(ra + delta_ra - 360, ra - delta_ra)
+    else:
+        q += """right_ascension > {} AND right_ascension < {} AND """.format(ra - delta_ra, ra + delta_ra)
+
+    if dec - delta_de < -90:
+        q += """declination < {}""".format(dec + delta_de)
+    elif dec + delta_de > 90:
+        q += """declination > {}""".format(dec - delta_de)
+    else:
+        q += """declination > {} AND declination < {}""".format(dec - delta_de, dec + delta_de)
+
+    return db.query(q)
 
 
-def distance(star1, star2):
-    pass
+def find_multiples(stars, criterion):
+    """
+    Find all multiple stars for the given distance criterion.
 
+    :param stars: A list of star database records
+    :param criterion: The angular separation below which stars are considered part of a multiple system
+    :return: ?
+    """
 
-def distance_close_stars(criterion):
-    stars = None
-    distances = {}
+    db = SkyMapDatabase()
     for s in stars:
-        candidates = get_stars_around_coordinate(s.ra, s.dec, criterion)
+        candidates = get_stars_around_coordinate(s['right_ascension'], s['declination'], criterion, db)
         for i, ci in enumerate(candidates):
-            for j, cj in enumerate(candidates[i+1:]):
-                key = sorted(ci.id, cj, id)
-                if key in distances:
-                    continue
+            for cj in candidates[i+1:]:
 
-                d = distance(ci, cj)
-                if d <= criterion:
-                    distances[key] = d
+                ra1 = ci['right_ascension']
+                de1 = ci['declination']
+                ra2 = cj['right_ascension']
+                de2 = cj['declination']
+                d = angular_separation_seconds_of_arc(ra1, de1, ra2, de2)
+                if d < criterion:
+                    #print "{}: {} - {} -> {}".format(current_process().name, ci['id'], cj['id'], d)
+                    pass
 
+
+def chunks(l, n):
+    """
+    Yield n successive chunks from l.
+
+    :param l: The list to divide in chunks
+    :param n: The number of chunks to divide the list into
+    :return: A generator
+    """
+
+    newn = int(1.0 * len(l) / n + 0.5)
+    for i in xrange(0, n-1):
+        yield l[i*newn:i*newn+newn]
+    yield l[n*newn-newn:]
 
 
 
 if __name__ == "__main__":
-    build_star_database()
+    #build_star_database()
+
+    nprocs = 100 # Optimum seems to be around 40: must have something to do with the database I suppose
+    n = nprocs * 500
+    criterion = 100
+    db = SkyMapDatabase()
+    stars = db.query("""SELECT id, right_ascension, declination FROM skymap_stars LIMIT {}""".format(n))
+    print len(stars)
+
+    procs = []
+
+    t1 = time.time()
+    for i, l in enumerate(chunks(stars, nprocs)):
+        print len(l)
+        p = Process(target=find_multiples, args=(l, criterion), name="Chunk #{}".format(i+1))
+        procs.append(p)
+        p.start()
+
+    for p in procs:
+        p.join()
+
+    print "Time: {} s".format(time.time()-t1)
+
