@@ -24,10 +24,6 @@ AZIMUTHAL_MERIDIAN_OFFSETS = {15: 10, 45: 1, 90: 0}
 GALACTIC_ECLIPTIC_DASH_PATTERN = "densely dashed"
 
 
-if not os.path.exists(OUTPUT_FOLDER):
-    os.makedirs(OUTPUT_FOLDER)
-
-
 def figure(fn):
     return TikzFigure(fn, papersize=PAPERSIZE,
                       left_margin=LEFT_MARGIN, right_margin=RIGHT_MARGIN,
@@ -47,6 +43,9 @@ def legend(figure, chart_number):
 
 
 if __name__ == "__main__":
+    if not os.path.exists(OUTPUT_FOLDER):
+        os.makedirs(OUTPUT_FOLDER)
+
     # North pole
     chart_number = 1
     fn = "{:02}".format(chart_number)

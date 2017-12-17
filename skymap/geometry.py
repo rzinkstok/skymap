@@ -145,7 +145,15 @@ class Point(object):
 
 
 class SphericalPoint(Point):
+    """
+    A point on the sphere specified by a longitude and a latitude.
+    """
     def __init__(self, a, b=None):
+        """
+        Initialize the point from a tuple or two numbers
+        :param a: longitude or tuple (longitude, latitude)
+        :param b: latitude or None
+        """
         Point.__init__(self, a, b)
 
     def __str__(self):

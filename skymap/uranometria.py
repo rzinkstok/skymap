@@ -95,10 +95,6 @@ CONICS = [
 ]
 
 
-if not os.path.exists(OUTPUT_FOLDER):
-    os.makedirs(OUTPUT_FOLDER)
-
-
 def azimuthal_meridian_label(longitude):
     h = HourAngle()
     h.from_degrees(longitude)
@@ -412,6 +408,9 @@ def equatorial_map(chart_number, chart_side, min_longitude, max_longitude, max_l
     return f, m
 
 if __name__ == "__main__":
+    if not os.path.exists(OUTPUT_FOLDER):
+        os.makedirs(OUTPUT_FOLDER)
+
     chart_number = 1
 
     # North azimuthal maps

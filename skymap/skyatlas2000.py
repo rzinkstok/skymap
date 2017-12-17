@@ -26,10 +26,6 @@ ECLIPTIC_DASH_PATTERN = 'densely dashed'
 GALACTIC_DASH_PATTERN = 'densely dash dot'
 
 
-if not os.path.exists(OUTPUT_FOLDER):
-    os.makedirs(OUTPUT_FOLDER)
-
-
 def figure(fn):
     return TikzFigure(fn, papersize=PAPERSIZE,
                       left_margin=LEFT_MARGIN, right_margin=RIGHT_MARGIN,
@@ -57,7 +53,11 @@ def legend(figure, chart_number):
     p = Point(11.4, 0)
     l.draw_label(Label(p, "\\textbf{{{}}}".format(chart_number), 90, "HUGE"))
 
+
 if __name__ == "__main__":
+    if not os.path.exists(OUTPUT_FOLDER):
+        os.makedirs(OUTPUT_FOLDER)
+
     # North pole
     for i in range(3):
         center_longitude = 90 + 0.8485 + i * 120
