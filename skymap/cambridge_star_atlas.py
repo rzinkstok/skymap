@@ -3,7 +3,7 @@ import os
 from skymap.tikz import BASEDIR, TikzFigure, DrawingArea
 from skymap.map import EquidistantCylindricalMapArea, AzimuthalEquidistantMapArea, EquidistantConicMapArea
 from skymap.geometry import Point, Line
-from skymap.gridlines import Label
+from skymap.gridlines import GridLineLabel
 
 
 OUTPUT_FOLDER = os.path.join(BASEDIR, "cambridge_star_atlas")
@@ -34,12 +34,12 @@ def figure(fn):
 def legend(figure, chart_number):
     l = DrawingArea(f.llcorner + Point(264, 0), f.urcorner, f.llcorner + Point(264, 0))
     figure.add(l)
-    l.draw_label(Label(Point(8, 189), "Epoch", 90, "tiny"))
-    l.draw_label(Label(Point(8, 185), "\\textbf{2000.0}", 90, "normalsize"))
+    l.draw_label(GridLineLabel(Point(8, 189), "Epoch", 90, "tiny"))
+    l.draw_label(GridLineLabel(Point(8, 185), "\\textbf{2000.0}", 90, "normalsize"))
     l.draw_line(Line(Point(2, 183.5), Point(14, 183.5)))
     l.draw_line(Line(Point(2, 15), Point(14, 15)))
-    l.draw_label(Label(Point(8, 11), "Chart number", 90, "tiny"))
-    l.draw_label(Label(Point(8, 2), "\\textbf{{{}}}".format(chart_number), 90, "Huge"))
+    l.draw_label(GridLineLabel(Point(8, 11), "Chart number", 90, "tiny"))
+    l.draw_label(GridLineLabel(Point(8, 2), "\\textbf{{{}}}".format(chart_number), 90, "Huge"))
 
 
 if __name__ == "__main__":

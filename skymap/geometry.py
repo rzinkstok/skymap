@@ -1,4 +1,23 @@
 import math
+from astropy.coordinates import SkyCoord
+from astropy import units
+
+
+TOLERANCE = 1e-12
+
+
+class SkyCoordDeg(SkyCoord):
+    def __init__(self, *args, **kwargs):
+        if "unit" not in kwargs:
+            kwargs["unit"] = units.deg
+        SkyCoord.__init__(self, *args, **kwargs)
+
+    def __eq__(self, other):
+        return (abs(self.dec.degree - other.dec.degree) < TOLERANCE) and (abs(self.ra.degree - other.ra.degree) < TOLERANCE)
+
+    def __ne__(self, other):
+        return not self == other
+
 
 
 def point_to_coordinates(point):
@@ -122,7 +141,10 @@ class Point(object):
         return self.__class__(self.x/other, self.y/other)
 
     def __eq__(self, other):
-        return self.distance(other) < 1e-10
+        return self.distance(other) < 1e-6
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
 
     def distance(self, other):
         return math.sqrt((self.x - other.x) ** 2 + (self.y - other.y) ** 2)

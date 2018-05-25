@@ -5,7 +5,8 @@ from skymap.geometry import *
 class RectangleTest(unittest.TestCase):
     def test_center(self):
         r = Rectangle(Point(1, 2), Point(5, 3))
-        self.assertEqual(r.center, Point(3, 2.5))
+        p = Point(3.0, 2.5)
+        self.assertEqual(r.center, p)
 
     def test_overlap(self):
         r1 = Rectangle(Point(0, 0), Point(1,1))

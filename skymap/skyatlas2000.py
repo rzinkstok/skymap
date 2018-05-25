@@ -3,7 +3,7 @@ import os
 from skymap.tikz import BASEDIR, TikzFigure, DrawingArea
 from skymap.map import EquidistantCylindricalMapArea, AzimuthalEquidistantMapArea, EquidistantConicMapArea
 from skymap.geometry import Point, Line, SphericalPoint
-from skymap.gridlines import Label
+from skymap.gridlines import GridLineLabel
 
 
 OUTPUT_FOLDER = os.path.join(BASEDIR, "skyatlas2000")
@@ -49,9 +49,9 @@ def legend(figure, chart_number):
     l = DrawingArea(p1, p2, p1)
     figure.add(l)
     p = Point(11.5, 16)
-    l.draw_label(Label(p, "CHART NUMBER", 90, "footnotesize"))
+    l.draw_label(GridLineLabel(p, "CHART NUMBER", 90, "footnotesize"))
     p = Point(11.4, 0)
-    l.draw_label(Label(p, "\\textbf{{{}}}".format(chart_number), 90, "HUGE"))
+    l.draw_label(GridLineLabel(p, "\\textbf{{{}}}".format(chart_number), 90, "HUGE"))
 
 
 if __name__ == "__main__":
@@ -91,7 +91,7 @@ if __name__ == "__main__":
         p2 = p1 + Point(0, m.gridline_factory.marked_ticksize)
         p3 = p1 + Point(0, m.gridline_factory.label_distance)
         m.draw_line(Line(p1, p2), linewidth=m.gridline_factory.gridline_thickness)
-        m.draw_label(Label(p3, "+90\\textdegree", 90, "tiny"))
+        m.draw_label(GridLineLabel(p3, "+90\\textdegree", 90, "tiny"))
 
         with m.clip(m.clipping_path):
             m.draw_constellations(dashed=CONSTELLATION_DASH_PATTERN)
@@ -205,7 +205,7 @@ if __name__ == "__main__":
         p2 = p1 + Point(0, -m.gridline_factory.marked_ticksize)
         p3 = p1 + Point(0, -m.gridline_factory.label_distance)
         m.draw_line(Line(p1, p2), linewidth=m.gridline_factory.gridline_thickness)
-        m.draw_label(Label(p3, "--90\\textdegree", 270, "tiny"))
+        m.draw_label(GridLineLabel(p3, "--90\\textdegree", 270, "tiny"))
 
         with m.clip(m.clipping_path):
             m.draw_constellations(dashed=CONSTELLATION_DASH_PATTERN)

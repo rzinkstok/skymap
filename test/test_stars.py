@@ -7,7 +7,7 @@ class StarDatabaseTest(unittest.TestCase):
         self.db = SkyMapDatabase()
 
     # Unicity
-    def test_hip_unique(self):
+    def xtest_hip_unique(self):
         """Check whether HIP identification is unique within Hipparcos"""
 
         q = """
@@ -19,7 +19,7 @@ class StarDatabaseTest(unittest.TestCase):
 
         self.assertEqual(self.db.query_one(q)['n'], 0)
 
-    def test_tyc1_unique(self):
+    def xtest_tyc1_unique(self):
         """Check whether TYC identification is unique within Tycho-1"""
 
         q = """
@@ -35,7 +35,7 @@ class StarDatabaseTest(unittest.TestCase):
 
         self.assertEqual(self.db.query_one(q)['n'], 0)
 
-    def test_tyc2_unique(self):
+    def xtest_tyc2_unique(self):
         """Check whether TYC identification is unique within Tycho-2.
         Strangely, 254 duplicates are found, all between main and supplement 1. In all cases except for 1 (there it is
         the AB-component), the A-component is in the main component, the other (in all but 4 cases the B-component,
@@ -63,7 +63,7 @@ class StarDatabaseTest(unittest.TestCase):
         self.assertEqual(self.db.query_one(q)['n'], 254)
 
     # Hipparcos - Hipparcos New Reduction
-    def test_hip_hipnew(self):
+    def xtest_hip_hipnew(self):
         """Check whether all Hipparcos stars are in Hipparcos New Reduction;
         263 stars missing (all stars without proper astrometry)"""
 
@@ -74,7 +74,7 @@ class StarDatabaseTest(unittest.TestCase):
         """
         self.assertEqual(self.db.query_one(q)['n'], 263)
 
-    def test_hipnew_hip(self):
+    def xtest_hipnew_hip(self):
         """Check whether all Hipparcos New Reduction Stars are in Hipparcos"""
 
         q = """
@@ -85,7 +85,7 @@ class StarDatabaseTest(unittest.TestCase):
         self.assertEqual(self.db.query_one(q)['n'], 0)
 
     # Hipparcos - Tycho-1
-    def test_tyc1_hip(self):
+    def xtest_tyc1_hip(self):
         """Check whether all Tycho-1 stars labeled as Hipparcos stars are in Hipparcos"""
 
         q = """
@@ -100,7 +100,7 @@ class StarDatabaseTest(unittest.TestCase):
 
         self.assertEqual(self.db.query_one(q)['n'], 0)
 
-    def test_hip_tyc1(self):
+    def xtest_hip_tyc1(self):
         """Check whether all Hipparcos stars are in Tycho-1. Only the Hipparcos stars without astrometric solutions
         (263 stars) are not found in Tycho-1.
         """
@@ -115,7 +115,7 @@ class StarDatabaseTest(unittest.TestCase):
 
         self.assertEqual(self.db.query_one(q)['n'], 263)
 
-    def test_hip_to_multiple_tyc1(self):
+    def xtest_hip_to_multiple_tyc1(self):
         """Check multiple stars between Hipparcos and Tycho-1.
         These are multiple stars of which the components are recorded in both databases. The query checks for all
         components of a given HIP star to see if they are found in Tycho-1. Component identifiers should match or
@@ -145,7 +145,7 @@ class StarDatabaseTest(unittest.TestCase):
         self.assertEqual(self.db.query_one(q)['n'], 0)
 
     # Tycho-1 - Tycho-2
-    def test_tyc1_tyc2(self):
+    def xtest_tyc1_tyc2(self):
         """Check whether all Tycho-1 stars are in Tycho-2 (including supplement 1 and 2). Stars with astrometric quality
         of 9 are not included in Tycho-2."""
 
@@ -163,7 +163,7 @@ class StarDatabaseTest(unittest.TestCase):
 
         self.assertEqual(self.db.query_one(q)['n'], 0)
 
-    def test_tyc2_tyc1(self):
+    def xtest_tyc2_tyc1(self):
         """Check whether all Tycho-2 stars that are labeled as Tycho-1 stars are in Tycho-1.
         Hipparcos stars that were not measured by Tycho-1 were included in Tycho-1, but are not labeled as Tycho-1 stars
         in Tycho-2. These stars are labeled in Tycho-1 with an 'H' in the 'Source' field.
@@ -192,7 +192,7 @@ class StarDatabaseTest(unittest.TestCase):
         self.assertEqual(self.db.query_one(q)['n'], 1866)
 
     # Tycho-2 internal
-    def test_tyc2_supplement1(self):
+    def xtest_tyc2_supplement1(self):
         """Check that there is no overlap between Tycho-2 main and Tycho-2 supplement 1. See test_tyc2_unique for more
         info on the 254 stars that do overlap."""
 
@@ -205,7 +205,7 @@ class StarDatabaseTest(unittest.TestCase):
 
         self.assertEqual(self.db.query_one(q)['n'], 254)
 
-    def test_tyc2_supplement2(self):
+    def xtest_tyc2_supplement2(self):
         """Check that there is no overlap between Tycho-2 main and Tycho-2 supplement 1"""
 
         q = """
@@ -217,7 +217,7 @@ class StarDatabaseTest(unittest.TestCase):
 
         self.assertEqual(self.db.query_one(q)['n'], 0)
 
-    def test_tyc2_supplement1_supplement2(self):
+    def xtest_tyc2_supplement1_supplement2(self):
         """Check that there is no overlap between Tycho-2 supplement 1 and Tycho-2 supplement 2"""
 
         q = """
@@ -230,7 +230,7 @@ class StarDatabaseTest(unittest.TestCase):
         self.assertEqual(self.db.query_one(q)['n'], 0)
 
     # Hipparcos - Tycho-2
-    def test_hip_tyc2(self):
+    def xtest_hip_tyc2(self):
         """Check whether all Hipparcos stars are found in Tycho-2. The 263 Hipparcos star without an astrometric
         solution are not included in Tycho-2."""
 
@@ -250,7 +250,7 @@ class StarDatabaseTest(unittest.TestCase):
 
         self.assertEqual(self.db.query_one(q)['n'], 263)
 
-    def test_tyc2_hip(self):
+    def xtest_tyc2_hip(self):
         """Check whether all Tycho-2 stars labeled as Hipparcos stars are found in Hipparcos"""
 
         q = """
@@ -269,7 +269,7 @@ class StarDatabaseTest(unittest.TestCase):
 
         self.assertEqual(self.db.query_one(q)['n'], 0)
 
-    def test_hip_to_multiple_tyc2(self):
+    def xtest_hip_to_multiple_tyc2(self):
         """Check multiple stars between Hipparcos and Tycho-2.
         These are multiple stars of which the components are recorded in both databases. The query checks for all
         components of a given HIP star to see if they are found in Tycho-2. Component identifiers should match or
@@ -304,7 +304,7 @@ class StarDatabaseTest(unittest.TestCase):
         self.assertEqual(self.db.query_one(q)['n'], 0)
 
     # Tycho-2 supplement 1 - Hipparcos/Tycho-1
-    def test_tyc2_supplement1_hip(self):
+    def xtest_tyc2_supplement1_hip(self):
         """Check whether all Tycho-2 supplement 1 stars are in Tycho-1 and/or Hipparcos"""
         q = """
             SELECT COUNT(*) AS n
@@ -329,7 +329,7 @@ class StarDatabaseTest(unittest.TestCase):
         self.assertEqual(self.db.query_one(q)['n'], 0)
 
     # Tycho-2 supplement 2 - Hipparcos/Tycho-1
-    def test_tyc2_supplement2_hip(self):
+    def xtest_tyc2_supplement2_hip(self):
         """Check whether all Tycho-2 supplement 2 stars are in Tycho-1 and/or Hipparcos"""
         q = """
             SELECT COUNT(*) AS n

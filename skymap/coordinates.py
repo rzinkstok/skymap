@@ -30,7 +30,7 @@ def obliquity_of_the_ecliptic(epoch):
     d = 0.00200340/3600.0
     e = -0.576e-6
     f = -4.34e-8
-    t = 0.01 * julian_year_difference(epoch, REFERENCE_EPOCH), #(epoch - REFERENCE_EPOCH).days / 36525.0
+    t = 0.01 * julian_year_difference(epoch, REFERENCE_EPOCH) #(epoch - REFERENCE_EPOCH).days / 36525.0
     return a + b * t + c * t ** 2 + d * t ** 3 + e * t ** 4 + f * t ** 5
 
 

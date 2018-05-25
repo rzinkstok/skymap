@@ -2,7 +2,7 @@ from skymap.geometry import Point, Line, HourAngle
 import math
 
 
-class Label(object):
+class GridLineLabel(object):
     def __init__(self, point, text, position, fontsize, angle=0, fill=None, color="black"):
         self.point = point
         self.text = text
@@ -201,7 +201,7 @@ class GridLine(object):
 
         text = self.labeltext()
 
-        return Label(point, text, pos, self.fontsize, angle, fill='white')
+        return GridLineLabel(point, text, pos, self.fontsize, angle, fill='white')
 
 
 class Meridian(GridLine):

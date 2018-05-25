@@ -3,7 +3,7 @@ import os
 from skymap.tikz import BASEDIR, TikzFigure, DrawingArea
 from skymap.map import EquidistantCylindricalMapArea, AzimuthalEquidistantMapArea, EquidistantConicMapArea
 from skymap.geometry import Point, Line, SphericalPoint, HourAngle, Rectangle, ensure_angle_range
-from skymap.gridlines import Label
+from skymap.gridlines import GridLineLabel
 from skymap.constellations import constellations_in_area
 
 
@@ -134,7 +134,7 @@ def leftlegend(figure, chart_number):
     p2 = figure.llcorner + Point(EDGE_MARGIN, PAPERSIZE[1] - BOTTOM_MARGIN)
     l = DrawingArea(p1, p2, box=False)
     figure.add(l)
-    l.draw_label(Label(Point(EDGE_MARGIN, -1.5), "\\textbf{{{}}}".format(chart_number), 90, "huge"))
+    l.draw_label(GridLineLabel(Point(EDGE_MARGIN, -1.5), "\\textbf{{{}}}".format(chart_number), 90, "huge"))
 
 
 def rightlegend(figure, chart_number, min_longitude, max_longitude, min_latitude, max_latitude):
@@ -153,7 +153,7 @@ def rightlegend(figure, chart_number, min_longitude, max_longitude, min_latitude
     maxha = HourAngle()
     maxha.from_degrees(max_longitude)
     longlabel = "\\condensed\\textbf{{{:02}\\raisebox{{0.35em}}{{\\footnotesize h}}{:02}\\raisebox{{0.35em}}{{\\footnotesize m}} to {:02}\\raisebox{{0.35em}}{{\\small h}}{:02}\\raisebox{{0.35em}}{{\\small m}}}}".format(minha.hours, minha.minutes, maxha.hours, maxha.minutes)
-    l.draw_label(Label(Point(158, 6.75), longlabel, 90, "LARGE"))
+    l.draw_label(GridLineLabel(Point(158, 6.75), longlabel, 90, "LARGE"))
 
     latlabel = "\\condensed\\textbf{{"
     if min_latitude >= 0:
@@ -166,15 +166,15 @@ def rightlegend(figure, chart_number, min_longitude, max_longitude, min_latitude
     else:
         latlabel += "--{:02}".format(abs(max_latitude))
     latlabel += "\\textdegree}}"
-    l.draw_label(Label(Point(158, 1), latlabel, 90, "LARGE"))
+    l.draw_label(GridLineLabel(Point(158, 1), latlabel, 90, "LARGE"))
 
     # Constellations
     l.draw_line(Line(Point(178, 1.5), Point(178, LEGEND_HEIGHT-1.5)))
 
     constellations = constellations_in_area(min_longitude, max_longitude, min_latitude, max_latitude, nsamples=10000)
-    l.draw_label(Label(Point(187.5, 5.0), "\\condensed\\textbf{{{}}}".format(constellations[0].upper()), 90, "LARGE"))
+    l.draw_label(GridLineLabel(Point(187.5, 5.0), "\\condensed\\textbf{{{}}}".format(constellations[0].upper()), 90, "LARGE"))
     if len(constellations) > 1:
-        l.draw_label(Label(Point(187.5, 1.5), "\\condensed\\textbf{{{}}}".format(", ".join(constellations[1:4]).upper()), 90, "small"))
+        l.draw_label(GridLineLabel(Point(187.5, 1.5), "\\condensed\\textbf{{{}}}".format(", ".join(constellations[1:4]).upper()), 90, "small"))
 
 
     # Chart number
@@ -182,7 +182,7 @@ def rightlegend(figure, chart_number, min_longitude, max_longitude, min_latitude
     p2 = p1 + Point(2 * EDGE_MARGIN, 17)
     l = DrawingArea(p1, p2, box=False)
     figure.add(l)
-    l.draw_label(Label(Point(EDGE_MARGIN, -1.5), "\\textbf{{{}}}".format(chart_number), 90, "huge"))
+    l.draw_label(GridLineLabel(Point(EDGE_MARGIN, -1.5), "\\textbf{{{}}}".format(chart_number), 90, "huge"))
 
     # Thumb index
     # p1 = figure.urcorner + Point(EDGE_MARGIN - 10, TOP_MARGIN - 137 - 17)

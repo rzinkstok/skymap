@@ -181,7 +181,8 @@ class TikzFigure(object):
 
 
 class DrawingArea(object):
-    def __init__(self, p1, p2, origin=None, box=True):
+    """Part of the Tikz page that can be used for drawing. It is enclosed by an optional box, and has its own origin."""
+    def __init__(self, p1, p2, origin=None, box=True, figure=None):
         self.p1 = p1
         self.p2 = p2
         self.current = True
@@ -195,6 +196,8 @@ class DrawingArea(object):
 
         self.width = p2.x - p1.x
         self.height = p2.y - p1.y
+        if figure:
+            figure.add(self)
 
     def set_origin(self, origin):
         self.origin = origin
@@ -226,7 +229,10 @@ class DrawingArea(object):
         self.open()
 
     @contextmanager
-    def clip(self, path):
+    def clip(self, path=None):
+        """Clips the enclosed drawing actions to the given path"""
+        if path is None:
+            path = self.bounding_box.path
         self.comment("Clipping")
         self.fp.write("\\begin{scope}\n")
         self.fp.write("\\clip {};\n".format(path))
@@ -236,6 +242,7 @@ class DrawingArea(object):
 
     @staticmethod
     def point_to_coordinates(p):
+        """Converts the given point to Tikz coordinates"""
         x = p.x
         y = p.y
         if abs(x) < 1e-4:
@@ -246,6 +253,7 @@ class DrawingArea(object):
         return "({0}mm,{1}mm)".format(x, y)
 
     def path(self, points, cycle=True):
+        """Builds a Tikz path from the given list of points"""
         path = ""
         for p in points:
             path += self.point_to_coordinates(p)
@@ -257,6 +265,7 @@ class DrawingArea(object):
         return path
 
     def comment(self, comment, prefix_newline=True):
+        """Adds a comment to the Tikz file"""
         if prefix_newline:
             s = "\n"
         else:
@@ -265,7 +274,8 @@ class DrawingArea(object):
             s += "% {0}\n".format(comment)
         self.fp.write(s)
 
-    def draw_options(self, linewidth, color, dotted, dashed):
+    @staticmethod
+    def draw_options(linewidth, color, dotted, dashed):
         options = "["
         options += "line width={}pt,".format(linewidth)
         options += color
@@ -275,6 +285,8 @@ class DrawingArea(object):
             options += ",{}".format(dashed)
         options += "]"
         return options
+
+    # Drawing various objects
 
     def draw_line(self, line, color="black", linewidth=0.5, dotted=False, dashed=False, delay_write=False):
         if not hasattr(line, "p1") or not hasattr(line, "p2"):

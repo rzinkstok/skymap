@@ -5,7 +5,7 @@ from operator import xor, attrgetter
 from skymap.tikz import DrawingArea, DrawError
 from skymap.geometry import Point, SphericalPoint, Line, Circle, Arc, Rectangle, ensure_angle_range
 from skymap.projections import AzimuthalEquidistantProjection, EquidistantCylindricalProjection, EquidistantConicProjection, UnitProjection
-from skymap.gridlines import GridLineFactory, Label
+from skymap.gridlines import GridLineFactory, GridLineLabel
 from skymap.constellations import get_constellation_boundaries_for_area
 from skymap.coordinates import ecliptic_to_equatorial, galactic_to_equatorial
 
@@ -55,9 +55,9 @@ class MapArea(DrawingArea):
         self.gridline_factory = GridLineFactory()
         self.gridline_factory.marked_ticksize = 1.0
         self.gridline_factory.unmarked_ticksize = 0.5
-        self.gridline_factory.meridian_line_interval = 15  # 1 hour
+        self.gridline_factory.meridian_line_interval = 15        # 1 hour
         self.gridline_factory.meridian_marked_tick_interval = 5  # 20 minutes
-        self.gridline_factory.meridian_tick_interval = 1.25  # 5 minutes
+        self.gridline_factory.meridian_tick_interval = 1.25      # 5 minutes
         self.gridline_factory.parallel_line_interval = 10
         self.gridline_factory.parallel_marked_tick_interval = 10
         self.gridline_factory.parallel_tick_interval = 1
@@ -67,7 +67,7 @@ class MapArea(DrawingArea):
 
     def open(self):
         DrawingArea.open(self)
-        if self.box and (self.map_hmargin>0 or self.map_vmargin>0):
+        if self.box and (self.map_hmargin > 0 or self.map_vmargin > 0):
             self.draw_map_box()
 
     def set_projection(self, projection):
@@ -218,7 +218,7 @@ class MapArea(DrawingArea):
                     text = "+" + text
                 if label_angle is None:
                     label_angle = tickangle
-                l = Label(p3, text, label_angle, "tiny", angle=0, fill="white")
+                l = GridLineLabel(p3, text, label_angle, "tiny", angle=0, fill="white")
                 self.draw_label(l)
 
     def draw_constellations(self, linewidth=0.3, dashed='dash pattern=on 1.6pt off 0.8pt'):
@@ -295,7 +295,7 @@ class MapArea(DrawingArea):
                 lp = p + 0.8 * v
                 tick = Line(tp1, tp2)
                 self.draw_line(tick, linewidth=linewidth)
-                self.draw_label(Label(lp, "\\textit{{{}\\textdegree}}".format(l), 270, "miniscule", angle=tick.angle-90, fill="white"))
+                self.draw_label(GridLineLabel(lp, "\\textit{{{}\\textdegree}}".format(l), 270, "miniscule", angle=tick.angle - 90, fill="white"))
 
         # Poles
         if poles:

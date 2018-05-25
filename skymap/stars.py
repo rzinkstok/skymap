@@ -785,19 +785,19 @@ def find_multiples(stars, criterion):
     """
 
     db = SkyMapDatabase()
+
     for s in stars:
+        ra1 = s['right_ascension']
+        de1 = s['declination']
         candidates = get_stars_around_coordinate(s['right_ascension'], s['declination'], criterion, db)
         for i, ci in enumerate(candidates):
-            for cj in candidates[i+1:]:
-
-                ra1 = ci['right_ascension']
-                de1 = ci['declination']
-                ra2 = cj['right_ascension']
-                de2 = cj['declination']
-                d = angular_separation_seconds_of_arc(ra1, de1, ra2, de2)
-                if d < criterion:
-                    #print "{}: {} - {} -> {}".format(current_process().name, ci['id'], cj['id'], d)
-                    pass
+            if ci['id'] == s['id']:
+                continue
+            ra2 = ci['right_ascension']
+            de2 = ci['declination']
+            d = angular_separation_seconds_of_arc(ra1, de1, ra2, de2)
+            if d < criterion:
+                db.insert_row("skymap_multiples", ["star_id1", "star_id2", "separation"], [s['id'], ci['id'], d])
 
 
 def chunks(l, n):
@@ -819,11 +819,13 @@ def chunks(l, n):
 if __name__ == "__main__":
     #build_star_database()
 
-    nprocs = 100 # Optimum seems to be around 40: must have something to do with the database I suppose
-    n = nprocs * 500
-    criterion = 100
+    nprocs = 50 # Optimum seems to be around 40: must have something to do with the database I suppose
+    #n = nprocs * 500
+    criterion = 1000
     db = SkyMapDatabase()
-    stars = db.query("""SELECT id, right_ascension, declination FROM skymap_stars LIMIT {}""".format(n))
+    #db.create_table("skymap_multiples", ["star_id1", "star_id2", "separation"], [int, int, float])
+    #stars = db.query("""SELECT id, right_ascension, declination FROM skymap_stars LIMIT {}""".format(n))
+    stars = db.query("""SELECT id, right_ascension, declination FROM skymap_stars""")
     print len(stars)
 
     procs = []
