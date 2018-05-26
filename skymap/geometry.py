@@ -1,5 +1,5 @@
 import math
-from astropy.coordinates import SkyCoord
+from astropy.coordinates import SkyCoord, BarycentricTrueEcliptic
 from astropy import units
 
 
@@ -19,6 +19,17 @@ class SkyCoordDeg(SkyCoord):
         return not self == other
 
 
+# For tracking precession of north pole
+# SkyCoord(0,90, unit="degree", frame=PrecessedGeocentric(equinox="J2100")).transform_to("icrs")
+
+# For mapping the ecliptic (equinox is map equinox)
+# SkyCoord(90, 0, unit="degree", frame=BarycentricTrueEcliptic(equinox="J2000")).transform_to("icrs")
+
+# For mapping the galactic pole
+# SkyCoord(0, 90, unit="degree", frame=Galactic).transform_to("icrs")
+
+# For converting constellation boundary to ICRS
+# SkyCoord(0, 0, unit="degree", frame=PrecessedGeocentric(equinox="B1875")).transform_to("icrs")
 
 def point_to_coordinates(point):
     x = point.x
@@ -29,78 +40,6 @@ def point_to_coordinates(point):
         y = 0.0
 
     return "({0}mm,{1}mm)".format(x, y)
-
-
-class HourAngle(object):
-    def __init__(self, hours=0, minutes=0, seconds=0):
-        self.hours = hours
-        self.minutes = minutes
-        self.seconds = seconds
-
-    def to_degrees(self):
-        return 15.0*self.hours + 0.25*self.minutes + 0.25*self.seconds/60.0
-
-    def from_degrees(self, degrees):
-        while degrees < 0:
-            degrees += 360.0
-
-        hours, rest = divmod(degrees, 15.0)
-        minutes, rest = divmod(60.0*rest/15.0, 1)
-        self.hours = int(round(hours))
-        self.minutes = int(round(minutes))
-        self.seconds = 60*rest
-
-    def from_fractional_hours(self, fractional_hours):
-        self.hours= int(fractional_hours)
-        fractional_minutes = (fractional_hours - self.hours) * 60.0
-        self.minutes = int(fractional_minutes)
-        self.seconds = (fractional_minutes - self.minutes) * 60.0
-
-    def to_fractional_hours(self):
-        return self.hours + self.minutes/60.0 + self.seconds/3600.0
-
-    def __repr__(self):
-        return "HA {0}h {1}m {2}s".format(self.hours, self.minutes, self.seconds)
-
-    def __str__(self):
-        return self.__repr__()
-
-
-class DMSAngle(object):
-    def __init__(self, degrees=0, minutes=0, seconds=0, sign=1):
-        self.degrees = degrees
-        self.minutes = minutes
-        self.seconds = seconds
-        self.sign = sign
-
-    def from_degrees(self, degrees):
-        sign = degrees>=0
-        degrees = abs(degrees)
-        degrees, rest = divmod(degrees, 1)
-        minutes, rest = divmod(60.0*rest, 1)
-        seconds = 60.0*rest
-        if sign:
-            self.sign = 1
-        else:
-            self.sign = -1
-        self.degrees = int(degrees)
-        self.minutes = int(minutes)
-        self.seconds = seconds
-
-    def to_degrees(self):
-        degrees = self.sign * self.degrees
-        degrees += self.sign * self.minutes/60.0
-        degrees += self.sign * self.seconds/3600.0
-        return degrees
-
-    def __repr__(self):
-        result =  "{0}d {1}' {2}\"".format(self.degrees, self.minutes, self.seconds)
-        if self.sign < 0:
-            result = "-" + result
-        return result
-
-    def __str__(self):
-        return self.__repr__()
 
 
 class Point(object):
@@ -164,67 +103,6 @@ class Point(object):
     @property
     def norm(self):
         return self.distance(Point(0,0))
-
-
-class SphericalPoint(Point):
-    """
-    A point on the sphere specified by a longitude and a latitude.
-    """
-    def __init__(self, a, b=None):
-        """
-        Initialize the point from a tuple or two numbers
-        :param a: longitude or tuple (longitude, latitude)
-        :param b: latitude or None
-        """
-        Point.__init__(self, a, b)
-
-    def __str__(self):
-        return "SphericalPoint({}, {})".format(self.longitude, self.latitude)
-
-    @property
-    def longitude(self):
-        return self.x
-
-    @longitude.setter
-    def longitude(self, longitude):
-        self.x = longitude
-
-    @property
-    def latitude(self):
-        return self.y
-
-    @latitude.setter
-    def latitude(self, latitude):
-        self.y = latitude
-
-    @property
-    def ra(self):
-        return self.x
-
-    @ra.setter
-    def ra(self, ra):
-        self.x = ra
-
-    @property
-    def dec(self):
-        return self.y
-
-    @dec.setter
-    def dec(self, dec):
-        self.y = dec
-
-    def reduce(self):
-        while self.longitude < 0:
-            self.longitude += 360.0
-        while self.longitude >= 360.0:
-            self.longitude -= 360
-
-    def __eq__(self, other):
-        p1 = SphericalPoint(self)
-        p2 = SphericalPoint(other)
-        p1.reduce()
-        p2.reduce()
-        return Point(p1) == Point(p2)
 
 
 class Line(object):

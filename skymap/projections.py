@@ -32,10 +32,12 @@ class UnitProjection(object):
     def __init__(self):
         pass
 
-    def project(self, skycoord):
+    @staticmethod
+    def project(skycoord):
         return Point(skycoord.ra.deg, skycoord.dec.deg)
 
-    def inverse_project(self, point):
+    @staticmethod
+    def inverse_project(point):
         return SkyCoordDeg(point.x, point.y)
 
 
@@ -137,7 +139,7 @@ class EquidistantConicProjection(Projection):
         self.n = (math.cos(phi_1) - math.cos(phi_2)) / (phi_2 - phi_1)
         self.G = math.cos(phi_1) / self.n + phi_1
         self.rho_0 = (self.G - math.radians(self.center_latitude))/math.radians(self.reference_scale)
-        #self.parallel_circle_center = SphericalPoint(0, math.degrees(self.G))
+        # self.parallel_circle_center = SphericalPoint(0, math.degrees(self.G))
 
     @property
     def center(self):
@@ -159,7 +161,8 @@ class EquidistantConicProjection(Projection):
         return Point(x, y)
 
     def backproject(self, point):
-        rho = math.radians(self.reference_scale) * numpy.sign(self.n) * math.sqrt(point.x**2 + (self.rho_0 - point.y)**2)
+        sign_n = numpy.sign(self.n)
+        rho = math.radians(self.reference_scale) * sign_n * math.sqrt(point.x**2 + (self.rho_0 - point.y)**2)
         theta = math.degrees(math.atan2(point.x, self.rho_0 - point.y))
 
         if self.celestial:
