@@ -22,11 +22,6 @@ class Projection(object):
     def reduce_longitude(self, longitude):
         return ensure_angle_range(longitude, self.center_longitude)
 
-    # def __call__(self, point, inverse=False):
-    #     if inverse:
-    #         return self.backproject(point)
-    #     return self.project(point)
-
 
 class UnitProjection(object):
     def __init__(self):
@@ -172,40 +167,3 @@ class EquidistantConicProjection(Projection):
         latitude = math.degrees(self.G - rho)
 
         return SkyCoordDeg(longitude, latitude)
-
-
-#
-#
-# def calculate_reference_parallels(angle, delta_latitude, central_longitude):
-#     full_angle = 360.0*angle/float(delta_latitude)
-#     print full_angle
-#     fraction_angle = full_angle/360.0
-#     print fraction_angle
-#     cone_angle = math.degrees(math.asin(fraction_angle))
-#     print cone_angle
-#
-#
-#
-# def circle(x, r=1.0):
-#     return math.sqrt(r**2 - x**2)
-#
-#
-# def crossing(val, r=1.0):
-#     return math.sqrt(r**2 - val**2)
-#
-#
-# def error(val, xrange):
-#     n = 1000
-#     sqsum = 0
-#     for i in range(n):
-#         x = -0.5*xrange + i * xrange/(n-1)
-#         y = circle(x)
-#         sqsum += (y-val)**2
-#
-#     c = crossing(val)
-#
-#     print val, c, math.sqrt(sqsum), math.degrees(math.asin(c)), math.degrees(math.asin(0.5*xrange))
-
-# for i in range(100):
-#     val = 0.999 + i/100000.0
-#    error(val, 0.1)

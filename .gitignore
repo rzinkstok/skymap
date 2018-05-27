@@ -1,4 +1,4 @@
-atlas/
+atlas_old/
 cambridge_star_atlas/
 skyatlas2000/
 uranometria/
@@ -7,6 +7,7 @@ mpost/
 output/
 data/
 literature/
+test/*.pdf
 .idea/
 
 # Byte-compiled / optimized / DLL files
