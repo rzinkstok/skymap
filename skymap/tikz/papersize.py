@@ -33,7 +33,9 @@ class PaperSize(object):
         "tabloid": "ANSI-B"
     }
 
-    def __init__(self, width=None, height=None, name="", landscape=False):
+    def __init__(self, name="", width=None, height=None, landscape=False):
+        if not (width or height or name):
+            name = "A4"
         self.width = width
         self.height = height
         self.name = name
@@ -154,9 +156,41 @@ class PaperSize(object):
         return "{} ({} mm x {} mm)".format(self.name, self.width, self.height)
 
 
+class PaperMargin(object):
+    def __init__(self, left=24, bottom=24, right=None, top=None):
+        self.left = left
+        self.bottom = bottom
+        self.right = right or left
+        self.top = top or bottom
+
+    @property
+    def l(self):
+        return self.left
+
+    @property
+    def r(self):
+        return self.right
+
+    @property
+    def t(self):
+        return self.top
+
+    @property
+    def b(self):
+        return self.bottom
+
+    def __repr__(self):
+        return "Margins: left {} mm, right {} mm, top {} mm, bottom {} mm".format(self.left, self.right, self.top, self.bottom)
+
+
 if __name__ == "__main__":
-    print PaperSize(name="ANSI-A")
-    print PaperSize(name="letter")
-    print PaperSize(name="A4")
-    print PaperSize(name="A3")
-    print PaperSize(name="A2")
+    print PaperSize()
+    print PaperSize("ANSI-A")
+    print PaperSize("letter")
+    print PaperSize("A4")
+    print PaperSize("A3")
+    print PaperSize("A2")
+
+    print PaperMargin(24, 24)
+    print PaperMargin(0, 0)
+    print PaperMargin()
