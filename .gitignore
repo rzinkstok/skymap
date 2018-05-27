@@ -1,10 +1,6 @@
 atlas_old/
-cambridge_star_atlas/
-skyatlas2000/
-uranometria/
-maps/
-mpost/
-output/
+temp/
+pdf/
 data/
 literature/
 test/*.pdf

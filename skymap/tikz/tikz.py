@@ -7,14 +7,9 @@ from skymap.geometry import Point
 from skymap.tikz import PaperSize, FontSize, PaperMargin
 
 
-BASEDIR = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
-TEX_OUTPUT_FOLDER = os.path.join(BASEDIR, "output")
-
-
+BASEDIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
+TEX_OUTPUT_FOLDER = os.path.join(BASEDIR, "temp")
 os.environ['PATH'] = "/Library/TeX/texbin:"+os.environ['PATH']
-
-
-
 
 
 class Tikz(object):

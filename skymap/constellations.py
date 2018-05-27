@@ -5,7 +5,6 @@ from astropy.coordinates import get_constellation
 from astroquery.vizier import Vizier
 from skymap.database import SkyMapDatabase
 from skymap.geometry import ensure_angle_range, SkyCoordDeg, TOLERANCE
-from skymap.coordinates import REFERENCE_EPOCH
 
 
 CONSTELLATIONS = {
@@ -135,7 +134,7 @@ def constellations_in_area(min_longitude, max_longitude, min_latitude, max_latit
     return [x[1] for x in res]
 
 
-def get_constellation_boundaries_for_area(min_longitude, max_longitude, min_latitude, max_latitude, epoch=REFERENCE_EPOCH):
+def get_constellation_boundaries_for_area(min_longitude, max_longitude, min_latitude, max_latitude, epoch="J2000"):
     # Convert longitude to 0-360 values
     # TODO: sometimes boundaries cross the map but have no vertices within the map area + margin and are not plotted
     min_longitude = ensure_angle_range(min_longitude)
@@ -428,6 +427,4 @@ def build_constellation_boundary_database():
 
 if __name__ == "__main__":
     build_constellation_boundary_database()
-
-
 
