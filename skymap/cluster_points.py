@@ -12,6 +12,7 @@ from operator import attrgetter
 import numpy as np
 import math
 from scipy.spatial import distance_matrix
+from skymap.geometry import rotation_matrix, sky2cartesian, cartesian2sky
 
 
 """
@@ -24,38 +25,8 @@ def distance(p1, p2):
     return np.linalg.norm(p1[:2] - p2[:2])
 
 
-def cluster_points2(points, threshold):
-    sorted_points_x = points[points[:, 0].argsort()]
-    xdiffs = np.abs(np.diff(sorted_points_x[:,0]))
-    xindices1 = np.where(xdiffs < threshold)[0]
-    xindices2 = xindices1 + 1
-    xindices = np.union1d(xindices1, xindices2)
-
-    xset = sorted_points_x[xindices, :]
-
-    sorted_points_y = xset[xset[:, 1].argsort()]
-    ydiffs = np.abs(np.diff(sorted_points_y[:, 1]))
-
-    yindices1 = np.where(ydiffs < threshold)[0]
-    yindices2 = yindices1 + 1
-    yindices = np.union1d(yindices1, yindices2)
-
-    yset = sorted_points_y[yindices, :]
-
-    #print yset[:, :2]
-    print yset.shape
-    dm = distance_matrix(yset, yset)
-    mask = 2*threshold*np.tril(np.ones(dm.shape))
-    dm1 = np.argwhere((mask+dm)<threshold)
-    print dm1
-    print dm1.shape[0]
-
-
 def brute_cluster(points, threshold):
-    #pairs = np.zeros((points.shape[0], 2), dtype=int)
-    #pairs = np.zeros((points.shape[0],))
     pairs = []
-    #npairs = 0
     for i in range(points.shape[0]):
         for j in range(i+1, points.shape[0]):
             p1 = points[i,:]
@@ -64,14 +35,10 @@ def brute_cluster(points, threshold):
             if d < threshold:
                 pair = sorted((int(p1[2]), int(p2[2])))
                 pairs.append("{} {}".format(*pair))
-                #npairs += 1
-    #return pairs[:npairs, :]
     return pairs
 
 
 def strip_cluster(points, threshold):
-    # pairs = np.zeros((points.shape[0], 2), dtype=int)
-    # npairs = 0
     pairs = []
     sorted_points = points[points[:, 1].argsort()]
     for i in range(sorted_points.shape[0]):
@@ -84,40 +51,27 @@ def strip_cluster(points, threshold):
             d = distance(p1, p2)
             if d < threshold:
                 pair = sorted((int(p1[2]), int(p2[2])))
-                # pairs[npairs, :] = pair
-                # npairs += 1
                 pairs.append("{} {}".format(*pair))
-    # return pairs[:npairs, :]
     return pairs
 
 
 def cluster(points, threshold):
-    # pairs = np.zeros((points.shape[0], 2), dtype=int)
-    # npairs = 0
     pairs = set()
 
     if points.shape[0] <= 3:
         return brute_cluster(points, threshold)
 
     sorted_points = points[points[:, 0].argsort()]
-
     mid = sorted_points.shape[0]/2
     midx = 0.5*(sorted_points[mid-1, 0] + sorted_points[mid, 0])
 
     pairs1 = cluster(sorted_points[:mid, :], threshold)
     pairs = pairs.union(pairs1)
-    # np1 = pairs1.shape[0]
-    # pairs[npairs:npairs + np1, :] = pairs1
-    # npairs += np1
 
     pairs2 = cluster(sorted_points[mid:, :], threshold)
     pairs = pairs.union(pairs2)
-    # np2 = pairs2.shape[0]
-    # pairs[npairs:npairs + np2, :] = pairs2
-    # npairs += np2
 
     strip = np.zeros(sorted_points.shape)
-
     j = 0
     for i in range(sorted_points.shape[0]):
         p = points[i, :]
@@ -126,17 +80,14 @@ def cluster(points, threshold):
             j += 1
     pairs3 = strip_cluster(strip[:j, :], threshold)
     pairs = pairs.union(pairs3)
-    # np3 = pairs3.shape[0]
-    # pairs[npairs:npairs + np3, :] = pairs3
-    # npairs += np3
 
     return list(pairs)
 
 
 def generate_random_points(npoints):
-    points = np.zeros((npoints, 3))
-    points[:, :2] = np.random.random((npoints, 2))
-    points[:, 2] = np.arange(npoints)
+    points = np.zeros((npoints, 2))
+    points[:, 0] = 26 * np.random.random((npoints,)) + 83
+    points[:, 1] = 12 * np.random.random((npoints,)) -6 #+ 40
     return points
 
 
@@ -205,6 +156,46 @@ def closest_pair(points):
     return minpair, mind
 
 
+def rotate_points(points):
+    # Determine center of points
+    mins = np.min(points[:, :2], axis=0)
+    maxs = np.max(points[:, :2], axis=0)
+    center_ra = 0.5 * (mins[0] + maxs[0])
+    center_de = 0.5 * (mins[1] + maxs[1])
+    center = sky2cartesian(np.array([[center_ra, center_de],]))[0,:]
+
+    # Setup rotation matrix for rotation from center to (ra, de) = (0, 0)
+    target = np.array((1, 0, 0))
+    axis = np.cross(center, target)
+    angle = np.arccos(np.dot(center, target))
+    m = rotation_matrix(axis, angle)
+
+    # Transform points to cartesian, rotate, and transform back
+    cpoints = sky2cartesian(points)
+    rpoints = np.dot(m, cpoints.T).T
+    result = np.zeros((points.shape[0], 3))
+    result[:, :2] = cartesian2sky(rpoints)
+    result[:, 2] = points[:, 2]
+
+    # Check new center
+    # mins = np.min(result[:, :2], axis=0)
+    # maxs = np.max(result[:, :2], axis=0)
+    # center_ra = 0.5 * (mins[0] + maxs[0])
+    # center_de = 0.5 * (mins[1] + maxs[1])
+
+    return result
+
+
+def cluster_wrapper(points, threshold, brute=False):
+    cpoints = np.zeros((npoints, 3))
+    cpoints[:, :2] = points
+    cpoints[:, 2] = np.arange(npoints)
+    rpoints = rotate_points(cpoints)
+    if brute:
+        pairs = brute_cluster(points, threshold)
+    else:
+        pairs = cluster(rpoints, threshold)
+    return pairs
 
 
 if __name__ == "__main__":
@@ -212,8 +203,8 @@ if __name__ == "__main__":
 
     pseudo = True
     brute = False
-    npoints = 100000
-    threshold = 2*1.0/npoints
+    npoints = int(1e5)
+    threshold = 0.0001*360*180*1.0/npoints
     print "Threshold:", threshold
     if pseudo:
         np.random.seed(1)
@@ -221,26 +212,22 @@ if __name__ == "__main__":
     t0 = time.clock()
 
     points = generate_random_points(npoints)
-    #print points
-
 
     t1 = time.clock()
     print "Generation time: {} s".format(t1-t0)
 
-    if brute:
-        print brute_cluster(points, threshold)
-    else:
-        pairs = cluster(points, threshold)
-        for p in pairs:
-            pid1, pid2 = (int(x) for x in p.split())
-            p1 = points[pid1, :]
-            p2 = points[pid2, :]
-            print pid1, pid2, distance(p1, p2)
+
+    pairs = cluster_wrapper(points, threshold, brute=brute)
 
     print
-    #print closest_pair(points)
-
-
+    print "Pairs:"
+    print "--------------"
+    for p in pairs:
+        pid1, pid2 = (int(x) for x in p.split())
+        p1 = points[pid1, :]
+        p2 = points[pid2, :]
+        print pid1, pid2, distance(p1, p2)
+    print "--------------"
     print "Clustering time: {} s".format(time.clock()-t1)
 
 

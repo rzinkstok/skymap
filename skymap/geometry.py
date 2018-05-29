@@ -1,4 +1,5 @@
 import math
+import numpy as np
 from astropy.coordinates import SkyCoord, BarycentricTrueEcliptic
 from astropy import units
 
@@ -30,6 +31,44 @@ class SkyCoordDeg(SkyCoord):
 
 # For converting constellation boundary to ICRS
 # SkyCoord(0, 0, unit="degree", frame=PrecessedGeocentric(equinox="B1875")).transform_to("icrs")
+
+
+def rotation_matrix(axis, angle):
+    sina = math.sin(angle)
+    cosa = math.cos(angle)
+    direction = axis/np.linalg.norm(axis)
+
+    rmatrix = np.diag([cosa, cosa, cosa])
+    rmatrix += np.outer(direction, direction) * (1.0 - cosa)
+    direction *= sina
+    rmatrix += np.array(
+        [[0.0, -direction[2], direction[1]],
+         [direction[2], 0.0, -direction[0]],
+         [-direction[1], direction[0], 0.0]]
+    )
+    return rmatrix
+
+
+def sky2cartesian(points):
+    phi = np.deg2rad(points[:, 0])
+    theta = np.pi/2 - np.deg2rad(points[:, 1])
+    result = np.zeros((points.shape[0], 3))
+    result[:, 0] = np.sin(theta) * np.cos(phi)
+    result[:, 1] = np.sin(theta) * np.sin(phi)
+    result[:, 2] = np.cos(theta)
+    return result
+
+
+def cartesian2sky(points):
+    #r = np.sqrt(np.square(points[:, 0]) + np.square(points[:, 1]))
+    theta = np.arccos(points[:, 2])
+    phi = np.arctan2(points[:, 1], points[:, 0])
+    result = np.zeros((points.shape[0], 2))
+    result[:, 0] = np.rad2deg(phi)
+    result[:, 1] = np.rad2deg(np.pi/2 - theta)
+
+    return result
+
 
 def point_to_coordinates(point):
     x = point.x
