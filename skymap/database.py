@@ -1,10 +1,5 @@
-import os
 import mysql.connector
-
-
-DATA_FOLDER = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), "data")
-DATABASE_FILE = os.path.join(DATA_FOLDER, "skymap.db")
-DATATYPES = {int: "INT", str: "VARCHAR(512)", float: "DOUBLE"}
+DATA_TYPES = {int: "INT", str: "VARCHAR(512)", float: "DOUBLE"}
 
 
 class SkyMapDatabase(object):
@@ -21,7 +16,7 @@ class SkyMapDatabase(object):
         self.conn.close()
 
     def create_table(self, tablename, columns, datatypes, create_primary_key=True):
-        datatypes = [DATATYPES[x] for x in datatypes]
+        datatypes = [DATA_TYPES[x] for x in datatypes]
         q = """CREATE TABLE {} (""".format(tablename)
         if create_primary_key:
             q += """pk INT AUTO_INCREMENT, """
@@ -94,17 +89,3 @@ class SkyMapDatabase(object):
     def commit_query(self, q, params=()):
         self.cursor.execute(q, params)
         self.conn.commit()
-
-
-if __name__ == "__main__":
-    pass
-    # from skymap.milkyway import build_milkyway_database
-    # from skymap.labels import build_label_database
-
-    # build_constellation_database()
-    # build_hipparcos_database()
-    # build_hyg_database()
-    # build_milkyway_database()
-    # build_label_database()
-    # build_star_designation_database()
-    # build_tycho_database()

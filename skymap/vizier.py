@@ -3,8 +3,6 @@ import sys
 import re
 import time
 import ftplib
-import urllib
-import types
 import gzip
 from functools import partial
 
@@ -13,11 +11,37 @@ from skymap.database import SkyMapDatabase
 
 VIZIER_SERVER = "cdsarc.u-strasbg.fr"
 DATA_FOLDER = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), "data")
+
+# RE pattern to parse the Vizier ReadMe Byte-by-byte description.
+# This RE captures the start byte, stop byte, format and label to groups.
+# Example line:
+# 52- 63  F12.8 deg     RAdeg    *? alpha, degrees (ICRS, Epoch=J1991.25)   (H8)
 BYTE_PATTERN = re.compile("^\s*(\d+)(\-\s*(\d+))?\s+(([A-Z])\d*(\.\d+)?)\s+\S+\s+(\S+)\s")
+
+# Vizier only knows 3 data types
 VIZIER_FORMATS = {"I": int, "A": str, "F": float}
 
 
 def parse_readme(foldername):
+    """Parses the ReadMe file that should be present in each catalog folder.
+
+    The ReadMe file has a table that defines the record structure of each file
+    in the catalog. The record structure definition follows a strictly defined
+    convention. For each file in the catalog, his information is parsed into a
+    list of column definitions. Each column definition is a dict with the
+    following items:
+
+    - startbyte: the first byte of the column data in the data file line
+    - stopbyte: the last byte of the column data in the data file line
+    - format: the python datatype of the column
+    - label: the name of the column
+
+    Args:
+        foldername (str): the local folder where the catalog is saved
+
+    Returns:
+         dict: a mapping from filename to data definition for that file
+    """
     filepath = os.path.join(DATA_FOLDER, foldername, "ReadMe")
     with open(filepath) as fp:
         lines = fp.readlines()
@@ -28,16 +52,16 @@ def parse_readme(foldername):
 
     for l in lines:
         if l.startswith("Byte-by-byte Description of file:") or l.startswith("Byte-per-byte Description of file:"):
-            files_l = l.split(":")[-1].strip()
-            if "," in files_l:
-                current_files = [x.strip() for x in files_l.split(",")]
-            elif " " in files_l:
-                current_files = [x.strip() for x in files_l.split(" ")]
-            else:
-                current_files = [files_l]
+            # This line lists all files for which the byte-by-byte description is valid.
+            # The files can be seperated by a space or a comma.
+            files_in_line = l.split(":")[-1].strip()
+            current_files = [x.strip() for x in re.split(',| ', files_in_line) if x.strip()]
+            continue
 
         if current_files:
             if not l.strip():
+                # End of the byte-by-byte description is reached. Save the datadict for each file in current_files
+                # and clear the current files and datadict
                 for f in current_files:
                     datadicts[f] = datadict
                 current_files = []
@@ -45,22 +69,32 @@ def parse_readme(foldername):
             else:
                 m = re.match(BYTE_PATTERN, l)
                 if m:
-                    g = m.groups()
-                    d = {}
-                    d['startbyte'] = int(g[0]) - 1
-                    if g[2] is not None:
-                        d['stopbyte'] = int(g[2])
+                    # This is a valid column definition line. Parse the data into a columndef and add it to the datadict
+                    groups = m.groups()
+                    coldef = {}
+                    coldef['startbyte'] = int(groups[0]) - 1
+                    if groups[2] is not None:
+                        coldef['stopbyte'] = int(groups[2])
                     else:
-                        d['stopbyte'] = int(g[0])
+                        coldef['stopbyte'] = int(groups[0])
 
-                    d['format'] = VIZIER_FORMATS[g[4]]
-                    d['label'] = g[6]
-                    datadict.append(d)
+                    coldef['format'] = VIZIER_FORMATS[groups[4]]
+                    coldef['label'] = groups[6]
+                    datadict.append(coldef)
 
     return datadicts
 
 
-def parse_datafile(db, foldername, filename, table, datadicts, columns):
+def parse_datafile(db, foldername, filename, table, coldefs, columns):
+    """Parses a datafile and inserts the data into the database.
+
+    Args:
+        db (skymap.database.SkyMapDatabase): the opened database to write the data to
+        foldername (str): the folder where the datafile is located
+        table (str): the name of the table to put the data in
+        coldefs (list): the column definitions for the data file
+        columns (list): the column names of the table
+    """
     print
     print "Parsing", filename
 
@@ -79,27 +113,24 @@ def parse_datafile(db, foldername, filename, table, datadicts, columns):
     nrecords = len(fp.readlines())
     rewind()
 
+    # Loop over all lines, parse the data and add it in batches to the database
     batchsize = 1000
     batch = []
     for i, line in enumerate(fp):
         sys.stdout.write("\r{0:.1f}%".format(i * 100.0 / (nrecords - 1)))
         sys.stdout.flush()
         values = []
-        for d in datadicts:
-            s = line[d['startbyte']:d['stopbyte']]
-            if s and s[-1] == "\n":
-                s = s[:-1]
-            t = d['format']
-            if not s and t is not str:
-                v = None
+        for coldef in coldefs:
+            coltype = coldef['format']
+            valuestring = line[coldef['startbyte']:coldef['stopbyte']].strip()
+            if not valuestring and coltype is not str:
+                colvalue = None
             else:
                 try:
-                    v = t(s)
+                    colvalue = coltype(valuestring)
                 except ValueError:
-                    v = None
-                # if t == str:
-                #     v = v.rstrip("\n")
-            values.append(v)
+                    colvalue = None
+            values.append(colvalue)
         batch.append(values)
         if len(batch) == batchsize:
             db.insert_rows(table, columns, batch)
@@ -108,17 +139,28 @@ def parse_datafile(db, foldername, filename, table, datadicts, columns):
         db.insert_rows(table, columns, batch)
 
 
-def get_files(catalogue, foldername):
+def download_files(catalogue, foldername):
+    """Retrieves the files for the given catalog from the Vizier FTP server.
+
+    Args:
+        catalogue (str): the name of the catalog
+        foldername (str): the folder to save the data to
+
+    Returns:
+        list: the filenames of all the files that belong to the catalog
+    """
     destfolder = os.path.join(DATA_FOLDER, foldername)
     if not os.path.exists(destfolder):
         os.makedirs(destfolder)
 
+    # Open the FTP connection and retrieve the file list for the catalog
     ftp = ftplib.FTP(VIZIER_SERVER)
     ftp.login()
     ftp.cwd("pub/cats/{}/".format(catalogue))
     lines = []
     ftp.retrlines('LIST', lines.append)
 
+    # Parse the file list and download each file, if it was not already downloaded
     files = []
     for l in lines:
         l = l.strip()
@@ -131,53 +173,68 @@ def get_files(catalogue, foldername):
         f = l.split()[-1].strip()
         files.append(f)
         destfile = os.path.join(destfolder, f)
+
         if os.path.exists(destfile):
             print "Already downloaded:", f
             continue
+
         print "Downloading", f
         ftp.retrbinary('RETR {}'.format(f), open(destfile, 'wb').write)
+
     ftp.quit()
+
     return files
 
 
 def build_database(catalogue, foldername, indices=(), extra_function=None):
+    """Downloads the datafiles for a catalog and builds a local database for it.
+
+    Args:
+        catalogue (str): the name of the catalog
+        foldername (str): the folder where to save the data
+        indices (list): the columns to generate indices for
+        extra_function (function): a function to call after the database is built
+    """
     print
     print "Building database for {} ({})".format(catalogue, foldername)
     t1 = time.time()
-    files = get_files(catalogue, foldername)
 
+    files = download_files(catalogue, foldername)
     datadicts = parse_readme(foldername)
     db = SkyMapDatabase()
-    for f, dds in datadicts.items():
-        table = "{}_{}".format(foldername, f.split(".")[0])
-        db.drop_table(table)
 
-        columns = []
-        lc_columns = []
-        datatypes = []
-        for dd in dds:
-            c = dd["label"]
+    for filename, coldefs in datadicts.items():
 
-            # Check for columns that have equivalent names
+
+        datatypes = [coldef['format'] for coldef in coldefs]
+        # SQL is case insensitive, and Vizier sometimes has column names in the same file that
+        # have equivalent names. So, the column names are checked and updated when needed.
+        column_names = []
+        for coldef in coldefs:
+            column_name = coldef["label"]
             i = 1
-            while c.lower() in lc_columns:
-                if i == 1:
-                    c += "_1"
-                else:
-                    c = c[:-2] + "_{}".format(i)
+            lowercase_column_names = [x.lower() for x in column_names]
+            while column_name.lower() in lowercase_column_names:
+                if i > 1:
+                    column_name = column_name[:-2]
+                column_name += "_{}".format(i)
                 i += 1
 
-            lc_columns.append(c.lower())
-            columns.append(c)
-            datatypes.append(dd['format'])
+            column_names.append(column_name)
 
-        db.create_table(table, columns, datatypes)
+        # Clear the database table
+        table = "{}_{}".format(foldername, filename.split(".")[0])
+        db.drop_table(table)
+        db.create_table(table, column_names, datatypes)
 
-        real_files = [fn for fn in files if fn.startswith(f)]
+        # For large catalogs, the data can be spread over multiple files, so loop over all files
+        real_files = [fn for fn in files if fn.startswith(filename)]
         for real_file in real_files:
-            parse_datafile(db, foldername, real_file, table, dds, columns)
+            parse_datafile(db, foldername, real_file, table, coldefs, column_names)
+
+        # Add indices
         for ind in indices:
-            if ind in columns:
+            if ind in column_names:
                 db.add_index(table, ind)
 
     t2 = time.time()
@@ -225,7 +282,7 @@ if __name__ == "__main__":
     # build_database("I/274", "ccdm")
     # build_database("B/gcvs", "gcvs")
     # build_database("I/276", "tdsc")
-    # build_database("VII/118", "ngc")
-    build_database("V/50", "bsc", indices=['HR', 'HD'])
+    build_database("VII/118", "ngc")
+    # build_database("V/50", "bsc", indices=['HR', 'HD'])
 
     pass
