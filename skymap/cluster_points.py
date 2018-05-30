@@ -12,7 +12,7 @@ from operator import attrgetter
 import numpy as np
 import math
 from scipy.spatial import distance_matrix
-from skymap.geometry import rotation_matrix, sky2cartesian, cartesian2sky
+from skymap.geometry import rotation_matrix, sky2cartesian, cartesian2sky, SkyCoordDeg
 
 
 """
@@ -25,7 +25,17 @@ def distance(p1, p2):
     return np.linalg.norm(p1[:2] - p2[:2])
 
 
+# Brute force clustering
 def brute_cluster(points, threshold):
+    """Naive method for clustering points that are closer than the given threshold.
+
+    Args:
+        points (numpy.ndarray): a (Nx2) array containing the (x, y) coordinates of the input points
+        threshold: the distance between points below which they are considered a pair
+
+    Returns:
+        numpy.ndarray: a (Mx2) array containing the pairs of indices for all paired points
+    """
     pairs = []
     for i in range(points.shape[0]):
         for j in range(i+1, points.shape[0]):
@@ -39,6 +49,15 @@ def brute_cluster(points, threshold):
 
 
 def strip_cluster(points, threshold):
+    """Function that handles the area connecting both halves of the plane in the divide and conquer approach.
+
+    Args:
+        points: a (Px2) array containing all points in the strip connecting both halves of the plane
+        threshold: the distance between points below which they are considered a pair
+
+    Returns:
+        numpy.ndarray: a (Qx2) array containing the pairs of indices for all paired points
+    """
     pairs = []
     sorted_points = points[points[:, 1].argsort()]
     for i in range(sorted_points.shape[0]):
@@ -56,6 +75,17 @@ def strip_cluster(points, threshold):
 
 
 def cluster(points, threshold):
+    """A divide and conquer recursive strategy for point clustering.
+
+    Adapted from the similar strategy to find the closest pair in a set of points.
+
+    Args:
+        points (numpy.ndarray): a (Nx2) array containing the (x, y) coordinates of the input points
+        threshold: the distance between points below which they are considered a pair
+
+    Returns:
+        numpy.ndarray: a (Mx2) array containing the pairs of indices for all paired points
+    """
     pairs = set()
 
     if points.shape[0] <= 3:
@@ -88,7 +118,9 @@ def generate_random_points(npoints):
     points = np.zeros((npoints, 2))
     points[:, 0] = 26 * np.random.random((npoints,)) + 83
     points[:, 1] = 12 * np.random.random((npoints,)) -6 #+ 40
-    return points
+    scs = SkyCoordDeg(points[:, 0], points[:, 1])
+    scs.data
+    return points #scs
 
 
 def brute_closest_pair(points):
