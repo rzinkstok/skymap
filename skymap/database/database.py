@@ -1,15 +1,32 @@
+"""
+SkyMap database.
+
+Thin wrapper around the MySQL connector, specifically designed for a local MySQL database
+"""
+
 import mysql.connector
 DATA_TYPES = {int: "INT", str: "VARCHAR(512)", float: "DOUBLE"}
 
 
 class SkyMapDatabase(object):
-    def __init__(self):
+    """
+    SkyMap database wrapper for MySQL.
+
+
+    """
+    def __init__(self, host='localhost', port=3306, database='skymap', user='skymap', password=None):
+        self.host = host
+        self.port = port
+        self.user = user
+        self.password = password
+        self.database = database
+
         self.conn = None
         self.cursor = None
         self.connect()
 
     def connect(self):
-        self.conn = mysql.connector.connect(user='skymap', host='127.0.0.1', database='skymap')
+        self.conn = mysql.connector.connect(user=self.user, host=self.host, database=self.database)
         self.cursor = self.conn.cursor()
 
     def close(self):

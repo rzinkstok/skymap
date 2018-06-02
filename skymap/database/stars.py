@@ -6,17 +6,17 @@ from bs4 import BeautifulSoup
 from datetime import datetime
 from multiprocessing import Process, current_process
 from skymap.database import SkyMapDatabase
-from skymap.geometry import ensure_angle_range, SphericalPoint
-from skymap.constellations import ConstellationFinder
-from skymap.coordinates import julian_year_difference, REFERENCE_EPOCH
+from skymap.geometry import ensure_angle_range
+
+from astropy.time import Time
 
 
 RAD_TO_DEG = 360.0/(2*math.pi)
 J1991_TO_J2000_PM_CONVERSION_FACTOR = ((datetime(2000, 1, 1).date() - datetime(1991, 4, 1).date()).days/365.25)/3.6e6
 KM_PER_S_TO_PARSEC_PER_YEAR = 1.0/977780.0
 MAS_FOR_FULL_CIRCLE = 360*60*60*1000.0
-HIPPARCOS_EPOCH = datetime(1991, 4, 1).date()
-TYCHO2_EPOCH = REFERENCE_EPOCH
+HIPPARCOS_EPOCH = "J1991.25"
+TYCHO2_EPOCH = "J2000.0"
 
 
 GREEK_LETTERS = {
@@ -47,110 +47,7 @@ GREEK_LETTERS = {
 }
 
 
-def propagate_position(from_epoch, to_epoch, right_ascension, declination, proper_motion_ra, proper_motion_dec):
-    """
-    Simple propagation in angular coordinates.
 
-    :param from_epoch: datetime
-    :param to_epoch: datetime
-    :param right_ascension: in degrees
-    :param declination: in degrees
-    :param proper_motion_ra: in mas/year, corrected for declination
-    :param proper_motion_dec: in mas/year
-    :return: new position
-    """
-
-    if not proper_motion_dec or not proper_motion_ra:
-        return right_ascension, declination
-
-    dt = julian_year_difference(to_epoch, from_epoch)
-
-    # Convert proper motions to degrees per Julian year
-    # 1 mas/year = 1e-3 as/year = 1e-3/60.0 amin/year = 1e-3/3600 degrees/year
-    pm_ra = proper_motion_ra / 3.6e6
-    pm_dec = proper_motion_dec / 3.6e6
-
-    # Calculate the new positions
-    ra = right_ascension + dt * pm_ra/math.cos(declination)
-    dec = declination + dt * pm_dec
-
-    return ra, dec
-
-
-def propagate_position2(from_epoch, to_epoch, right_ascension, declination, proper_motion_ra, proper_motion_dec, distance=1.0, radial_velocity=0.0):
-    """
-    Rigorous propagation in Cartesian coordinates, using parallax information.
-
-    :param from_epoch: datetime
-    :param to_epoch: datetime
-    :param right_ascension: in degrees
-    :param declination: in degrees
-    :param proper_motion_ra: in mas/year
-    :param proper_motion_dec: in mas/year
-    :param distance: in parsec
-    :param radial_velocity: in km/s
-    :return: new position
-    """
-
-    # Convert time difference to Julian years
-    dt = julian_year_difference(to_epoch, from_epoch)
-
-    # Convert degrees to radians
-    right_ascension = math.radians(right_ascension)
-    declination = math.radians(declination)
-
-    # Convert proper motion (mas/year) to linear velocity in km/s
-    velocity_ra = proper_motion_ra * 2 * math.pi * distance/(MAS_FOR_FULL_CIRCLE * KM_PER_S_TO_PARSEC_PER_YEAR)
-    velocity_dec = proper_motion_dec * 2 * math.pi * distance/(MAS_FOR_FULL_CIRCLE * KM_PER_S_TO_PARSEC_PER_YEAR)
-
-    # Convert spherical location to Cartesian location in parsecs
-    # +x towards RA 0h, DEC 0
-    # +y towards RA 6h, DEC 0
-    # +z towards DEC 90
-    x = distance * math.cos(declination) * math.cos(right_ascension)
-    y = distance * math.cos(declination) * math.sin(right_ascension)
-    z = distance * math.sin(declination)
-
-    # Convert spherical velocities to Cartesian, in km/s
-    vx = (radial_velocity * math.cos(declination) * math.cos(right_ascension)) - (velocity_ra * math.sin(right_ascension)) - (velocity_dec * math.sin(declination) * math.cos(right_ascension))
-    vy = (radial_velocity * math.cos(declination) * math.sin(right_ascension)) + (velocity_ra * math.cos(right_ascension)) - (velocity_dec * math.sin(declination) * math.sin(right_ascension))
-    vz = radial_velocity * math.sin(declination) + velocity_dec * math.cos(declination)
-
-    # Convert velocities from km/s to parsec/yr
-    vx *= KM_PER_S_TO_PARSEC_PER_YEAR
-    vy *= KM_PER_S_TO_PARSEC_PER_YEAR
-    vz *= KM_PER_S_TO_PARSEC_PER_YEAR
-
-    # Propagate position in parsecs
-    x += vx * dt
-    y += vy * dt
-    z += vz * dt
-
-    # Convert new position to spherical
-    dxy = math.sqrt(x**2 + y**2)
-    right_ascension = math.degrees(math.atan2(y, x))
-    declination = math.degrees(math.atan2(z, dxy))
-
-    if right_ascension < 0:
-        right_ascension += 360.0
-
-    return right_ascension, declination
-
-
-def angular_separation_seconds_of_arc(ra1, de1, ra2, de2):
-    """
-    Calculates the angular separation of two points.
-
-    :param ra1: Right ascension of first point in degrees
-    :param de1: Declination of first point in degrees
-    :param ra2: Right ascension of second point in degrees
-    :param de2: Declination of second point in degrees
-    :return: The angular separation in seconds of arc.
-    """
-
-    dra = ra1 - ra2
-    dde = de1 - de2
-    return 3600 * math.sqrt((dra * math.cos(math.radians(de2))) ** 2 + dde ** 2)
 
 
 def angular_sep_to_local_degrees(ra, de, sep):
@@ -269,12 +166,12 @@ def build_star_database():
 
     db = SkyMapDatabase()
     create_table(db)
-    add_tycho2(db)
-    add_tycho1(db)
+    # add_tycho2(db)
+    # add_tycho1(db)
     add_hipparcos(db)
     add_indexes(db)
-    add_cross_index(db)
-    add_bright_star_catalog(db)
+    # add_cross_index(db)
+    # add_bright_star_catalog(db)
     add_proper_names(db)
     add_constellations(db)
 
@@ -314,9 +211,11 @@ def create_table(db):
                         declination DOUBLE,
                         proper_motion_ra DOUBLE,
                         proper_motion_dec DOUBLE,
+                        parallax DOUBLE,
                         
                         johnsonV DOUBLE,
                         johnsonBV DOUBLE,
+                        cousinsVI DOUBLE,
                         hp_magnitude DOUBLE,
                         vt_magnitude DOUBLE,
                         bt_magnitude DOUBLE,
@@ -344,7 +243,7 @@ def add_tycho2(db):
     """
     Add all Tycho-2 stars to the database that are not found in Hipparcos or Tycho-1.
     The HD number is added from Tyc2_HD.
-    Astrometry is mean position at epoch J2000 (ICRS).
+    Astrometry is mean position at epoch J2000 (ICRS): no propagation is needed.
 
     :param db: An open SkyMapDatabase instance
     """
@@ -398,6 +297,10 @@ def add_tycho1(db):
     """
     print "Inserting Tycho-1 data"
     t1 = time.time()
+
+    delta_t = (Time("J2000.0") - Time("J1991.25")).value/365.25
+
+
     q = """
                 INSERT INTO skymap_stars (
                     tyc1, tyc2, tyc3,
@@ -447,7 +350,7 @@ def add_hipparcos(db):
                     right_ascension,
                     declination,
                     proper_motion_ra, proper_motion_dec,
-                    johnsonV, johnsonBV,
+                    johnsonV, johnsonBV, cousinsVI,
                     bt_magnitude, vt_magnitude,
                     hp_magnitude, hp_max, hp_min,
                     variable,
@@ -460,7 +363,7 @@ def add_hipparcos(db):
                       IFNULL(d.DEdeg, h.DEdeg),
                       IFNULL(d.pmRA, h.pmRA),
                       IFNULL(d.pmDE, h.pmDE),
-                      h.Vmag, h.`B-V`,
+                      h.Vmag, h.`B-V`, h.`V-I`,
                       IFNULL(d.BT, h.BTmag), 
                       IFNULL(d.VT, h.VTmag),
                       IFNULL(d.Hp, h.Hpmag),
@@ -469,7 +372,7 @@ def add_hipparcos(db):
                       h.HD, h.BD, h.CoD, h.CPD,
                       'H'
                 FROM 
-                    hiptyc_hip_main AS h
+                    hiptyc_hip_main AS h 
                 LEFT JOIN 
                     hiptyc_h_dm_com AS d ON d.HIP = h.HIP
                 LEFT JOIN

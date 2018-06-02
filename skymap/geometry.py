@@ -59,14 +59,35 @@ def sky2cartesian(points):
     return result
 
 
+def sky2cartesian_with_parallax(points_with_parallax):
+    phi = np.deg2rad(points_with_parallax[:, 0])
+    theta = np.pi / 2 - np.deg2rad(points_with_parallax[:, 1])
+    rho = 1.0/points_with_parallax[:, 2]
+    result = np.zeros((points_with_parallax.shape[0], 3))
+    result[:, 0] = rho * np.sin(theta) * np.cos(phi)
+    result[:, 1] = rho * np.sin(theta) * np.sin(phi)
+    result[:, 2] = rho * np.cos(theta)
+    return result
+
+
 def cartesian2sky(points):
-    #r = np.sqrt(np.square(points[:, 0]) + np.square(points[:, 1]))
     theta = np.arccos(points[:, 2])
     phi = np.arctan2(points[:, 1], points[:, 0])
     result = np.zeros((points.shape[0], 2))
     result[:, 0] = np.rad2deg(phi)
     result[:, 1] = np.rad2deg(np.pi/2 - theta)
+    return result
 
+
+def cartesian2sky_with_parallax(points):
+    """Cartesian coordinates in parsecs to ra, dec, parallax."""
+    r = np.linalg.norm(points, axis=1).reshape((points.shape[0], 1))
+    theta = np.arccos(points[:, 2]/r)
+    phi = np.arctan2(points[:, 1], points[:, 0])
+    result = np.zeros((points.shape[0], 3))
+    result[:, 0] = np.rad2deg(phi)
+    result[:, 1] = np.rad2deg(np.pi / 2 - theta)
+    result[:, 2] = 1.0/r
     return result
 
 

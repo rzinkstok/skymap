@@ -10,7 +10,7 @@ from skymap.database import SkyMapDatabase
 
 
 VIZIER_SERVER = "cdsarc.u-strasbg.fr"
-DATA_FOLDER = os.path.join(os.path.dirname(os.path.dirname(os.path.realpath(__file__))), "data")
+DATA_FOLDER = os.path.join(os.path.dirname(os.path.dirname(os.path.dirname(os.path.realpath(__file__)))), "data")
 
 # RE pattern to parse the Vizier ReadMe Byte-by-byte description.
 # This RE captures the start byte, stop byte, format and label to groups.
