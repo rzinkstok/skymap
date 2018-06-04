@@ -160,8 +160,9 @@ class Star(object):
 def build_star_database():
     """
     Builds the SkyMapDatabase using data from Tycho 2, Tycho, Hipparcos.
-    Adds supplementary data from the HD-DM-GC-HR-HIP-Bayer-Flamsteed Cross Index, the Bright Star Catalog and the IAU list of proper names.
-    Adds constellations.
+
+    Adds supplementary data from the HD-DM-GC-HR-HIP-Bayer-Flamsteed Cross Index, the Bright Star Catalog and
+    the IAU list of proper names. Adds constellations.
     """
 
     db = SkyMapDatabase()
@@ -180,7 +181,8 @@ def create_table(db):
     """
     Create the skymap_stars table in the SkyMapDatabase
 
-    :param db: An open SkyMapDatabase instance
+    Args:
+        db (skymap.database.SkyMapDatabase): An open SkyMapDatabase instance
     """
 
     db.drop_table("skymap_stars")
@@ -242,10 +244,11 @@ def create_table(db):
 def add_tycho2(db):
     """
     Add all Tycho-2 stars to the database that are not found in Hipparcos or Tycho-1.
-    The HD number is added from Tyc2_HD.
-    Astrometry is mean position at epoch J2000 (ICRS): no propagation is needed.
 
-    :param db: An open SkyMapDatabase instance
+    The HD number is added from Tyc2_HD. Astrometry is mean position at epoch J2000 (ICRS): no propagation is needed.
+
+    Args:
+        db (skymap.database.SkyMapDatabase): An open SkyMapDatabase instance
     """
 
     print "Inserting Tycho-2 data"
@@ -290,10 +293,11 @@ def add_tycho1(db):
     """
     Add all Tycho-1 stars to the database that are not found in Hipparcos or Tycho-2 supplement 2, and for which the
     Tycho quality flag is not equal to 9.
-    The HD number is added from Tyc2_HD.
-    Astrometry is mean position at epoch J1991.25 (ICRS).
 
-    :param db: An open SkyMapDatabase instance
+    The HD number is added from Tyc2_HD. Astrometry is mean position at epoch J1991.25 (ICRS).
+
+    Args:
+        db (skymap.database.SkyMapDatabase): An open SkyMapDatabase instance
     """
     print "Inserting Tycho-1 data"
     t1 = time.time()
@@ -339,7 +343,8 @@ def add_hipparcos(db):
     Add data from the Hipparcos catalog to the star database.
     Astrometry is mean position at epoch J1991.25 (ICRS).
 
-    :param db: An open SkyMapDatabase instance
+    Args:
+        db (skymap.database.SkyMapDatabase): An open SkyMapDatabase instance
     """
 
     print "Inserting Hipparcos data"
@@ -409,7 +414,8 @@ def add_indexes(db):
     """
     Add indexes to the star table on the TYC1-3, HIP, HD columns.
 
-    :param db: An open SkyMapDatabase instance
+    Args:
+        db (skymap.database.SkyMapDatabase): An open SkyMapDatabase instance
     """
 
     print "Adding indexes"
@@ -430,7 +436,8 @@ def add_cross_index(db):
     """
     Add information from the HD-DM-GC-HR-HIP-Bayer-Flamsteed Cross Index (IV/27A). Bayer, Flamsteed, HR numbers.
 
-    :param db: An open SkyMapDatabase instance
+    Args:
+        db (skymap.database.SkyMapDatabase): An open SkyMapDatabase instance
     """
 
     print "Adding New Cross Index data"
@@ -452,7 +459,8 @@ def add_bright_star_catalog(db):
     """
     Adds HR numbers from the Bright Star Catalog
 
-    :param db: An open SkyMapDatabase instance
+    Args:
+        db (skymap.database.SkyMapDatabase): An open SkyMapDatabase instance
     """
 
     print "Adding Bright Star Catalog data"
@@ -472,7 +480,8 @@ def add_proper_names(db):
     """
     Adds the IAU proper names to the star database.
 
-    :param db: An open SkyMapDatabase instance
+    Args:
+        db (skymap.database.SkyMapDatabase): An open SkyMapDatabase instance
     """
 
     print "Adding proper names"
@@ -539,7 +548,8 @@ def add_constellations(db):
     """
     Update the star database to include the correct constellation designation for each star.
 
-    :param db: An open SkyMapDatabase instance
+    Args:
+        db (skymap.database.SkyMapDatabase): An open SkyMapDatabase instance
     """
 
     print "Adding constellations"
@@ -574,11 +584,14 @@ def select_stars(magnitude, constellation=None, ra_range=None, dec_range=None):
     """
     Select a set of stars brighter than the given magnitude, based on coordinate range and/or constellation membership.
 
-    :param magnitude: The maximum magnitude to include
-    :param constellation: The constellation name; if given, only stars from that constellation are returned
-    :param ra_range: The range (min_ra, max_ra) of right ascension to include, in degrees
-    :param dec_range: The range (min_dec, max_dec) of declination to include, in degrees
-    :return: A list of Star objects
+    Args:
+        magnitude (float): The maximum magnitude to include
+        constellation (string): The constellation name; if given, only stars from that constellation are returned
+        ra_range (tuple): The range (min_ra, max_ra) of right ascension to include, in degrees
+        dec_range (tuple): The range (min_dec, max_dec) of declination to include, in degrees
+
+    Returns:
+        list: All Star objects in the database matching the criteria
     """
 
     # Build the query
@@ -626,18 +639,20 @@ Multiples:
 For each star, find stars within a certain angular separation. 
 Create table with IDs and for each star of the bunch add a reference to the brightest star of the bunch, and add the
 angular separation to the brightest.
-
-  
-
 """
 
 def sum_magnitudes(m1, m2):
     """
-    Computes the combined magnitude of two separate stars. Used when combining multiples into one displayed star.
+    Computes the combined magnitude of two separate stars.
 
-    :param m1: Magnitude of first star
-    :param m2: Magnitude of second star
-    :return: The combined magnitude
+    Used when combining multiples into one displayed star.
+
+    Args:
+        m1 (float): Magnitude of first star
+        m2 (float): Magnitude of second star
+
+    Returns:
+        float: The combined magnitude
     """
 
     return -2.5*math.log10(pow(10, -m1/2.5) + pow(10, -m2/2.5))
@@ -645,13 +660,16 @@ def sum_magnitudes(m1, m2):
 
 def get_stars_around_coordinate(ra, dec, angular_separation, db):
     """
-    Retrieves all stars from the database that are found within a specified angular separation from the given coordinate.
+    Retrieves all stars from the database found within a specified angular separation from the given coordinate.
 
-    :param ra: The right ascension around which to search, in degrees
-    :param dec: The declination around which to search, in degrees
-    :param angular_separation: The maximum distance from the coordinate to include, in seconds of arc
-    :param db: An opened SkyMapDatabase instance
-    :return: A query result containing all found stars
+    Args:
+        ra (float): The right ascension around which to search, in degrees
+        dec (float): The declination around which to search, in degrees
+        angular_separation (float): The maximum distance from the coordinate to include, in seconds of arc
+        db (skymap.database.SkyMapDatabase): An opened SkyMapDatabase instance
+
+    Returns:
+        A query result containing all found stars
     """
 
     # Transform the angular separation from seconds of arc to (local) degrees. Multiply by 1.2 for extra margin

@@ -60,9 +60,17 @@ def sky2cartesian(points):
 
 
 def sky2cartesian_with_parallax(points_with_parallax):
+    """
+
+    Args:
+        points_with_parallax: (ra, dec, parallax) with ra and dec in degrees and parallax in mas
+
+    Returns:
+        x, y, z in parsecs
+    """
     phi = np.deg2rad(points_with_parallax[:, 0])
     theta = np.pi / 2 - np.deg2rad(points_with_parallax[:, 1])
-    rho = 1.0/points_with_parallax[:, 2]
+    rho = 1000.0/points_with_parallax[:, 2]
     result = np.zeros((points_with_parallax.shape[0], 3))
     result[:, 0] = rho * np.sin(theta) * np.cos(phi)
     result[:, 1] = rho * np.sin(theta) * np.sin(phi)
@@ -87,7 +95,7 @@ def cartesian2sky_with_parallax(points):
     result = np.zeros((points.shape[0], 3))
     result[:, 0] = np.rad2deg(phi)
     result[:, 1] = np.rad2deg(np.pi / 2 - theta)
-    result[:, 2] = 1.0/r
+    result[:, 2] = 1000.0/r
     return result
 
 

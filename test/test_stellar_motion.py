@@ -32,3 +32,10 @@ class TesttellarMotion(unittest.TestCase):
         proper_motions[:, 1] = 20 * np.ones(self.npoints)
 
         res = rigorous_propagation(positions, proper_motions, "J1991.25", "J2000.0")
+
+    def test_barnards_star(self):
+        position = np.array((269.45402305, 4.66828815, 549.01)).reshape((1,3))
+        motion = np.array((-797.84, 10326.93, -110.6)).reshape(1,3)
+        print rigorous_propagation(position, motion, "J1991.25", "J2000.0")
+        print rigorous_propagation(position, motion, "J1991.25", "J2100.0")
+        print rigorous_propagation(position, motion, "J1991.25", "J2200.0")

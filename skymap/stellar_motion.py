@@ -4,7 +4,7 @@ from astropy.time import Time
 from skymap.geometry import sky2cartesian_with_parallax, cartesian2sky_with_parallax
 
 KM_PER_S_TO_PARSEC_PER_YEAR = 1.0/977780.0
-MAS_TO_RAD = 2 * math.pi / 360*60*60*1000
+MAS_TO_RAD = 2 * math.pi / (360*60*60*1000)
 
 
 def simplified_propagation(ra_dec_array, proper_motion_array, from_epoch, to_epoch):
@@ -57,10 +57,12 @@ def rigorous_propagation(ra_dec_parallax_array, velocity_array, from_epoch, to_e
     dt = (Time(to_epoch) - Time(from_epoch)).value / 365.25
 
     # Convert pm_RA and pm_DE to linear velocity in parsec/year
-    velocity_array[:, :2] = velocity_array[:, :2] * MAS_TO_RAD / ra_dec_parallax_array[:, 2].reshape((npoints, 1))
+    velocity_pc_year = np.zeros((npoints, 3))
+    distances = 1000.0 / ra_dec_parallax_array[:, 2].reshape((npoints, 1))
+    velocity_pc_year[:, :2] = velocity_array[:, :2] * MAS_TO_RAD * distances
 
     # Convert radial velocity to parsec/year
-    velocity_array[:, 2] = velocity_array[:, 2] * KM_PER_S_TO_PARSEC_PER_YEAR
+    velocity_pc_year[:, 2] = velocity_array[:, 2] * KM_PER_S_TO_PARSEC_PER_YEAR
 
     # Convert spherical to cartesian in parsecs
     r0 = sky2cartesian_with_parallax(ra_dec_parallax_array)
@@ -72,9 +74,9 @@ def rigorous_propagation(ra_dec_parallax_array, velocity_array, from_epoch, to_e
     q = np.cross(r, p)
 
     # Compute space velocity
-    vp = p * velocity_array[:, 0].reshape((npoints, 1))
-    vq = q * velocity_array[:, 1].reshape((npoints, 1))
-    vr = r * velocity_array[:, 2].reshape((npoints, 1))
+    vp = p * velocity_pc_year[:, 0].reshape((npoints, 1))
+    vq = q * velocity_pc_year[:, 1].reshape((npoints, 1))
+    vr = r * velocity_pc_year[:, 2].reshape((npoints, 1))
     v = vp + vq + vr
 
     # Propagate
