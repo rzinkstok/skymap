@@ -39,3 +39,5 @@ class TesttellarMotion(unittest.TestCase):
         print rigorous_propagation(position, motion, "J1991.25", "J2000.0")
         print rigorous_propagation(position, motion, "J1991.25", "J2100.0")
         print rigorous_propagation(position, motion, "J1991.25", "J2200.0")
+        print
+        print simplified_propagation(position, motion, "J1991.25", "J2000.0")

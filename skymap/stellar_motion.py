@@ -34,6 +34,9 @@ def simplified_propagation(ra_dec_array, proper_motion_array, from_epoch, to_epo
     result = np.zeros(ra_dec_array.shape)
     result[:, 0] = ra_dec_array[:, 0] + dt * pm_deg[:, 0] / np.cos(dec_rad)
     result[:, 1] = ra_dec_array[:, 1] + dt * pm_deg[:, 1]
+
+    # Ensure angles are in [0, 360) range
+    result[:2] = np.where(result[:2] < 0, 360 + result[:2], result[:2])
     return result
 
 
@@ -84,4 +87,7 @@ def rigorous_propagation(ra_dec_parallax_array, velocity_array, from_epoch, to_e
 
     # Convert to spherical
     result = cartesian2sky_with_parallax(rt)
+
+    # Ensure angles are in [0, 360) range
+    result[:2] = np.where(result[:2] < 0, 360 + result[:2], result[:2])
     return result
