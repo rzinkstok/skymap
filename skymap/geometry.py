@@ -81,7 +81,7 @@ def cartesian2sky(points):
 
 def cartesian2sky_with_parallax(points):
     """Cartesian coordinates in parsecs to ra, dec, parallax."""
-    r = np.linalg.norm(points, axis=1).reshape((points.shape[0], 1))
+    r = np.linalg.norm(points, axis=1)
     theta = np.arccos(points[:, 2]/r)
     phi = np.arctan2(points[:, 1], points[:, 0])
     result = np.zeros((points.shape[0], 3))
