@@ -4,7 +4,8 @@ from astropy.time import Time
 from skymap.geometry import sky2cartesian_with_parallax, cartesian2sky_with_parallax
 
 KM_PER_S_TO_PARSEC_PER_YEAR = 1.0/977780.0
-MAS_TO_RAD = 2 * math.pi / (360*60*60*1000)
+MAS_TO_DEG = 1.0 / (1000 * 60 * 60)
+MAS_TO_RAD = np.deg2rad(MAS_TO_DEG)
 
 
 def simplified_propagation(ra_dec_array, proper_motion_array, from_epoch, to_epoch):
@@ -25,7 +26,7 @@ def simplified_propagation(ra_dec_array, proper_motion_array, from_epoch, to_epo
     dt = (Time(to_epoch) - Time(from_epoch)).value / 365.25
 
     # Convert proper motions to degrees
-    pm_deg = proper_motion_array/(1000 * 60 * 60)
+    pm_deg = proper_motion_array * MAS_TO_DEG
 
     # Convert declination to rad
     dec_rad = np.deg2rad(ra_dec_array[:, 1])

@@ -1,6 +1,6 @@
 import math
 import numpy as np
-from astropy.coordinates import SkyCoord, BarycentricTrueEcliptic
+from astropy.coordinates import SkyCoord
 from astropy import units
 
 
@@ -31,6 +31,10 @@ class SkyCoordDeg(SkyCoord):
 
 # For converting constellation boundary to ICRS
 # SkyCoord(0, 0, unit="degree", frame=PrecessedGeocentric(equinox="B1875")).transform_to("icrs")
+
+
+def distance(p1, p2):
+    return np.linalg.norm(p1[:2] - p2[:2])
 
 
 def rotation_matrix(axis, angle):

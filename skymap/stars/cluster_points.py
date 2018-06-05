@@ -8,21 +8,10 @@ Idea:
 
 """
 
-from operator import attrgetter
 import numpy as np
-import math
-from scipy.spatial import distance_matrix
-from skymap.geometry import rotation_matrix, sky2cartesian, cartesian2sky, SkyCoordDeg
+from skymap.geometry import rotation_matrix, sky2cartesian, cartesian2sky, SkyCoordDeg, distance
 
 
-"""
-Forget the pairs, just add points that are close to another in 1 dimension to the set
-Then create the intersection, and do a double loop over this set
-"""
-
-
-def distance(p1, p2):
-    return np.linalg.norm(p1[:2] - p2[:2])
 
 
 # Brute force clustering

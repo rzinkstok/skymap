@@ -11,10 +11,6 @@ from skymap.geometry import ensure_angle_range
 from astropy.time import Time
 
 
-RAD_TO_DEG = 360.0/(2*math.pi)
-J1991_TO_J2000_PM_CONVERSION_FACTOR = ((datetime(2000, 1, 1).date() - datetime(1991, 4, 1).date()).days/365.25)/3.6e6
-KM_PER_S_TO_PARSEC_PER_YEAR = 1.0/977780.0
-MAS_FOR_FULL_CIRCLE = 360*60*60*1000.0
 HIPPARCOS_EPOCH = "J1991.25"
 TYCHO2_EPOCH = "J2000.0"
 
