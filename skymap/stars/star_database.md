@@ -12,13 +12,13 @@ For ease of use, these were converted to MySQL databases: all queries below are 
 
 The Hipparcos catalogue (118,218 stars) was first published in 1997, together with the larger Tycho catalogue (1,058,332 stars). 
 In 2000, the Tycho-2 catalogue was published, containing even more stars (2,539,913) at a slightly higher accuracy than Tycho-1.
-For all practical purposes, the newer Tycho-2 supersedes the earlier Tycho catalogue (from now on, Tycho-1) completely. The
-only exceptions is the variability data in Tycho-1: Tycho-2 does not say anything about that. For the 
+For all practical purposes, the newer Tycho-2 supersedes the earlier Tycho catalogue (from now on, Tycho-1) completely. Unfortunately,
+no parallax and variability data is present in the Tycho-2 catalog, which are included in Hipparcos and Tycho-1. For the 
 Hipparcos catalogue, a new reduction of the raw data was published in 2007, bringing much more accurate astrometrics.
 
-The astrometric accuracy of the Hipparcos catalogue is much better than that of the Tycho catalogues: for Hp < 9 mag, the median precision for the position 
-is 0.77/0.64 mas (RA/dec), and for proper motion 0.88/0.74 mas/yr (RA/dec). The Tycho catalogue does not get better than
-7 mas for stars with Vt < 9 mag. The photometric accuracy of Hipparcos is better as well: for Hp < 9 mag, the median photometric 
+The astrometric accuracy of the Hipparcos catalogue is much better than that of the Tycho catalogues: for Hp < 9 mag, 
+the median precision for the position is 0.77/0.64 mas (RA/DE), and for proper motion 0.88/0.74 mas/yr (RA/DE). The 
+Tycho catalogue does not get better than 7 mas for stars with Vt < 9 mag. The photometric accuracy of Hipparcos is better as well: for Hp < 9 mag, the median photometric 
 precision is 0.0015 mag, while Tycho-1 is limited to 0.012 mag (Vt).
 
 ## Structure of the databases
