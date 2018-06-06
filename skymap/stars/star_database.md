@@ -336,6 +336,37 @@ FROM
 WHERE h.RAdeg IS NOT NULL;
 ```
 
+## Alternative approach 2
+
+Astrometrics should come from Hipparcos-2 and Tycho-2: both are an improvement over their earlier counterparts. This
+means taking all Hipparcos-2 stars, and then add all Tycho-2 stars that are not in Hipparcos-2. 
+
+Problems to solve: 
+* the multiples in Hipparcos. These are not included in Hipparcos-2, so probably the easiest approach is to take Hipparcos-1
+data for all stars included in the multiples annex.
+* Hipparcos-2 and Tycho-2 do not include all photometry data, especially about variability. It would seem that photometry in Hipparcos-2
+is equal to that in Hipparcos-1 (though Hipparcos-2 includes only Hpmag, not VTmag and BTmag). Tycho-2 seems to have 
+updated photometry for all Tycho-1 stars but omits any variability data. This would suggest to take Hipparcos-1 
+photometry where available, and use Tycho-2 data elsewhere. Variability data for non-Hipparcos stars can be added from 
+Tycho-1.
+ 
+```SQL
+-- Hipparcos-2 stars that are not in the multiples annex
+SELECT COUNT(*) FROM hipnew_hip2 h2
+JOIN hiptyc_hip_main h1 ON h1.HIP=h2.HIP
+WHERE h1.HIP NOT IN (SELECT HIP FROM hiptyc_h_dm_com);
+
+-- Hipparcos-1 multiples
+SELECT COUNT(*) FROM hiptyc_hip_main h JOIN hiptyc_h_dm_com c ON h.HIP=c.HIP;
+
+-- Tycho-2 stars not in Hipparcos
+SELECT COUNT(*) FROM tyc2_tyc2 WHERE HIP IS NULL;
+
+-- Tycho-2 supplement 1 stars not in Hipparcos
+SELECT COUNT(*) FROM tyc2_suppl_1 WHERE HIP IS NULL;
+```
+
+
 
 ## Database colums
 
