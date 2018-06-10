@@ -1,4 +1,8 @@
 import time
+import urllib
+from bs4 import BeautifulSoup
+from astroquery.simbad import Simbad
+
 from skymap.database import SkyMapDatabase
 
 
@@ -183,12 +187,200 @@ def hipparcos_multiple(db):
 
 
 def tycho2(db):
+    print "Inserting Tycho-2 data"
+    t1 = time.time()
     q = """
-        
+        INSERT INTO skymap_stars (
+            tyc1, tyc2, tyc3,
+            hd1, hd2,
+            right_ascension,
+            declination,
+            proper_motion_ra, proper_motion_dec,
+            bt_magnitude, vt_magnitude,
+            johnsonV,
+            johnsonBV,
+            vt_max, vt_min, variable,
+            source
+        )
+        SELECT
+            t2.TYC1, t2.TYC2, t2.TYC3,
+            HD1, HD2,
+            IFNULL(t2.RAmdeg, t2.RAdeg) as RAdeg,
+            IFNULL(t2.DEmdeg, t2.DEdeg) as DEdeg,
+            t2.pmRA, t2.pmDE,
+            t2.BTmag, t2.VTmag,
+            t2.VTmag - 0.090 * (t2.BTmag - t2.VTmag) as JohnsonV,
+            0.085 * (t2.BTmag - t2.VTmag) as JohnsonBV,
+            t1.VTmax, t1.VTmin, t1.varflag='V',
+            'T2'
+        FROM tyc2_tyc2 AS t2
+        LEFT JOIN hiptyc_tyc_main t1 ON 
+            t1.TYC1=t2.TYC1 AND t1.TYC2=t2.TYC2 AND t1.TYC3=t2.TYC3
+        LEFT JOIN (
+            SELECT TYC1, TYC2, TYC3, MIN(HD) AS HD1, CASE WHEN COUNT(HD)>1 THEN MAX(HD) ELSE NULL END AS HD2
+            FROM tyc2hd_tyc2_hd
+            WHERE Rem!='D'
+            GROUP BY TYC1, TYC2, TYC3
+        ) AS t2hd
+        ON t2.TYC1=t2hd.TYC1 AND t2.TYC2=t2hd.TYC2 AND t2.TYC3=t2hd.TYC3
+        WHERE t2.HIP IS NULL 
+    """
+    db.commit_query(q)
+    t2 = time.time()
+    print "{:.1f} s".format(t2 - t1)
+
+
+def add_indices(db):
+    """
+    Add indices to the star table on the TYC1-3, HIP, HD columns.
+
+    Args:
+        db (skymap.database.SkyMapDatabase): An open SkyMapDatabase instance
     """
 
-if __name__ == "__main__":
+    print "Adding indices"
+    t1 = time.time()
+    db.add_index("skymap_stars", "HIP")
+    db.add_index("skymap_stars", "TYC1")
+    db.add_index("skymap_stars", "TYC2")
+    db.add_index("skymap_stars", "TYC3")
+    db.add_multiple_column_index("skymap_stars", ("TYC1", "TYC2", "TYC3"), "TYC")
+    db.add_index("skymap_stars", "HD1")
+    db.add_index("skymap_stars", "HD2")
+    db.add_index("skymap_stars", "HR")
+    t2 = time.time()
+    print "{:.1f} s".format(t2 - t1)
+
+
+def add_cross_index(db):
+    """
+    Add information from the HD-DM-GC-HR-HIP-Bayer-Flamsteed Cross Index (IV/27A). Bayer, Flamsteed, HR numbers.
+
+    Args:
+        db (skymap.database.SkyMapDatabase): An open SkyMapDatabase instance
+    """
+
+    print "Adding New Cross Index data"
+    t1 = time.time()
+    q = """
+        UPDATE skymap_stars, cross_index_catalog
+        SET
+          skymap_stars.bayer = cross_index_catalog.Bayer,
+          skymap_stars.flamsteed = cross_index_catalog.Fl,
+          skymap_stars.hr = cross_index_catalog.HR
+        WHERE cross_index_catalog.HD=skymap_stars.hd1 OR cross_index_catalog.HD=skymap_stars.hd2
+            """
+    db.commit_query(q)
+    t2 = time.time()
+    print "{:.1f} s".format(t2 - t1)
+
+
+def add_bright_star_catalog(db):
+    """
+    Adds HR numbers from the Bright Star Catalog
+
+    Args:
+        db (skymap.database.SkyMapDatabase): An open SkyMapDatabase instance
+    """
+
+    print "Adding Bright Star Catalog data"
+    t1 = time.time()
+    q = """
+        UPDATE skymap_stars, bsc_catalog
+        SET
+          skymap_stars.hr = bsc_catalog.hr
+        WHERE bsc_catalog.hd=skymap_stars.hd1 OR bsc_catalog.hd=skymap_stars.hd2
+    """
+    db.commit_query(q)
+    t2 = time.time()
+    print "{:.1f} s".format(t2 - t1)
+
+
+def add_proper_names(db):
+    """
+    Adds the IAU proper names to the star database.
+
+    Args:
+        db (skymap.database.SkyMapDatabase): An open SkyMapDatabase instance
+    """
+
+    print "Adding proper names"
+    t1 = time.time()
+
+    # Retrieve the proper name list
+    url = "https://www.iau.org/public/themes/naming_stars/"
+    r = urllib.urlopen(url).read()
+    soup = BeautifulSoup(r, "html5lib")
+
+    # Loop over all stars in the list
+    for tr in soup.find_all("tbody")[0].find_all("tr"):
+        tds = tr.find_all("td")
+        if not tds:
+            continue
+
+        designation = tds[1].get_text().strip()
+        if designation.startswith("HR"):
+            columns = ["HR"]
+            value = int(designation[2:].strip())
+        elif designation.startswith("HD"):
+            columns = ["HD1", "HD2"]
+            value = int(designation[2:].strip())
+        else:
+            result_table = Simbad.query_objectids(designation)
+            try:
+                value = int([x for x in result_table if x["ID"].startswith("HIP")][0]["ID"][3:].strip())
+            except IndexError:
+                continue
+            columns = ["HIP"]
+
+        proper_name = tds[0].get_text().strip()
+
+        # Find the brightes star with the given identifier
+        q = """SELECT id FROM skymap_stars WHERE {} = {}""".format(columns[0], value)
+        for c in columns[1:]:
+            q += """ OR {}={}""".format(c, value)
+        q += """ ORDER BY hp_magnitude ASC LIMIT 1"""
+        row = db.query_one(q)
+        if row is None:
+            continue
+
+        # Update the database record
+        q = """UPDATE skymap_stars SET proper_name="{}" WHERE id={}""".format(proper_name, row['id'])
+        db.commit_query(q)
+
+    # Add some special cases
+    special_cases = {
+        24186: "Kapteyn's Star",
+        49908: "Groombridge 1618",
+        57939: "Groombridge 1830",
+        105090: "Lacaille 8760",
+        114046: "Lacaille 9352",
+        54035: "Lalande 21185",
+        114622: "Bradley 3077"
+    }
+
+    for hip, proper_name in special_cases.items():
+        rid = db.query_one("""SELECT id FROM skymap_stars WHERE hip={} ORDER BY hp_magnitude ASC LIMIT 1""".format(hip))['id']
+        q = """UPDATE skymap_stars SET proper_name="{}" WHERE id={}""".format(proper_name, rid)
+        db.commit_query(q)
+
+    t2 = time.time()
+    print "{:.1f} s".format(t2 - t1)
+
+
+def build_stellar_database():
     db = SkyMapDatabase()
     create_table(db)
     hipparcos_single(db)
     hipparcos_multiple(db)
+    tycho2(db)
+    add_indices(db)
+    add_cross_index(db)
+    add_bright_star_catalog(db)
+    add_proper_names(db)
+
+
+if __name__ == "__main__":
+    build_database()
+
+

@@ -204,8 +204,6 @@ def build_database(catalogue, foldername, indices=(), extra_function=None):
     db = SkyMapDatabase()
 
     for filename, coldefs in datadicts.items():
-
-
         datatypes = [coldef['format'] for coldef in coldefs]
         # SQL is case insensitive, and Vizier sometimes has column names in the same file that
         # have equivalent names. So, the column names are checked and updated when needed.
@@ -254,10 +252,15 @@ def split_tyc():
         ADD COLUMN `TYC2` INT AFTER `TYC1`,
         ADD COLUMN `TYC3` INT AFTER `TYC2`
     """)
+
     db.commit_query("""
         UPDATE hiptyc_tyc_main
-        SET TYC1=CAST(substr(TYC, 1, 4) AS UNSIGNED), TYC2=CAST(substr(hiptyc_tyc_main.TYC, 5, 6) AS UNSIGNED), TYC3=CAST(substr(hiptyc_tyc_main.TYC, 11, 2) AS UNSIGNED)
+        SET 
+          TYC1=CAST(TRIM(SUBSTR(hiptyc_tyc_main.TYC, 1, 4)) AS UNSIGNED), 
+          TYC2=CAST(TRIM(SUBSTR(hiptyc_tyc_main.TYC, 5, 6)) AS UNSIGNED), 
+          TYC3=CAST(TRIM(SUBSTR(hiptyc_tyc_main.TYC, 11, 2)) AS UNSIGNED)
     """)
+
     db.add_index("hiptyc_tyc_main", "TYC1")
     db.add_index("hiptyc_tyc_main", "TYC2")
     db.add_index("hiptyc_tyc_main", "TYC3")
@@ -269,20 +272,24 @@ def add_tyc2_index():
     db.add_multiple_column_index("tyc2_tyc2", ("TYC1", "TYC2", "TYC3"), "TYC", unique=True)
 
 
+def build_stellar_source_databases():
+    build_database("VI/42", "cst_id")
+    build_database("VI/49", "cst_bound")
+    build_database("I/311", "hipnew", indices=["HIP", "m_HIP"])
+    build_database("I/239", "hiptyc", indices=["HIP", "m_HIP"], extra_function=split_tyc)
+    build_database("I/259", "tyc2", indices=["TYC1", "TYC2", "TYC3", "HIP", "CCDM"], extra_function=add_tyc2_index)
+    build_database("IV/25", "tyc2hd", indices=["TYC1", "TYC2", "TYC3", "HD"])
+    build_database("IV/27A", "cross_index", indices=["HD"])
+    build_database("V/50", "bsc", indices=['HR', 'HD'])
+
+
 if __name__ == "__main__":
-    # build_database("VI/42", "cst_id")
-    # build_database("VI/49", "cst_bound")
-    # build_database("I/311", "hipnew", indices=["HIP"])
-    #
-    # build_database("I/239", "hiptyc", indices=["HIP"], extra_function=split_tyc)
-    # build_database("I/259", "tyc2", indices=["TYC1", "TYC2", "TYC3", "HIP"], extra_function=add_tyc2_index)
-    # build_database("IV/25", "tyc2hd", indices=["TYC1", "TYC2", "TYC3", "HD"])
-    # build_database("IV/27A", "cross_index", indices=["HD"])
+
 
     # build_database("I/274", "ccdm")
     # build_database("B/gcvs", "gcvs")
     # build_database("I/276", "tdsc")
-    build_database("VII/118", "ngc")
-    # build_database("V/50", "bsc", indices=['HR', 'HD'])
+    # build_database("VII/118", "ngc")
+
 
     pass
