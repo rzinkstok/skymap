@@ -90,17 +90,18 @@ variability induced movers and stochastic solutions). These are not counted as r
 
 This means multiple systems can be found by the following:
 * Find all entries linked by a common CCDM identifier
-* Find all entries with number of components greater than 1; these have a multiplicity flag equal to C, and their component data is found in part C of the Double and Multiple Systems Annex)
+* Find all entries with number of components greater than 1; these have a multiplicity flag equal to C, and their component 
+data is found in part C of the Double and Multiple Systems Annex)
 
 If required, dubious multiple systems can be found by looking at entries where the multiplicity flag is set but unequal 
 to C (that is, G, O, V or X).
 
 Using this method, all double and multiple systems can be found, grouped by the CCDM identifier. Incidentally, there are 
 also entries with number of components equal to 1 that do have an entry in part C of the DMSA: these are always part of 
-a multy-entry (multi-pointing) system.
+a multi-entry (multi-pointing) system.
 
 In the language of the Hipparcos guide, systems are called two-pointing when two separate entries (two separate pointings
-of the sattelite's detector) describe a system having two or more components, and the astrometrics of the system is solved using
+of the satellite's detector) describe a system having two or more components, and the astrometrics of the system is solved using
 the data of both entries combined. Three-pointing and four-pointing systems are defined similarly. Not all 
 all entries linked by a common CCDM identifier are two-, three- or four-pointing: for some cases, the astrometrics are solved
 for each entry separately.
@@ -253,7 +254,7 @@ anymore. It is assumed that the later Tycho-2 assignments are the correct ones, 
 
 Perhaps also delete the 5075 stars with very poor astrometrics?
 
-Tycho-2 supplement 2 stars are removed from the database, while Tycho-2 supplement 1 are ignore as these are present in Hipparcos and/or Tycho-1.
+Tycho-2 supplement 2 stars are removed from the database, while Tycho-2 supplement 1 are ignored as these are present in Hipparcos and/or Tycho-1.
 
 Tycho-2 main: add stars not in Hipparcos/Tycho-1.
 
