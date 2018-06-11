@@ -253,12 +253,34 @@ def split_tyc():
         ADD COLUMN `TYC3` INT AFTER `TYC2`
     """)
 
+    db.commit_query("""DROP FUNCTION IF EXISTS SPLIT_TYC""")
+
+    db.commit_query("""
+        CREATE FUNCTION SPLIT_TYC(str VARCHAR(255), pos INT) RETURNS INT
+        BEGIN
+            SET str = TRIM(str);
+            WHILE INSTR(str, '  ') > 0 DO
+                SET str = REPLACE(str, '  ', ' ');
+            END WHILE;
+            SET str = REPLACE(
+                SUBSTRING(
+                    SUBSTRING_INDEX(str, ' ', pos), 
+                    CHAR_LENGTH(
+                        SUBSTRING_INDEX(str, ' ', pos - 1)
+                    ) + 1
+                )
+                , ' ', ''
+            );
+            RETURN CAST(str AS UNSIGNED);
+        END;
+    """)
+
     db.commit_query("""
         UPDATE hiptyc_tyc_main
         SET 
-          TYC1=CAST(TRIM(SUBSTR(hiptyc_tyc_main.TYC, 1, 4)) AS UNSIGNED), 
-          TYC2=CAST(TRIM(SUBSTR(hiptyc_tyc_main.TYC, 5, 6)) AS UNSIGNED), 
-          TYC3=CAST(TRIM(SUBSTR(hiptyc_tyc_main.TYC, 11, 2)) AS UNSIGNED)
+          TYC1=SPLIT_TYC(TYC, 1), 
+          TYC2=SPLIT_TYC(TYC, 2), 
+          TYC3=SPLIT_TYC(TYC, 3)
     """)
 
     db.add_index("hiptyc_tyc_main", "TYC1")
@@ -282,14 +304,3 @@ def build_stellar_source_databases():
     build_database("IV/27A", "cross_index", indices=["HD"])
     build_database("V/50", "bsc", indices=['HR', 'HD'])
 
-
-if __name__ == "__main__":
-
-
-    # build_database("I/274", "ccdm")
-    # build_database("B/gcvs", "gcvs")
-    # build_database("I/276", "tdsc")
-    # build_database("VII/118", "ngc")
-
-
-    pass
