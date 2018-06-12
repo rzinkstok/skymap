@@ -4,6 +4,7 @@ import re
 import time
 import ftplib
 import gzip
+import io
 from functools import partial
 
 from skymap.database import SkyMapDatabase
@@ -101,8 +102,9 @@ def parse_datafile(db, foldername, filename, table, coldefs, columns):
     filepath = os.path.join(DATA_FOLDER, foldername, filename)
     ext = os.path.splitext(filepath)[-1]
     if ext in ['.z', '.gz']:
-        fp = gzip.open(filepath)
-        rewind = fp.rewind
+        gfp = gzip.open(filepath)
+        fp = io.BufferedReader(gfp)
+        rewind = partial(fp.seek, 0)
     elif ext == ".dat":
         fp = open(filepath)
         rewind = partial(fp.seek, 0)
@@ -114,7 +116,7 @@ def parse_datafile(db, foldername, filename, table, coldefs, columns):
     rewind()
 
     # Loop over all lines, parse the data and add it in batches to the database
-    batchsize = 1000
+    batchsize = 500
     batch = []
     for i, line in enumerate(fp):
         sys.stdout.write("\r{0:.1f}%".format(i * 100.0 / (nrecords - 1)))
@@ -203,6 +205,8 @@ def build_database(catalogue, foldername, indices=(), extra_function=None):
     datadicts = parse_readme(foldername)
     db = SkyMapDatabase()
 
+    column_name_dict = {}
+
     for filename, coldefs in datadicts.items():
         datatypes = [coldef['format'] for coldef in coldefs]
         # SQL is case insensitive, and Vizier sometimes has column names in the same file that
@@ -219,9 +223,10 @@ def build_database(catalogue, foldername, indices=(), extra_function=None):
                 i += 1
 
             column_names.append(column_name)
+        table = "{}_{}".format(foldername, filename.split(".")[0])
+        column_name_dict[table] = column_names
 
         # Clear the database table
-        table = "{}_{}".format(foldername, filename.split(".")[0])
         db.drop_table(table)
         db.create_table(table, column_names, datatypes)
 
@@ -230,7 +235,8 @@ def build_database(catalogue, foldername, indices=(), extra_function=None):
         for real_file in real_files:
             parse_datafile(db, foldername, real_file, table, coldefs, column_names)
 
-        # Add indices
+    # Add indices
+    for table, column_names in column_name_dict.items():
         for ind in indices:
             if ind in column_names:
                 db.add_index(table, ind)
@@ -303,4 +309,3 @@ def build_stellar_source_databases():
     build_database("IV/25", "tyc2hd", indices=["TYC1", "TYC2", "TYC3", "HD"])
     build_database("IV/27A", "cross_index", indices=["HD"])
     build_database("V/50", "bsc", indices=['HR', 'HD'])
-

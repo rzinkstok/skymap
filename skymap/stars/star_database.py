@@ -379,8 +379,3 @@ def build_stellar_database():
     add_bright_star_catalog(db)
     add_proper_names(db)
 
-
-if __name__ == "__main__":
-    build_database()
-
-
