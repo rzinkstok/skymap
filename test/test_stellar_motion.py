@@ -1,7 +1,7 @@
 import unittest
 import numpy as np
 
-from skymap.stellar_motion import simplified_propagation, rigorous_propagation
+from skymap.stars.stellar_motion import simplified_propagation, rigorous_propagation
 
 
 class TesttellarMotion(unittest.TestCase):
@@ -36,5 +36,5 @@ class TesttellarMotion(unittest.TestCase):
     def test_barnards_star(self):
         position = np.array((269.45402305, 4.66828815, 549.01)).reshape((1,3))
         motion = np.array((-797.84, 10326.93, -110.6)).reshape(1,3)
-        print rigorous_propagation(position, motion, "J1991.25", "J2100.0")
-        print simplified_propagation(position, motion, "J1991.25", "J2000.0")
+        rigorous_propagation(position, motion, "J1991.25", "J2100.0")
+        simplified_propagation(position, motion, "J1991.25", "J2000.0")

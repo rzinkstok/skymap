@@ -1,0 +1,1 @@
+from maparea import MapArea

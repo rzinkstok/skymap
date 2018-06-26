@@ -1,5 +1,5 @@
 import unittest
-from skymap.projections import AzimuthalEquidistantProjection, EquidistantCylindricalProjection, EquidistantConicProjection
+from skymap.map.projections import AzimuthalEquidistantProjection, EquidistantCylindricalProjection, EquidistantConicProjection
 from skymap.geometry import Point, SkyCoordDeg
 
 

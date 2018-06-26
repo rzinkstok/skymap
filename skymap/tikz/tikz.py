@@ -131,6 +131,12 @@ class Tikz(object):
         if not self.started:
             self.start()
 
+        if not self.current_picture.opened:
+            self.current_picture.open()
+
+        if not self.current_picture.closed:
+            self.current_picture.close()
+
         if not self.finished:
             self.finish()
 

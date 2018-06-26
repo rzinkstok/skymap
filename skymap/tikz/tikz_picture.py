@@ -33,15 +33,24 @@ class TikzPicture(object):
         self.width = p2.x - p1.x
         self.height = p2.y - p1.y
 
+        self.texfile = None
         self._dotted = False
         self._dashed = False
         self.linewidth = 0.5
         self.color = "black"
         self.opened = False
+        self.closed = False
 
         tikz.add(self)
 
     def set_origin(self, origin):
+        """
+        Sets the location of the origin of the coordinate system for the picture.
+        The minimum and maximum x and y values for the picture, as well as the bounding box, are determined as well.
+
+        Args:
+            origin (skymap.geometry.Point): the location in absolute paper coordinates
+        """
         self.origin = origin
         self.minx = self.p1.x - self.origin.x
         self.maxx = self.p2.x - self.origin.x
@@ -53,6 +62,8 @@ class TikzPicture(object):
     def open(self):
         if self.opened:
             return
+        if self.closed:
+            raise RuntimeError("You cannot re-open a TikzPicture")
 
         if self.origin != Point(0, 0):
             shift = "{([shift={" + self.point_to_coordinates(self.origin) + "}]current page.south west)}"
@@ -66,19 +77,24 @@ class TikzPicture(object):
             self.draw_bounding_box()
 
     def close(self):
-        if not self.opened:
+        if not self.opened or self.closed:
             return
 
         self.comment("")
         self.texfile.write("\\end{tikzpicture}\n\n")
-        self.texfile = None
+        self.closed = True
 
     def set_texfile(self, texfile):
         self.texfile = texfile
 
     @contextmanager
     def clip(self, path=None):
-        """Clips the enclosed drawing actions to the given path"""
+        """
+        Context manager for clipping the enclosed drawing actions to the given path.
+
+        Args:
+            path: the clipping path to use
+        """
         if path is None:
             path = self.bounding_box.path
         self.comment("Clipping")
