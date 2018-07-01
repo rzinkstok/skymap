@@ -10,6 +10,8 @@ Welcome to skymap's documentation!
    :maxdepth: 2
    :caption: Contents:
 
+   modules/tikz
+   modules/database
 
 
 Indices and tables
