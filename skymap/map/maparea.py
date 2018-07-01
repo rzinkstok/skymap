@@ -15,9 +15,7 @@ MapArea
 
 """
 
+
 class MapArea(TikzPicture):
     def __init__(self, tikz, p1, p2):
         TikzPicture.__init__(self, tikz, p1, p2, origin=None, boxed=True)
-
-
-

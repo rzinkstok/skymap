@@ -1,3 +1,6 @@
+"""
+Tikz figure interface.
+"""
 import os
 import subprocess
 import shutil
@@ -13,6 +16,15 @@ os.environ['PATH'] = "/Library/TeX/texbin:"+os.environ['PATH']
 
 
 class Tikz(object):
+    """
+    Tikz document class.
+
+    Args:
+        name (str): the base name for the tex and pdf files
+        papersize (skymap.tikz.Papersize): PaperSize instance indicating the page dimensions
+        margins (skymap.tikz.PaperMargin): PaperMargin instance describing the margins to use
+        normalsize (int): the standard fontsize to use
+    """
     def __init__(self, name, papersize=PaperSize(), margins=PaperMargin(), normalsize=11):
         self.name = name
         self.papersize = papersize

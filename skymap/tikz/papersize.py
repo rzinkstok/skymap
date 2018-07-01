@@ -153,7 +153,7 @@ class PaperSize(object):
         return x, y
 
     def __repr__(self):
-        return "{} ({} mm x {} mm)".format(self.name, self.width, self.height)
+        return "PaperSize({}, {} mm x {} mm)".format(self.name, self.width, self.height)
 
 
 class PaperMargin(object):
@@ -180,7 +180,7 @@ class PaperMargin(object):
         return self.bottom
 
     def __repr__(self):
-        return "Margins: left {} mm, right {} mm, top {} mm, bottom {} mm".format(self.left, self.right, self.top, self.bottom)
+        return "PaperMargins(left {} mm, right {} mm, top {} mm, bottom {} mm)".format(self.left, self.right, self.top, self.bottom)
 
 
 if __name__ == "__main__":
