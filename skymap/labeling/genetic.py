@@ -2,7 +2,7 @@ import random
 from deap import base, creator, tools
 from rtree.index import Index
 
-from skymap.labeling.common import BBOX_PENALTY, POSITION_WEIGHT, evaluate_label
+from skymap.labeling.common import evaluate_label
 
 
 class GeneticLabeler(object):
@@ -31,26 +31,6 @@ class GeneticLabeler(object):
         self.toolbox.register("mutate", tools.mutUniformInt, low=0, up=7, indpb=0.05)
         self.toolbox.register("select", tools.selTournament, tournsize=5)
 
-    def evaluate_fitness_old(self, individual):
-        penalty = 0
-
-        for i, lp1 in enumerate(self.labeled_points):
-            c1 = lp1.label_candidates[individual[i]]
-            penalty += POSITION_WEIGHT * c1.position
-            for j, lp2 in enumerate(self.labeled_points):
-                if j <= i:
-                    continue
-                c2 = lp2.label_candidates[individual[j]]
-                penalty += 2 * c1.overlap(c2, False)
-
-            for j, p in enumerate(self.points):
-                penalty += p.overlap(c1)
-
-            if c1.overlap(self.bounding_box, False) < c1.area():
-                penalty += BBOX_PENALTY
-
-        return -penalty,
-
     def evaluate_fitness(self, individual):
         penalty = 0
         for lpid, pos in enumerate(individual):
@@ -62,21 +42,6 @@ class GeneticLabeler(object):
 
             penalty += evaluate_label(lc, self.items, self.idx, selected_only=True)
         return -penalty,
-
-    def evaluate_fitness_population(self, pop):
-        penalties = [0 for ind in pop]
-
-        for i, ind in enumerate(pop):
-            for lpid, pos in enumerate(ind):
-                self.labeled_points[lpid].label_candidates[pos].select()
-
-            for lpid, lcid in enumerate(ind):
-                lp = self.labeled_points[lpid]
-                lc = lp.label_candidates[lcid]
-
-                penalties[i] += evaluate_label(lc, self.items, self.idx, selected_only=True)
-
-        return [(-penalty,) for penalty in penalties]
 
     def build_index(self):
         label_candidates = []
@@ -95,13 +60,7 @@ class GeneticLabeler(object):
     def run(self):
         pop = self.toolbox.population(n=400)
 
-        old = True
-
-        if old:
-            fitnesses = list(map(self.toolbox.evaluate, pop))
-        else:
-            fitnesses = self.evaluate_fitness_population(pop)
-
+        fitnesses = list(map(self.toolbox.evaluate, pop))
         for ind, fit in zip(pop, fitnesses):
             ind.fitness.values = fit
 
@@ -136,10 +95,7 @@ class GeneticLabeler(object):
             # Evaluate the individuals with an invalid fitness
             invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
 
-            if old:
-                fitnesses = map(self.toolbox.evaluate, invalid_ind)
-            else:
-                fitnesses = self.evaluate_fitness_population(invalid_ind)
+            fitnesses = map(self.toolbox.evaluate, invalid_ind)
             for ind, fit in zip(invalid_ind, fitnesses):
                 ind.fitness.values = fit
 
