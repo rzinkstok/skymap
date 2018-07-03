@@ -1,24 +1,96 @@
 import unittest
 import numpy as np
-from skymap.labeling.labeledpoint import LabeledPoint, Candidate, Point
+from rtree.index import Index
+import random
+from skymap.labeling.labeledpoint import Point, Label
 from skymap.labeling.runner import BoundingBox
+import timeit
+
+class Box(object):
+    def __init__(self, index):
+        self.index = index
+        x = random.random()
+        y = random.random()
+        w = 0.02
+        h = 0.5 * w
+        self.box = x - w / 2, y - h / 2, x + w / 2, y + h / 2
 
 
-class CandidateTest(unittest.TestCase):
-    def test_overlap(self):
-        bb = BoundingBox(0, 0, 1, 1)
-        p = np.array((0.75, 0.5))
-        lp = LabeledPoint(p, 0, "Bla", 12, 0)
-        lp.width = 1.0
-        lp.height = 0.5
-        c = Candidate(lp, 0, 0)
-        self.assertEquals(c.minx, 0.75)
-        self.assertEquals(c.maxx, 1.75)
-        self.assertEquals(c.miny, 0.25)
-        self.assertEquals(c.maxy, 0.75)
+class RTreeTest(unittest.TestCase):
+    def Xtest_insertion(self):
+        repeat = 10
+        basen = 100
+        boxes = [Box(i) for i in range(basen)]
+        t = timeit.Timer(lambda: self.insert_boxes(boxes), setup=lambda: self.create_index_data([]))
+        print t.timeit(number=repeat) / repeat
 
-        self.assertEquals(c.intersection_rectangle(bb, False), 0.125)
-        self.assertEquals(c.area(), 0.5)
+        n = 100000
+        prior_boxes = [Box(i) for i in range(n)]
+        boxes = [Box(i) for i in range(n, n + basen)]
+        t = timeit.Timer(lambda: self.insert_boxes(boxes), setup=lambda: self.create_index_data(prior_boxes))
+        print t.timeit(number=repeat) / repeat
 
-        p2 = Point(np.array((0.25, 0.75)), 0.25)
-        self.assertEquals(c.intersection_point(p2), 0)
+    def Xtest_creation(self):
+        repeat = 10
+        basen = 100
+        boxes = [Box(i) for i in range(basen)]
+        t = timeit.Timer(lambda: self.create_index_data(boxes))
+        t0 = t.timeit(number=repeat) / repeat
+        print basen, t0
+        for i in range(6):
+            m = 2 ** (i + 1)
+            n = m * basen
+            boxes = [Box(i) for i in range(n)]
+            t = timeit.Timer(lambda: self.create_index_data(boxes))
+            t1 = t.timeit(number=repeat) / repeat
+            print n, m, t1, t1 / t0
+
+    def Xtest_stream(self):
+        repeat = 10
+        n = 10000
+
+        boxes = []
+        for i in range(n):
+            boxes.append(Box(i))
+
+        def box_generator():
+            for b in boxes:
+                yield (b.index, b.box, b.index)
+
+        t = timeit.Timer(lambda: self.create_index_data(boxes))
+        print t.timeit(number=repeat) / repeat
+
+        t = timeit.Timer(lambda: self.create_index_stream(box_generator()))
+        print t.timeit(number=repeat) / repeat
+
+    def test_query(self):
+        repeat = 10
+        boxes = [Box(i) for i in range(100)]
+        self.create_index_data(boxes)
+        test_boxes = random.sample(boxes, 10)
+
+        t = timeit.Timer(lambda: self.query_index(test_boxes))
+        print t.timeit(number=repeat) / repeat
+
+        boxes = [Box(i) for i in range(100000)]
+        self.create_index_data(boxes)
+        test_boxes = random.sample(boxes, 10)
+
+        t = timeit.Timer(lambda: self.query_index(test_boxes))
+        print t.timeit(number=repeat) / repeat
+
+    def insert_boxes(self, boxes):
+        for b in boxes:
+            self.idx.insert(b.index, b.box)
+
+    def create_index_data(self, data):
+        self.idx = Index()
+        for d in data:
+            self.idx.insert(d.index, d.box, d.index)
+
+    def create_index_stream(self, generator):
+        self.idx = Index(generator)
+
+    def query_index(self, boxes):
+        for b in boxes:
+            overlapping_boxes = self.idx.intersection(b.box)
