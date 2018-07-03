@@ -1,6 +1,8 @@
 import random
-from deap import base, creator, tools
+import numpy
+from deap import base, creator, tools, algorithms
 from rtree.index import Index
+import matplotlib.pyplot as plt
 
 from skymap.labeling.common import evaluate_label
 
@@ -15,6 +17,9 @@ class GeneticLabeler(object):
 
         self.build_index()
 
+        # DEAP parameters
+        self.ngenerations = 150
+        self.nindividuals = 400
         self.mutation_prob = 0.4
         self.crossover_prob = 0.8
 
@@ -58,81 +63,47 @@ class GeneticLabeler(object):
             self.idx.insert(i, item.box)
 
     def run(self):
-        pop = self.toolbox.population(n=400)
+        pop = self.toolbox.population(n=self.nindividuals)
+        hof = tools.HallOfFame(1)
+        stats = tools.Statistics(lambda ind: ind.fitness.values)
+        stats.register("avg", numpy.mean)
+        stats.register("std", numpy.std)
+        stats.register("min", numpy.min)
+        stats.register("max", numpy.max)
 
-        fitnesses = list(map(self.toolbox.evaluate, pop))
-        for ind, fit in zip(pop, fitnesses):
-            ind.fitness.values = fit
+        pop, log = algorithms.eaSimple(
+            pop,
+            self.toolbox,
+            cxpb=self.crossover_prob,
+            mutpb=self.mutation_prob,
+            ngen=self.ngenerations,
+            stats=stats,
+            halloffame=hof,
+            verbose=True
+        )
 
-        g = 0
-        no_change_g = 0
-        prev_max = None
+        self.plot(log)
 
-        # Begin the evolution
-        while g < 1000 and no_change_g < 15 and prev_max < 0.0:
-            # A new generation
-            g = g + 1
-            print("-- Generation %i --" % g)
-
-            # Select the next generation individuals
-            offspring = self.toolbox.select(pop, len(pop))
-
-            # Clone the selected individuals
-            offspring = list(map(self.toolbox.clone, offspring))
-
-            # Apply crossover and mutation on the offspring
-            for child1, child2 in zip(offspring[::2], offspring[1::2]):
-                if random.random() < self.crossover_prob:
-                    self.toolbox.mate(child1, child2)
-                    del child1.fitness.values
-                    del child2.fitness.values
-
-            for mutant in offspring:
-                if random.random() < self.mutation_prob:
-                    self.toolbox.mutate(mutant)
-                    del mutant.fitness.values
-
-            # Evaluate the individuals with an invalid fitness
-            invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
-
-            fitnesses = map(self.toolbox.evaluate, invalid_ind)
-            for ind, fit in zip(invalid_ind, fitnesses):
-                ind.fitness.values = fit
-
-            pop[:] = offspring
-
-            # Gather all the fitnesses in one list and print the stats
-            fits = [ind.fitness.values[0] for ind in pop]
-
-            length = len(pop)
-            mean = sum(fits) / length
-            sum2 = sum(x * x for x in fits)
-            std = abs(sum2 / length - mean ** 2) ** 0.5
-
-            m = max(fits)
-            if prev_max is not None:
-                deltamax = m - prev_max
-            else:
-                deltamax = None
-
-            if deltamax is None or abs(deltamax) > 0:
-                prev_max = m
-                no_change_g = 0
-            else:
-                no_change_g += 1
-
-            #print("  Min %s" % min(fits))
-            print("   Max %s" % max(fits))
-            #print("  Avg %s" % mean)
-            #print("  Std %s" % std)
-            #print("  No change %s" % no_change_g)
-            #print("  Delta %s" % deltamax)
-
-        bestind = pop[0]
-        for ind in pop:
-            f = ind.fitness.values[0]
-            if f > bestind.fitness.values[0]:
-                bestind = ind
-
-        for lp, i in zip(self.labeled_points, bestind):
+        for lp, i in zip(self.labeled_points, hof[0]):
             lp.label_candidates[i].select()
+
+    def plot(self, logbook):
+        gen = logbook.select("gen")
+        fit_mins = logbook.select("min")
+        fit_avgs = logbook.select("avg")
+        fit_maxs = logbook.select("max")
+
+        fig, ax1 = plt.subplots()
+        line1 = ax1.plot(gen, fit_mins, "b-", label="Minimum Fitness")
+        line2 = ax1.plot(gen, fit_avgs, "r-", label="Average Fitness")
+        line3 = ax1.plot(gen, fit_maxs, "g-", label="Maximum Fitness")
+        ax1.set_xlabel("Generation")
+        ax1.set_ylabel("Fitness", color="b")
+        for tl in ax1.get_yticklabels():
+            tl.set_color("b")
+
+        lns = line1 + line2 + line3
+        labs = [l.get_label() for l in lns]
+        ax1.legend(lns, labs, loc="center right")
+
+        plt.show()
