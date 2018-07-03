@@ -1,6 +1,5 @@
 from operator import attrgetter
-import time
-from skymap.labeling.labeledpoint import BBOX_PENALTY, POINT_PENALTY, evaluate_labels
+from skymap.labeling.common import evaluate_labels
 
 
 class GreedyLabeler(object):
@@ -12,10 +11,7 @@ class GreedyLabeler(object):
         for lp in self.points:
             self.label_candidates.extend(lp.label_candidates)
 
-        penalties = evaluate_labels(self.label_candidates, self.points, self.bounding_box)
-
-        for l in self.label_candidates:
-            l.penalty = penalties[l.index]
+        evaluate_labels(self.label_candidates, self.points, self.bounding_box)
 
     def run(self):
         sorted_label_candidates = sorted(self.label_candidates, key=attrgetter("penalty"))
@@ -23,6 +19,9 @@ class GreedyLabeler(object):
             p = label_candidate.point
             if not p.label:
                 label_candidate.select()
+
+    def result(self):
+        return [p.label_index for p in self.points if p.label_index is not None]
 
 
 class AdvancedGreedyLabeler(GreedyLabeler):

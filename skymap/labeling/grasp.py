@@ -1,31 +1,53 @@
+from rtree.index import Index
+
 from skymap.labeling.greedy import AdvancedGreedyLabeler
+from skymap.labeling.common import POSITION_WEIGHT
 
 
 class GraspLabeler(AdvancedGreedyLabeler):
-    def __init__(self, labeled_points, points, bounding_box, iterations=5):
-        AdvancedGreedyLabeler.__init__(self, labeled_points, points, bounding_box)
+    def __init__(self, points, bounding_box, iterations=5):
+        AdvancedGreedyLabeler.__init__(self, points, bounding_box)
         self.iterations = iterations
 
     def run(self):
         AdvancedGreedyLabeler.run(self)
+        labeled_points = [p for p in self.points if p.text]
+
+        items = []
+        items.extend([p.label for p in labeled_points])
+        items.extend(self.points)
+        items.extend(self.bounding_box.borders)
+
+        idx = Index()
+        for i, item in enumerate(items):
+            item.index = i
+            idx.insert(item.index, item.box)
 
         for i in range(self.iterations):
-            for lp in self.labeled_points:
+            for lp in labeled_points:
                 best_candidate = None
-                for c1 in lp.candidates:
-                    c1.penalty = 0
-                    for lp2 in self.labeled_points:
-                        if lp2 == lp:
+                min_penalty = None
+                for lc1 in lp.label_candidates:
+                    penalty = POSITION_WEIGHT * lc1.position
+
+                    # Check overlap with other labels and points
+                    intersecting_item_ids = idx.intersection(lc1.box)
+                    for item_id in intersecting_item_ids:
+                        item = items[item_id]
+                        if hasattr(item, "point") and lc1.point == item.point:
                             continue
-                        c2 = lp2.candidates[lp2.selected_candidate]
-                        c1.penalty += c1.intersection_candidate(c2)
+                        penalty += item.overlap(lc1)
 
-                    for p in self.points:
-                        c1.penalty += c1.intersection_point(p)
+                    if min_penalty is None or penalty < min_penalty:
+                        min_penalty = penalty
+                        best_candidate = lc1
 
-                    if c1.intersection_candidate(self.bounding_box, False) < c1.area():
-                        c1.penalty += 10000
+                # Remove the old label from the index
+                idx.delete(lp.label.index, lp.label.box)
 
-                    if best_candidate is None or c1.penalty < best_candidate.penalty:
-                        best_candidate = c1
-                lp.select_candidate(best_candidate)
+                # Select the new label
+                best_candidate.select()
+
+                # Add the new label to the index and item list
+                idx.insert(len(items), lp.label.box)
+                items.append(lp.label)

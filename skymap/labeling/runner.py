@@ -1,34 +1,18 @@
 import time
-import numpy as np
+import random
 from PIL import Image, ImageDraw
 
-from skymap.labeling.labeledpoint import Point, evaluate_labels
+from skymap.labeling.common import Point, BoundingBox, evaluate_labels, POSITION_WEIGHT
 from skymap.labeling.greedy import GreedyLabeler, AdvancedGreedyLabeler
 from skymap.labeling.grasp import GraspLabeler
 from skymap.labeling.genetic import GeneticLabeler
 
 
-class BoundingBox(tuple):
-    def __new__(self, x1, y1, x2, y2):
-        return tuple.__new__(BoundingBox, (x1, y1, x2, y2))
-
-    @property
-    def box(self):
-        return self
-
-
-
 def evaluate(points, bounding_box):
     labels = [p.label for p in points if p.label]
-    penalties = evaluate_labels(labels, points, bounding_box, include_position=False)
+    penalties = evaluate_labels(labels, points, bounding_box)
 
-    total_penalty = 0
-
-    for p in points:
-        if p.label is None:
-            continue
-        p.label.penalty = penalties[p.label.index]
-        total_penalty += p.label.penalty
+    total_penalty = sum(penalties)
 
     return total_penalty
 
@@ -54,7 +38,7 @@ def draw(points, width, height):
             x2 = p.label.maxx * SCALE
             y1 = (height - p.label.miny) * SCALE
             y2 = (height - p.label.maxy) * SCALE
-            if p.label.penalty > 0:
+            if p.label.penalty > POSITION_WEIGHT * p.label.position:
                 color = (256, 0, 0)
             else:
                 color = (200, 200, 200)
@@ -64,26 +48,26 @@ def draw(points, width, height):
 
 
 if __name__ == "__main__":
-    np.random.seed(1)
+    random.seed(1)
 
-    npoints = 60
-    mapwidth = 200
-    mapheight = 200
+    npoints = 1000
+    nlabels = 100
+    mapwidth = 500
+    mapheight = 500
     bounding_box = BoundingBox(0, 0, mapwidth, mapheight)
 
-    points1 = np.zeros((npoints, 2), dtype=float)
-    points1[:, 0] = mapwidth * np.random.random((npoints,))
-    points1[:, 1] = mapheight * np.random.random((npoints,))
+    points = []
+    for i in range(npoints):
+        x = mapwidth * random.random()
+        y = mapheight * random.random()
+        if random.random() < float(nlabels)/npoints:
+            text = "Label for point {}".format(i)
+            p = Point(x, y, 1, text, 0)
+        else:
+            p = Point(x, y, 1)
+        points.append(p)
 
-    points = [Point(p[0], p[1], 1, "Label for point {}".format(i), 0) for i, p in enumerate(points1)]
-
-    npoints *= 1
-    points2 = np.zeros((npoints, 2), dtype=float)
-    points2[:, 0] = mapwidth * np.random.random((npoints,))
-    points2[:, 1] = mapheight * np.random.random((npoints,))
-    points.extend([Point(p[0], p[1], 1) for p in points2])
-
-    method = 3
+    method = 4
     if method == 1:
         g = GreedyLabeler(points, bounding_box)
     elif method == 2:
@@ -91,10 +75,15 @@ if __name__ == "__main__":
     elif method == 3:
         g = GraspLabeler(points, bounding_box)
     elif method == 4:
-        g = GeneticLabeler(labeled_points, points, bounding_box)
+        g = GeneticLabeler(points, bounding_box)
+
+    t1 = time.clock()
+
 
     g.run()
+    t2 = time.clock()
+    print "Run time:", t2 - t1
     penalty = evaluate(g.points, g.bounding_box)
     print "Penalty:", penalty
 
-    #draw(points, mapwidth, mapheight)
+    draw(points, mapwidth, mapheight)

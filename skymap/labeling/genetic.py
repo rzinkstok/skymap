@@ -1,57 +1,107 @@
 import random
 from deap import base, creator, tools
-from skymap.labeling.labeledpoint import BBOX_PENALTY
+from rtree.index import Index
+
+from skymap.labeling.common import BBOX_PENALTY, POSITION_WEIGHT, evaluate_label
 
 
 class GeneticLabeler(object):
-    def __init__(self, labeled_points, points, bounding_box):
-        self.labeled_points = labeled_points
+    def __init__(self, points, bounding_box):
         self.points = points
         self.bounding_box = bounding_box
-        self.npoints = len(labeled_points)
+        self.labeled_points = [p for p in self.points if p.text]
+        for i, lp in enumerate(self.labeled_points):
+            lp.labeled_point_index = i
+
+        self.build_index()
+
         self.mutation_prob = 0.4
-        self.crossover_prob = 0.4
+        self.crossover_prob = 0.8
 
         creator.create("FitnessMax", base.Fitness, weights=(1.0,))
         creator.create("Individual", list, fitness=creator.FitnessMax)
 
         self.toolbox = base.Toolbox()
         self.toolbox.register("attr_bool", random.randint, 0, 7)
-        self.toolbox.register("individual", tools.initRepeat, creator.Individual,self. toolbox.attr_bool, self.npoints)
+        self.toolbox.register("individual", tools.initRepeat, creator.Individual, self. toolbox.attr_bool, len(self.labeled_points))
         self.toolbox.register("population", tools.initRepeat, list, self.toolbox.individual)
 
         self.toolbox.register("evaluate", self.evaluate_fitness)
         self.toolbox.register("mate", tools.cxTwoPoint)
-        self.toolbox.register("mutate", tools.mutUniformInt, low=0, up=7, indpb=0.1)
-        self.toolbox.register("select", tools.selTournament, tournsize=3)
+        self.toolbox.register("mutate", tools.mutUniformInt, low=0, up=7, indpb=0.05)
+        self.toolbox.register("select", tools.selTournament, tournsize=5)
 
-    def evaluate_fitness(self, individual):
+    def evaluate_fitness_old(self, individual):
         penalty = 0
 
         for i, lp1 in enumerate(self.labeled_points):
-            c1 = lp1.candidates[individual[i]]
-
+            c1 = lp1.label_candidates[individual[i]]
+            penalty += POSITION_WEIGHT * c1.position
             for j, lp2 in enumerate(self.labeled_points):
-                c2 = lp2.candidates[individual[j]]
+                if j <= i:
+                    continue
+                c2 = lp2.label_candidates[individual[j]]
+                penalty += 2 * c1.overlap(c2, False)
 
-                if j > i:
-                    penalty += 2 * c1.intersection_rectangle(c2)
+            for j, p in enumerate(self.points):
+                penalty += p.overlap(c1)
 
-                if i != j:
-                    penalty += c1.intersection_point(lp2)
-
-            for p in self.points:
-                penalty += c1.intersection_point(p)
-
-            if c1.intersection_rectangle(self.bounding_box, False) < c1.area():
+            if c1.overlap(self.bounding_box, False) < c1.area():
                 penalty += BBOX_PENALTY
 
         return -penalty,
 
-    def run(self):
-        pop = self.toolbox.population(n=300)
+    def evaluate_fitness(self, individual):
+        penalty = 0
+        for lpid, pos in enumerate(individual):
+            self.labeled_points[lpid].label_candidates[pos].select()
 
-        fitnesses = list(map(self.toolbox.evaluate, pop))
+        for lpid, lcid in enumerate(individual):
+            lp = self.labeled_points[lpid]
+            lc = lp.label_candidates[lcid]
+
+            penalty += evaluate_label(lc, self.items, self.idx, selected_only=True)
+        return -penalty,
+
+    def evaluate_fitness_population(self, pop):
+        penalties = [0 for ind in pop]
+
+        for i, ind in enumerate(pop):
+            for lpid, pos in enumerate(ind):
+                self.labeled_points[lpid].label_candidates[pos].select()
+
+            for lpid, lcid in enumerate(ind):
+                lp = self.labeled_points[lpid]
+                lc = lp.label_candidates[lcid]
+
+                penalties[i] += evaluate_label(lc, self.items, self.idx, selected_only=True)
+
+        return [(-penalty,) for penalty in penalties]
+
+    def build_index(self):
+        label_candidates = []
+        for p in self.points:
+            label_candidates.extend(p.label_candidates)
+        self.items = []
+        self.items.extend(label_candidates)
+        self.items.extend(self.points)
+        self.items.extend(self.bounding_box.borders)
+
+        self.idx = Index()
+        for i, item in enumerate(self.items):
+            item.index = i
+            self.idx.insert(i, item.box)
+
+    def run(self):
+        pop = self.toolbox.population(n=400)
+
+        old = True
+
+        if old:
+            fitnesses = list(map(self.toolbox.evaluate, pop))
+        else:
+            fitnesses = self.evaluate_fitness_population(pop)
+
         for ind, fit in zip(pop, fitnesses):
             ind.fitness.values = fit
 
@@ -67,6 +117,7 @@ class GeneticLabeler(object):
 
             # Select the next generation individuals
             offspring = self.toolbox.select(pop, len(pop))
+
             # Clone the selected individuals
             offspring = list(map(self.toolbox.clone, offspring))
 
@@ -84,7 +135,11 @@ class GeneticLabeler(object):
 
             # Evaluate the individuals with an invalid fitness
             invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
-            fitnesses = map(self.toolbox.evaluate, invalid_ind)
+
+            if old:
+                fitnesses = map(self.toolbox.evaluate, invalid_ind)
+            else:
+                fitnesses = self.evaluate_fitness_population(invalid_ind)
             for ind, fit in zip(invalid_ind, fitnesses):
                 ind.fitness.values = fit
 
@@ -110,12 +165,12 @@ class GeneticLabeler(object):
             else:
                 no_change_g += 1
 
-            print("  Min %s" % min(fits))
-            print("  Max %s" % max(fits))
-            print("  Avg %s" % mean)
-            print("  Std %s" % std)
-            print("  No change %s" % no_change_g)
-            print("  Delta %s" % deltamax)
+            #print("  Min %s" % min(fits))
+            print("   Max %s" % max(fits))
+            #print("  Avg %s" % mean)
+            #print("  Std %s" % std)
+            #print("  No change %s" % no_change_g)
+            #print("  Delta %s" % deltamax)
 
         bestind = pop[0]
         for ind in pop:
@@ -124,4 +179,4 @@ class GeneticLabeler(object):
                 bestind = ind
 
         for lp, i in zip(self.labeled_points, bestind):
-            lp.select_candidate(lp.candidates[i])
+            lp.label_candidates[i].select()
