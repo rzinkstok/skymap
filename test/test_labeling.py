@@ -1,10 +1,10 @@
 import unittest
-import numpy as np
 from rtree.index import Index
 import random
-from skymap.labeling.labeledpoint import Point, Label
-from skymap.labeling.runner import BoundingBox
 import timeit
+
+from skymap.labeling.label_size import calculate_label_sizes
+
 
 class Box(object):
     def __init__(self, index):
@@ -63,7 +63,7 @@ class RTreeTest(unittest.TestCase):
         t = timeit.Timer(lambda: self.create_index_stream(box_generator()))
         print t.timeit(number=repeat) / repeat
 
-    def test_query(self):
+    def Xtest_query(self):
         repeat = 10
         boxes = [Box(i) for i in range(100)]
         self.create_index_data(boxes)
@@ -94,3 +94,19 @@ class RTreeTest(unittest.TestCase):
     def query_index(self, boxes):
         for b in boxes:
             overlapping_boxes = self.idx.intersection(b.box)
+
+
+class LabelSizeTest(unittest.TestCase):
+    def test_label_size(self):
+        star_names = {
+            1: "Albireo",
+            2: "Alcor",
+            3: u"Proxima Centauri \u03B1"
+        }
+        result = calculate_label_sizes(star_names, normalsize=11, fontsize="Large")
+        self.assertIn(1, result.keys())
+        self.assertIn(2, result.keys())
+        self.assertIn(3, result.keys())
+
+        self.assertAlmostEqual(result[1]["label_width"], 14.15)
+        self.assertAlmostEqual(result[1]["label_height"], 3.75)
