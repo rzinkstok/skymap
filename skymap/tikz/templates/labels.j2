@@ -1,0 +1,140 @@
+{% extends "tikz_base.j2" %}
+
+{% block packages %}
+    \usetikzlibrary{calc}
+{% endblock %}
+
+{% block definitions %}
+    \newcounter{widthA}
+    \newcounter{widthB}
+    \newcounter{heightA}
+    \newcounter{heightB}
+    %\newcounter{dummy}
+{% endblock %}
+
+{% block content %}
+
+    \makeatletter
+    \begin{tikzpicture}
+        \typeout{---------------------------}
+        \typeout{START SKYMAP LABELS}
+        \foreach \objectid/\labeltext [count=\y from 0] in {
+            {% for object_id, label_text in labels.items() %}
+            {{ object_id }}/{{ label_text }}{% if not loop.last %},{% else %}%{% endif %}
+
+            {% endfor %}
+        }
+        {
+            \node (label) at (0,0.5*\y) [inner sep=0pt] {\{{ fontsize }}\labeltext};
+            \path
+            let
+                \p{east} = (label.east),
+                \p{west} = (label.west),
+                \p{south} = (label.south),
+                \p{north} = (label.north)
+            in
+            let
+                \n{width} = {\x{east}-\x{west}},
+                \n{height} = {\y{north}-\y{south}}
+            in
+            \pgfextra
+                %\typeout{---------------------------}
+                \pgf@x=\n{width}
+                %\setcounter{dummy}{\pgf@x}
+                %\typeout{Width in pgf units: \thedummy}
+
+                \pgf@y=1mm
+                %\setcounter{dummy}{\pgf@y}
+                %\typeout{1mm in pgf units: \thedummy}
+
+                \divide\pgf@x by \pgf@y
+                \setcounter{widthA}{\pgf@x}
+                %\typeout{Width integer mm: \thewidthA}
+
+                \multiply\pgf@x by \pgf@y
+                %\setcounter{dummy}{\pgf@x}
+                %\typeout{Width integer mm in pgf units: \thedummy}
+
+                \pgf@y=\n{width}
+                %\setcounter{dummy}{\pgf@y}
+                %\typeout{Width in pgf units: \thedummy}
+
+                \advance\pgf@y by -\pgf@x
+                %\setcounter{dummy}{\pgf@y}
+                %\typeout{Width fractional mm in pgf units: \thedummy}
+
+                \pgf@x=1mm
+                %\setcounter{dummy}{\pgf@x}
+                %\typeout{1mm in pgf units: \thedummy}
+
+                \advance\pgf@y by 99\pgf@y
+                %\setcounter{dummy}{\pgf@y}
+                %\typeout{100 * width fractional mm in pgf units: \thedummy}
+
+                \divide\pgf@y by \pgf@x
+                \setcounter{widthB}{\pgf@y}
+                %\typeout{Width fractional mm: \thewidthB}
+
+                %\newcommand\leadingwidthB{\two@digits{\value{widthB}}}
+                %\typeout{Width fractional mm: \leadingwidthB}
+                %\typeout{Width in mm: \thewidthA.\leadingwidthB}
+                %\typeout{---------------------------}
+
+
+                \pgf@x=\n{height}
+                %\setcounter{dummy}{\pgf@x}
+                %\typeout{Height in pgf units: \thedummy}
+
+                \pgf@y=1mm
+                %\setcounter{dummy}{\pgf@y}
+                %\typeout{1mm in pgf units: \thedummy}
+
+                \divide\pgf@x by \pgf@y
+                \setcounter{heightA}{\pgf@x}
+                %\typeout{Height integer mm: \theheightA}
+
+                \multiply\pgf@x by \pgf@y
+                %\setcounter{dummy}{\pgf@x}
+                %\typeout{Height integer mm in pgf units: \thedummy}
+
+                \pgf@y=\n{height}
+                %\setcounter{dummy}{\pgf@y}
+                %\typeout{Height in pgf units: \thedummy}
+
+                \advance\pgf@y by -\pgf@x
+                %\setcounter{dummy}{\pgf@y}
+                %\typeout{Height fractional mm in pgf units: \thedummy}
+
+                \pgf@x=1mm
+                %\setcounter{dummy}{\pgf@x}
+                %\typeout{1mm in pgf units: \thedummy}
+
+                \advance\pgf@y by 99\pgf@y
+                %\setcounter{dummy}{\pgf@y}
+                %\typeout{100 * height fractional mm in pgf units: \thedummy}
+
+                \divide\pgf@y by \pgf@x
+                \setcounter{heightB}{\pgf@y}
+                %\typeout{Height fractional mm: \theheightB}
+
+                %\newcommand\leadingheightB{\two@digits{\value{heightB}}}
+                %\typeout{Height fractional mm: \leadingheightB}
+                %\typeout{Height in mm: \theheightA.\leadingheightB}
+                %\typeout{---------------------------}
+            \endpgfextra
+            (label.east) node[anchor=west]{};
+
+            \newcommand\leadingwidthB{\two@digits{\value{widthB}}}
+            \newcommand\leadingheightB{\two@digits{\value{heightB}}}
+
+            \typeout{\objectid|\labeltext|\thewidthA.\leadingwidthB|\theheightA.\leadingheightB}
+            %\typeout{Width in mm: \thewidthA.\leadingwidthB}
+            %\typeout{Height in mm: \theheightA.\leadingheightB}
+        }
+       	\typeout{END SKYMAP LABELS}
+       	\typeout{---------------------------}
+   	\end{tikzpicture}
+   	\makeatother
+
+{% endblock %}
+

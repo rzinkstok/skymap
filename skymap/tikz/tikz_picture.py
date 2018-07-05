@@ -33,7 +33,7 @@ class TikzPicture(object):
         self.width = p2.x - p1.x
         self.height = p2.y - p1.y
 
-        self.texfile = None
+        self.texstring = ""
         self._dotted = False
         self._dashed = False
         self.linewidth = 0.5
@@ -70,22 +70,20 @@ class TikzPicture(object):
         else:
             shift = "{(current page.south west)}"
 
-        self.texfile.write("\\begin{{tikzpicture}}[remember picture, overlay, shift={0}, every node/.style={{inner sep=0mm, outer sep=0mm, minimum size=0mm, text height=\\normaltextheight, text depth=\\normaltextdepth}}]\n".format(shift))
+        self.texstring += "\\begin{{tikzpicture}}[remember picture, overlay, shift={0}, every node/.style={{inner sep=0mm, outer sep=0mm, minimum size=0mm, text height=\\normaltextheight, text depth=\\normaltextdepth}}]\n".format(shift)
         self.opened = True
 
         if self.boxed:
             self.draw_bounding_box()
 
-    def close(self):
+    def close(self, add_to_tikz_string):
         if not self.opened or self.closed:
             return
 
         self.comment("")
-        self.texfile.write("\\end{tikzpicture}\n\n")
+        self.texstring += "\\end{tikzpicture}\n\n"
+        add_to_tikz_string(self.texstring)
         self.closed = True
-
-    def set_texfile(self, texfile):
-        self.texfile = texfile
 
     @contextmanager
     def clip(self, path=None):
@@ -98,11 +96,11 @@ class TikzPicture(object):
         if path is None:
             path = self.bounding_box.path
         self.comment("Clipping")
-        self.texfile.write("\\begin{scope}\n")
-        self.texfile.write("\\clip {};\n".format(path))
+        self.texstring += "\\begin{scope}\n"
+        self.texstring += "\\clip {};\n".format(path)
         yield
         self.comment("End clipping")
-        self.texfile.write("\\end{scope}\n")
+        self.texstring += "\\end{scope}\n"
 
     @staticmethod
     def point_to_coordinates(p):
@@ -145,7 +143,7 @@ class TikzPicture(object):
             s = ""
         if comment:
             s += "% {0}\n".format(comment)
-        self.texfile.write(s)
+        self.texstring += s
 
     # Draw options
     @property
@@ -196,12 +194,12 @@ class TikzPicture(object):
         p1 = self.point_to_coordinates(line.p1)
         p2 = self.point_to_coordinates(line.p2)
         opts = self.draw_options()
-        self.texfile.write("\\draw {} {}--{};\n".format(opts, p1, p2))
+        self.texstring += "\\draw {} {}--{};\n".format(opts, p1, p2)
 
     def draw_path(self, path, delay_write=False):
         self.open()
         opts = self.draw_options()
-        self.texfile.write("\\draw {} {};\n".format(opts, path))
+        self.texstring += "\\draw {} {};\n".format(opts, path)
 
     def draw_polygon(self, points, cycle=False, delay_write=False):
         self.open()
@@ -214,7 +212,7 @@ class TikzPicture(object):
             cmd += "cycle;\n"
         else:
             cmd = cmd[:-2] + ";\n"
-        self.texfile.write(cmd)
+        self.texstring += cmd
 
     def draw_rectangle(self, rectangle, delay_write=False):
         self.open()
@@ -223,7 +221,7 @@ class TikzPicture(object):
         p1 = self.point_to_coordinates(rectangle.p1)
         p2 = self.point_to_coordinates(rectangle.p2)
         opts = self.draw_options()
-        self.texfile.write("\\draw {} {} rectangle {};\n".format(opts, p1, p2))
+        self.texstring += "\\draw {} {} rectangle {};\n".format(opts, p1, p2)
 
     def draw_circle(self, circle, delay_write=False):
         self.open()
@@ -231,7 +229,7 @@ class TikzPicture(object):
             raise DrawError
         c = self.point_to_coordinates(circle.center)
         opts = self.draw_options()
-        self.texfile.write("\\draw {} {} circle ({}mm);\n".format(opts, c, circle.radius))
+        self.texstring += "\\draw {} {} circle ({}mm);\n".format(opts, c, circle.radius)
 
     def draw_arc(self, arc, delay_write=False):
         self.open()
@@ -243,7 +241,7 @@ class TikzPicture(object):
         c = "([shift=({}:{}mm)]".format(arc.start_angle, arc.radius)
         c += self.point_to_coordinates(arc.center)[1:]
         opts = self.draw_options()
-        self.texfile.write("\\draw {} {} arc ({}:{}:{}mm);\n".format(opts, c, arc.start_angle, arc.stop_angle, arc.radius))
+        self.texstring += "\\draw {} {} arc ({}:{}:{}mm);\n".format(opts, c, arc.start_angle, arc.stop_angle, arc.radius)
 
     def draw_interpolated_arc(self, arc, delay_write=False):
         self.open()
@@ -272,15 +270,15 @@ class TikzPicture(object):
         text = "{{{}:{{\\{} {}}}}}".format(label.position, label.fontsize, label.text)
         text = "{{[label distance=0mm, rotate={}, text height={} mm, text depth={} mm{}, text={}]".format(label.angle, textheight, textdepth, labelfill, label.color) + text[1:]
 
-        self.texfile.write("\\node at {} [text height=0mm, text depth=0mm, label={}] {{}};\n".format(p, text))
+        self.texstring += "\\node at {} [text height=0mm, text depth=0mm, label={}] {{}};\n".format(p, text)
 
     def fill_circle(self, point, radius):
         self.open()
         p = self.point_to_coordinates(point)
-        self.texfile.write("\\fill [{}] {} circle ({}mm);\n".format(self.color, p, radius))
+        self.texstring += "\\fill [{}] {} circle ({}mm);\n".format(self.color, p, radius)
 
     def fill_rectangle(self, rectangle):
         self.open()
         p1 = self.point_to_coordinates(rectangle.p1)
         p2 = self.point_to_coordinates(rectangle.p2)
-        self.texfile.write("\\fill [{}] {} rectangle {};\n".format(self.color, p1, p2))
+        self.texstring += "\\fill [{}] {} rectangle {};\n".format(self.color, p1, p2)

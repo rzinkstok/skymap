@@ -4,7 +4,8 @@ Tikz figure interface.
 import os
 import subprocess
 import shutil
-
+import jinja2
+import io
 
 from skymap.geometry import Point
 from skymap.tikz import PaperSize, FontSize, PaperMargin
@@ -12,6 +13,7 @@ from skymap.tikz import PaperSize, FontSize, PaperMargin
 
 BASEDIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 TEX_OUTPUT_FOLDER = os.path.join(BASEDIR, "temp")
+JINJA_TEMPLATE_FOLDER = os.path.join(BASEDIR, "skymap", "tikz", "templates")
 os.environ['PATH'] = "/Library/TeX/texbin:"+os.environ['PATH']
 
 
@@ -25,11 +27,12 @@ class Tikz(object):
         margins (skymap.tikz.PaperMargin): PaperMargin instance describing the margins to use
         normalsize (int): the standard fontsize to use
     """
-    def __init__(self, name, papersize=PaperSize(), margins=PaperMargin(), normalsize=11):
+    def __init__(self, name, papersize=PaperSize(), margins=PaperMargin(), normalsize=11, template=None):
         self.name = name
         self.papersize = papersize
         self.margins = margins
         self.fontsizes = FontSize(normalsize)
+        self.template = template or "tikz_base.j2"
 
         # Landmark points
         self.llcorner = Point(self.margins.l, self.margins.b)
@@ -39,84 +42,36 @@ class Tikz(object):
         self.center = 0.5*(self.llcorner + self.urcorner)
 
         self.texfile_name = "{0}.tex".format(self.name)
-        self.texfile = None
+        self.texstring = ""
         self.delayed = []
         self.current_picture = None
         self.started = False
         self.finished = False
 
-    def open_file(self):
-        if not os.path.exists(TEX_OUTPUT_FOLDER):
-            os.makedirs(TEX_OUTPUT_FOLDER)
-        self.texfile = open(os.path.join(TEX_OUTPUT_FOLDER, self.texfile_name), "w")
+        self.j2_env = jinja2.Environment(loader=jinja2.FileSystemLoader(JINJA_TEMPLATE_FOLDER), trim_blocks=True)
 
-    def close_file(self):
-        self.texfile.close()
+    def append(self, s):
+        self.texstring += s
 
     def write_header(self):
-        if not self.texfile:
-            return
-
-        if self.papersize.landscape:
-            self.texfile.write("\\documentclass[landscape,{}pt]{{article}}\n".format(self.fontsizes['normalsize']))
-        else:
-            self.texfile.write("\\documentclass[{}pt]{{article}}\n".format(self.fontsizes['normalsize']))
-        self.texfile.write("\\usepackage[paperwidth={}mm,paperheight={}mm]{{geometry}}\n".format(self.papersize.width, self.papersize.height))
-        self.texfile.write("\\usepackage{mathspec}\n")
-        self.texfile.write("\\usepackage{tikz}\n")
-        self.texfile.write("\\usetikzlibrary{positioning}\n")
-        self.texfile.write("\\defaultfontfeatures{Ligatures=TeX}\n")
-        self.texfile.write("\\setallmainfonts[Numbers={Lining,Proportional}]{Myriad Pro SemiCondensed}\n")
-
-        self.texfile.write("\n")
-        self.texfile.write("\\makeatletter\n")
-        self.texfile.write("\\ifcase \\@ptsize \\relax% 10pt\n")
-        self.texfile.write("    \\newcommand{\\HUGE}{\\@setfontsize\\HUGE{45}{50}}\n")
-        self.texfile.write("    \\newcommand{\\miniscule}{\\@setfontsize\\miniscule{4}{5}}% \\tiny: 5/6\n")
-        self.texfile.write("    \\newcommand{\\nano}{\\@setfontsize\\nano{3}{4}}% \\tiny: 5/6\n")
-        self.texfile.write("\\or% 11pt\n")
-        self.texfile.write("    \\newcommand{\\miniscule}{\\@setfontsize\\miniscule{5}{6}}% \\tiny: 6/7\n")
-        self.texfile.write("    \\newcommand{\\nano}{\\@setfontsize\\nano{4}{5}}% \\tiny: 6/7\n")
-        self.texfile.write("\\or% 12pt\n")
-        self.texfile.write("    \\newcommand{\\miniscule}{\\@setfontsize\\miniscule{5}{6}}% \\tiny: 6/7\n")
-        self.texfile.write("    \\newcommand{\\nano}{\\@setfontsize\\nano{4}{5}}% \\tiny: 6/7\n")
-        self.texfile.write("\\fi\n")
-        self.texfile.write("\\makeatother\n")
-
-        self.texfile.write("\n")
-        self.texfile.write("\\begin{document}\n")
-        self.texfile.write("\\pagenumbering{gobble}\n")
-
-        self.texfile.write("\n")
-        self.texfile.write("\\newcommand\\normaltextheightem{0.75} % Text height for normalsize\n")
-        self.texfile.write("\\newcommand\\normaltextdepthem{0.24} % Text depth for normalsize\n")
-        self.texfile.write("\\pgfmathsetmacro{\\normaltextheight}{\\normaltextheightem em/1mm} % Converted to mm\n")
-        self.texfile.write("\\pgfmathsetmacro{\\normaltextdepth}{\\normaltextdepthem em/1mm} % Converted to mm\n")
-
-        for sizename, pointsize in self.fontsizes.items():
-            self.texfile.write("\\pgfmathsetmacro{{\\{}textheight}}{{{}*\\normaltextheight/{}}} % Text height for {} ({} pt)\n".format(sizename, pointsize, self.fontsizes['normalsize'], sizename, pointsize))
-            self.texfile.write("\\pgfmathsetmacro{{\\{}textdepth}}{{{}*\\normaltextdepth/{}}} % Text depth for {} ({} pt)\n".format(sizename, pointsize, self.fontsizes['normalsize'], sizename, pointsize))
-        self.texfile.write("\n")
-        self.texfile.write("\\newfontfamily\\condensed{Myriad Pro Condensed}[Numbers={Lining,Proportional}]\n")
-        self.texfile.write("\n")
+        self.texstring += "{{% extends '{}' %}}\n".format(self.template)
+        self.texstring += "\n"
+        self.texstring += "{% block content %}\n"
+        self.texstring += "{{ super() }}\n"
 
     def write_footer(self):
-        if not self.texfile:
-            return
-
         if self.current_picture is not None:
-            self.current_picture.close()
+            self.current_picture.close(self.append)
 
-        self.texfile.write("\\end{document}\n")
+        self.texstring += "{% endblock %}\n"
 
     def start(self):
-        self.open_file()
+        self.texstring = ""
         self.write_header()
         self.started = True
 
     def finish(self):
         self.write_footer()
-        self.close_file()
         self.finished = True
 
     # Drawing functions
@@ -127,35 +82,55 @@ class Tikz(object):
             s = ""
         if comment:
             s += "% {0}\n".format(comment)
-        self.texfile.write(s)
+        self.texstring += s
 
     def add(self, picture):
         if not self.started:
             self.start()
 
         if self.current_picture is not None:
-            self.current_picture.close()
+            self.current_picture.close(self.append)
 
         self.current_picture = picture
-        picture.set_texfile(self.texfile)
 
-    def render(self, filepath=None, open=True):
+    def render(self, filepath=None, open=True, extra_context=None):
         if not self.started:
             self.start()
 
-        if not self.current_picture.opened:
+        if self.current_picture and not self.current_picture.opened:
             self.current_picture.open()
 
-        if not self.current_picture.closed:
-            self.current_picture.close()
+        if self.current_picture and not self.current_picture.closed:
+            self.current_picture.close(self.append)
 
         if not self.finished:
             self.finish()
 
+        # Render template
+        if not os.path.exists(TEX_OUTPUT_FOLDER):
+            os.makedirs(TEX_OUTPUT_FOLDER)
+
+        template = self.j2_env.from_string(self.texstring)
+
+        context = {
+            "paperwidth": self.papersize.width,
+            "paperheight": self.papersize.height,
+            "fontsizes": self.fontsizes,
+            "normal_pointsize": self.fontsizes['normalsize']
+        }
+        if extra_context:
+            context.update(extra_context)
+
+        rendered_template = template.render(context)
+        with io.open(os.path.join(TEX_OUTPUT_FOLDER, self.texfile_name), mode="w", encoding="utf-8") as fp:
+            fp.write(rendered_template)
+
+        # Run XeLaTeX
         print "Rendering", filepath or os.path.join(TEX_OUTPUT_FOLDER, self.texfile_name)
         subprocess.check_output(["xelatex", self.texfile_name], cwd=TEX_OUTPUT_FOLDER)
-        subprocess.check_output(["xelatex", self.texfile_name], cwd=TEX_OUTPUT_FOLDER)
+        output = subprocess.check_output(["xelatex", self.texfile_name], cwd=TEX_OUTPUT_FOLDER)
 
+        # Move output file
         if filepath:
             folder = os.path.dirname(filepath)
             if folder and not os.path.exists(folder):
@@ -164,4 +139,4 @@ class Tikz(object):
             if open:
                 subprocess.Popen(["open", filepath]).wait()
 
-
+        return output

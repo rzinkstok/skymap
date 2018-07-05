@@ -1,0 +1,49 @@
+\documentclass[{{ normal_pointsize }}pt]{article}
+\usepackage[paperwidth={{ paperwidth }}mm,paperheight={{ paperheight }}mm]{geometry}
+\usepackage{mathspec}
+\usepackage{tikz}
+\usetikzlibrary{positioning}
+
+{% block packages %}
+{% endblock %}
+
+\defaultfontfeatures{Ligatures=TeX}
+\setallmainfonts[Numbers={Lining,Proportional}]{Myriad Pro SemiCondensed}
+
+\makeatletter
+\ifcase \@ptsize \relax% 10pt
+    \newcommand{\HUGE}{\@setfontsize\HUGE{45}{50}}
+    \newcommand{\miniscule}{\@setfontsize\miniscule{4}{5}}% \tiny: 5/6
+    \newcommand{\nano}{\@setfontsize\nano{3}{4}}% \tiny: 5/6
+\or% 11pt
+    \newcommand{\miniscule}{\@setfontsize\miniscule{5}{6}}% \tiny: 6/7
+    \newcommand{\nano}{\@setfontsize\nano{4}{5}}% \tiny: 6/7
+\or% 12pt
+    \newcommand{\miniscule}{\@setfontsize\miniscule{5}{6}}% \tiny: 6/7
+    \newcommand{\nano}{\@setfontsize\nano{4}{5}}% \tiny: 6/7
+\fi
+\makeatother
+
+{% block definitions %}
+{% endblock %}
+
+\begin{document}
+	\pagenumbering{gobble}
+
+	\newcommand\normaltextheightem{0.75} % Text height for normalsize
+	\newcommand\normaltextdepthem{0.24} % Text depth for normalsize
+	\pgfmathsetmacro{\normaltextheight}{\normaltextheightem em/1mm} % Converted to mm
+	\pgfmathsetmacro{\normaltextdepth}{\normaltextdepthem em/1mm} % Converted to mm
+	{% for sizename, pointsize in fontsizes.items() %}
+
+	\pgfmathsetmacro{\{{ sizename }}textheight}{ {{ pointsize }}*\normaltextheight/{{ normal_pointsize }}} % Text height for {{ sizename }} ({{ pointsize }} pt)
+	\pgfmathsetmacro{\{{ sizename }}textdepth}{ {{ pointsize }}*\normaltextdepth/{{ normal_pointsize }}} % Text depth for {{ sizename }} ({{ pointsize }} pt)
+    {% endfor %}
+
+
+
+	\newfontfamily\condensed{Myriad Pro Condensed}[Numbers={Lining,Proportional}]
+
+    {% block content %}
+    {% endblock %}
+\end{document}
