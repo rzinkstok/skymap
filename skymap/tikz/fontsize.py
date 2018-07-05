@@ -2,8 +2,6 @@ import math
 from collections import OrderedDict
 
 
-
-
 class FontSize(OrderedDict):
     """Class for generating a series of LaTeX fontsizes.
 

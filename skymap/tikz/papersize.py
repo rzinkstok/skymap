@@ -56,13 +56,13 @@ class PaperSize(object):
                 args = m.groups()[1:]
 
                 try:
-                    func = getattr(self, "get_{}_papersize".format(basename))
+                    func = getattr(self, "_get_{}_papersize".format(basename))
                 except AttributeError:
                     raise ValueError("Unable to parse papersize name")
 
                 self.width, self.height = func(*args)
 
-    def get_a_papersize(self, index, landscape=False):
+    def _get_a_papersize(self, index, landscape=False):
         """Returns the papersize from the A series with the given index number.
 
         The A series is defined by setting the area of A0 to 1 square meter requiring that
@@ -85,7 +85,7 @@ class PaperSize(object):
             x, y = y, x
         return x, y
 
-    def get_b_papersize(self, index, landscape=False):
+    def _get_b_papersize(self, index, landscape=False):
         """Returns the papersize from the B series with the given index number.
 
         The B series is defined by taking the geometric mean of areas of the A series papersizes
@@ -101,8 +101,8 @@ class PaperSize(object):
             tuple: the requested papersize (width, height) in mm
         """
         index = int(index)
-        x1, y1 = self.get_a_papersize(index-1, landscape)
-        x2, y2 = self.get_a_papersize(index, landscape)
+        x1, y1 = self._get_a_papersize(index - 1, landscape)
+        x2, y2 = self._get_a_papersize(index, landscape)
 
         area1 = x1 * y1
         area2 = x2 * y2
@@ -112,7 +112,7 @@ class PaperSize(object):
 
         return x, y
 
-    def get_c_papersize(self, index, landscape=False):
+    def _get_c_papersize(self, index, landscape=False):
         """Returns the papersize from the C series with the given index number.
 
         The C series is defined by taking the geometric mean of areas of the A series papersize
@@ -128,8 +128,8 @@ class PaperSize(object):
             tuple: the requested papersize (width, height) in mm
         """
         index = int(index)
-        x1, y1 = self.get_a_papersize(index, landscape)
-        x2, y2 = self.get_b_papersize(index, landscape)
+        x1, y1 = self._get_a_papersize(index, landscape)
+        x2, y2 = self._get_b_papersize(index, landscape)
 
         area1 = x1 * y1
         area2 = x2 * y2
@@ -139,14 +139,14 @@ class PaperSize(object):
 
         return x, y
 
-    def get_ansi_papersize(self, index, landscape=False):
+    def _get_ansi_papersize(self, index, landscape=False):
         n = ord(index) - ord("a") + 1
         x, y = 216, 279
         if landscape:
             x, y = y, x
         return n * x, n * y
 
-    def get_legal_papersize(self, landscape=False):
+    def _get_legal_papersize(self, landscape=False):
         x, y = 216, 356
         if landscape:
             x, y = y, x
