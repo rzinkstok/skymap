@@ -200,9 +200,13 @@ class Point(object):
     def box(self):
         return self.x-self.radius, self.y - self.radius, self.x + self.radius, self.y + self.radius
 
+    def overlaps(self, label):
+        dx = self.x - max(label.box[0], min(self.x, label.box[2]))
+        dy = self.y - max(label.box[1], min(self.y, label.box[3]))
+        return (dx * dx + dy * dy) < (self.radius * self.radius)
+
     def overlap(self, label, record=False):
-        o = label.overlap(self)
-        if o > 0:
+        if self.overlaps(label):
             return POINT_PENALTY
         return 0
 

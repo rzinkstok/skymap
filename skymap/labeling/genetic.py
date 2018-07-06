@@ -7,6 +7,123 @@ import matplotlib.pyplot as plt
 from skymap.labeling.common import evaluate_label
 
 
+def eaSimpleStop(population, toolbox, cxpb, mutpb, ngen, stopn=10, stats=None, halloffame=None, verbose=__debug__):
+    """
+    This algorithm reproduce the simplest evolutionary algorithm as
+    presented in chapter 7 of [Back2000]_.
+
+    Args:
+        population: A list of individuals.
+        toolbox: A :class:`~deap.base.Toolbox` that contains the evolution
+                 operators.
+        cxpb: The probability of mating two individuals.
+        mutpb: The probability of mutating an individual.
+        ngen: The number of generation.
+        stopn: The number of no-change generations after which to stop running
+        stats: A :class:`~deap.tools.Statistics` object that is updated
+               inplace, optional.
+        halloffame: A :class:`~deap.tools.HallOfFame` object that will
+                    contain the best individuals, optional.
+        verbose: Whether or not to log the statistics.
+
+    Returns:
+        The final population
+        A class:`~deap.tools.Logbook` with the statistics of the
+              evolution
+
+    The algorithm takes in a population and evolves it in place using the
+    :meth:`varAnd` method. It returns the optimized population and a
+    :class:`~deap.tools.Logbook` with the statistics of the evolution. The
+    logbook will contain the generation number, the number of evalutions for
+    each generation and the statistics if a :class:`~deap.tools.Statistics` is
+    given as argument. The *cxpb* and *mutpb* arguments are passed to the
+    :func:`varAnd` function. The pseudocode goes as follow ::
+
+        evaluate(population)
+        for g in range(ngen):
+            population = select(population, len(population))
+            offspring = varAnd(population, toolbox, cxpb, mutpb)
+            evaluate(offspring)
+            population = offspring
+
+    As stated in the pseudocode above, the algorithm goes as follow. First, it
+    evaluates the individuals with an invalid fitness. Second, it enters the
+    generational loop where the selection procedure is applied to entirely
+    replace the parental population. The 1:1 replacement ratio of this
+    algorithm **requires** the selection procedure to be stochastic and to
+    select multiple times the same individual, for example,
+    :func:`~deap.tools.selTournament` and :func:`~deap.tools.selRoulette`.
+    Third, it applies the :func:`varAnd` function to produce the next
+    generation population. Fourth, it evaluates the new individuals and
+    compute the statistics on this population. Finally, when *ngen*
+    generations are done, the algorithm returns a tuple with the final
+    population and a :class:`~deap.tools.Logbook` of the evolution.
+
+    .. note::
+
+        Using a non-stochastic selection method will result in no selection as
+        the operator selects *n* individuals from a pool of *n*.
+
+    This function expects the :meth:`toolbox.mate`, :meth:`toolbox.mutate`,
+    :meth:`toolbox.select` and :meth:`toolbox.evaluate` aliases to be
+    registered in the toolbox.
+
+    .. [Back2000] Back, Fogel and Michalewicz, "Evolutionary Computation 1 :
+       Basic Algorithms and Operators", 2000.
+    """
+    logbook = tools.Logbook()
+    logbook.header = ['gen', 'nevals'] + (stats.fields if stats else [])
+
+    # Evaluate the individuals with an invalid fitness
+    invalid_ind = [ind for ind in population if not ind.fitness.valid]
+    fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)
+    for ind, fit in zip(invalid_ind, fitnesses):
+        ind.fitness.values = fit
+
+    if halloffame is not None:
+        halloffame.update(population)
+
+    record = stats.compile(population) if stats else {}
+    logbook.record(gen=0, nevals=len(invalid_ind), **record)
+    if verbose:
+        print logbook.stream
+
+    # Begin the generational process
+    for gen in range(1, ngen + 1):
+        # Select the next generation individuals
+        offspring = toolbox.select(population, len(population))
+
+        # Vary the pool of individuals
+        offspring = algorithms.varAnd(offspring, toolbox, cxpb, mutpb)
+
+        # Evaluate the individuals with an invalid fitness
+        invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
+        fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)
+        for ind, fit in zip(invalid_ind, fitnesses):
+            ind.fitness.values = fit
+
+        # Update the hall of fame with the generated individuals
+        if halloffame is not None:
+            halloffame.update(offspring)
+
+        # Replace the current population by the offspring
+        population[:] = offspring
+
+        # Append the current generation statistics to the logbook
+        record = stats.compile(population) if stats else {}
+        logbook.record(gen=gen, nevals=len(invalid_ind), **record)
+        if verbose:
+            print logbook.stream
+
+        # Stopping rule
+        last_gens = numpy.array(logbook.select("max")[-stopn:])
+        maxdiff = numpy.max(numpy.abs(last_gens[1:] - last_gens[:-1]))
+        if maxdiff < 1e-3:
+            break
+
+    return population, logbook
+
+
 class GeneticLabeler(object):
     def __init__(self, points, bounding_box):
         self.points = points
@@ -18,7 +135,7 @@ class GeneticLabeler(object):
         self.build_index()
 
         # DEAP parameters
-        self.ngenerations = 150
+        self.ngenerations = 1000
         self.nindividuals = 400
         self.mutation_prob = 0.4
         self.crossover_prob = 0.8
@@ -71,12 +188,13 @@ class GeneticLabeler(object):
         stats.register("min", numpy.min)
         stats.register("max", numpy.max)
 
-        pop, log = algorithms.eaSimple(
+        pop, log = eaSimpleStop(
             pop,
             self.toolbox,
             cxpb=self.crossover_prob,
             mutpb=self.mutation_prob,
             ngen=self.ngenerations,
+            stopn=10,
             stats=stats,
             halloffame=hof,
             verbose=True
