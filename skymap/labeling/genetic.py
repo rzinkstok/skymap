@@ -4,7 +4,7 @@ from deap import base, creator, tools, algorithms
 from rtree.index import Index
 import matplotlib.pyplot as plt
 
-from skymap.labeling.common import evaluate_label
+from skymap.labeling.common import evaluate_label, POSITION_WEIGHT, BoundingBoxBorder, Label
 
 
 def eaSimpleStop(population, toolbox, cxpb, mutpb, ngen, stopn=10, stats=None, halloffame=None, verbose=__debug__):
@@ -124,7 +124,7 @@ def eaSimpleStop(population, toolbox, cxpb, mutpb, ngen, stopn=10, stats=None, h
     return population, logbook
 
 
-class GeneticLabeler(object):
+class BaseGeneticLabeler(object):
     def __init__(self, points, bounding_box):
         self.points = points
         self.bounding_box = bounding_box
@@ -132,10 +132,9 @@ class GeneticLabeler(object):
         for i, lp in enumerate(self.labeled_points):
             lp.labeled_point_index = i
 
-        self.build_index()
-
         # DEAP parameters
         self.ngenerations = 1000
+        self.stopn = 10
         self.nindividuals = 400
         self.mutation_prob = 0.4
         self.crossover_prob = 0.8
@@ -153,32 +152,6 @@ class GeneticLabeler(object):
         self.toolbox.register("mutate", tools.mutUniformInt, low=0, up=7, indpb=0.05)
         self.toolbox.register("select", tools.selTournament, tournsize=5)
 
-    def evaluate_fitness(self, individual):
-        penalty = 0
-        for lpid, pos in enumerate(individual):
-            self.labeled_points[lpid].label_candidates[pos].select()
-
-        for lpid, lcid in enumerate(individual):
-            lp = self.labeled_points[lpid]
-            lc = lp.label_candidates[lcid]
-
-            penalty += evaluate_label(lc, self.items, self.idx, selected_only=True)
-        return -penalty,
-
-    def build_index(self):
-        label_candidates = []
-        for p in self.points:
-            label_candidates.extend(p.label_candidates)
-        self.items = []
-        self.items.extend(label_candidates)
-        self.items.extend(self.points)
-        self.items.extend(self.bounding_box.borders)
-
-        self.idx = Index()
-        for i, item in enumerate(self.items):
-            item.index = i
-            self.idx.insert(i, item.box)
-
     def run(self):
         pop = self.toolbox.population(n=self.nindividuals)
         hof = tools.HallOfFame(1)
@@ -194,7 +167,7 @@ class GeneticLabeler(object):
             cxpb=self.crossover_prob,
             mutpb=self.mutation_prob,
             ngen=self.ngenerations,
-            stopn=10,
+            stopn=self.stopn,
             stats=stats,
             halloffame=hof,
             verbose=True
@@ -225,3 +198,90 @@ class GeneticLabeler(object):
         ax1.legend(lns, labs, loc="center right")
 
         plt.show()
+
+
+class GeneticLabeler(BaseGeneticLabeler):
+    def __init__(self, points, bounding_box):
+        BaseGeneticLabeler.__init__(self, points, bounding_box)
+        self.build_index()
+
+    def build_index(self):
+        label_candidates = []
+        for p in self.points:
+            label_candidates.extend(p.label_candidates)
+        self.items = []
+        self.items.extend(label_candidates)
+        self.items.extend(self.points)
+        self.items.extend(self.bounding_box.borders)
+
+        self.idx = Index()
+        for i, item in enumerate(self.items):
+            item.index = i
+            self.idx.insert(i, item.box)
+
+    def evaluate_fitness(self, individual):
+        penalty = 0
+        for lpid, pos in enumerate(individual):
+            self.labeled_points[lpid].label_candidates[pos].select()
+
+        for lpid, lcid in enumerate(individual):
+            lp = self.labeled_points[lpid]
+            lc = lp.label_candidates[lcid]
+
+            penalty += evaluate_label(lc, self.items, self.idx, selected_only=True)
+        return -penalty,
+
+
+class CachedGeneticLabeler(BaseGeneticLabeler):
+    def __init__(self, points, bounding_box):
+        BaseGeneticLabeler.__init__(self, points, bounding_box)
+        self.build_cache()
+
+    def build_cache(self):
+        label_candidates = []
+        for p in self.points:
+            label_candidates.extend(p.label_candidates)
+        items = []
+        items.extend(label_candidates)
+        items.extend(self.points)
+        items.extend(self.bounding_box.borders)
+
+        idx = Index()
+        for i, item in enumerate(items):
+            item.index = i
+            idx.insert(i, item.box)
+
+        for lc in label_candidates:
+            lc.penalty = POSITION_WEIGHT * lc.position
+            lc.label_penalties = [0 for i in range(len(label_candidates))]
+            intersecting_item_ids = idx.intersection(lc.box)
+            bbox_counted = False
+
+            for item_id in intersecting_item_ids:
+                item = items[item_id]
+
+                if item == lc or item == lc.point:
+                    continue
+
+                if type(item) == Label:
+                    if lc.point == item.point:
+                        continue
+                    else:
+                        lc.label_penalties[item.index] = item.overlap(lc)
+                        continue
+
+                if type(item) == BoundingBoxBorder:
+                    if bbox_counted:
+                        continue
+                    bbox_counted = True
+
+                lc.penalty += item.overlap(lc)
+
+    def evaluate_fitness(self, individual):
+        lcs = [self.labeled_points[i].label_candidates[k] for i, k in enumerate(individual)]
+        indices = [lc.index for lc in lcs]
+        penalty = 0
+
+        for lc in lcs:
+            penalty += lc.determine_penalty(indices)
+        return -penalty,

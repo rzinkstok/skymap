@@ -34,7 +34,7 @@ def evaluate_label(label, items, idx, selected_only=False):
         if item == label or item == label.point:
             continue
 
-        if hasattr(item, "point"):
+        if type(item) == Label:
             if label.point == item.point:
                 continue
             if selected_only and not item.selected:
@@ -44,7 +44,7 @@ def evaluate_label(label, items, idx, selected_only=False):
             if bbox_counted:
                 continue
             bbox_counted = True
-
+            
         penalty += item.overlap(label, True)
     label.penalty = penalty
     return penalty
@@ -82,53 +82,54 @@ class Label(object):
         self.point = point
         self.text = text
         self.position = position
-        self.width = AVG_CHAR_WIDTH * len(text)
-        self.height = CHAR_HEIGHT
-        self.offset = offset
-        self.angle_offset = offset/math.sqrt(2)
         self.penalty = position
         self.overlapping = []
+        self.label_penalties = None
+
+        width = AVG_CHAR_WIDTH * len(text)
+        height = CHAR_HEIGHT
+        angle_offset = offset / math.sqrt(2)
 
         if position == 0:
-            self.minx = self.point.x + self.point.radius + self.offset
-            self.maxx = self.point.x + self.point.radius + self.offset + self.width
-            self.miny = self.point.y - 0.5 * self.height
-            self.maxy = self.point.y + 0.5 * self.height
+            self.minx = self.point.x + self.point.radius + offset
+            self.maxx = self.point.x + self.point.radius + offset + width
+            self.miny = self.point.y - 0.5 * height
+            self.maxy = self.point.y + 0.5 * height
         elif position == 1:
-            self.minx = self.point.x + self.point.radius + self.angle_offset
-            self.maxx = self.point.x + self.point.radius + self.angle_offset + self.width
-            self.miny = self.point.y + self.point.radius + self.angle_offset
-            self.maxy = self.point.y + self.point.radius + self.angle_offset + self.height
+            self.minx = self.point.x + self.point.radius + angle_offset
+            self.maxx = self.point.x + self.point.radius + angle_offset + width
+            self.miny = self.point.y + self.point.radius + angle_offset
+            self.maxy = self.point.y + self.point.radius + angle_offset + height
         elif position == 2:
-            self.minx = self.point.x - 0.5 * self.width
-            self.maxx = self.point.x + 0.5 * self.width
-            self.miny = self.point.y + self.point.radius + self.offset
-            self.maxy = self.point.y + self.point.radius + self.offset + self.height
+            self.minx = self.point.x - 0.5 * width
+            self.maxx = self.point.x + 0.5 * width
+            self.miny = self.point.y + self.point.radius + offset
+            self.maxy = self.point.y + self.point.radius + offset + height
         elif position == 3:
-            self.minx = self.point.x - self.point.radius - self.angle_offset - self.width
-            self.maxx = self.point.x - self.point.radius - self.angle_offset
-            self.miny = self.point.y + self.point.radius + self.angle_offset
-            self.maxy = self.point.y + self.point.radius + self.angle_offset + self.height
+            self.minx = self.point.x - self.point.radius - angle_offset - width
+            self.maxx = self.point.x - self.point.radius - angle_offset
+            self.miny = self.point.y + self.point.radius + angle_offset
+            self.maxy = self.point.y + self.point.radius + angle_offset + height
         elif position == 4:
-            self.minx = self.point.x - self.point.radius - self.offset - self.width
-            self.maxx = self.point.x - self.point.radius - self.offset
-            self.miny = self.point.y - 0.5 * self.height
-            self.maxy = self.point.y + 0.5 * self.height
+            self.minx = self.point.x - self.point.radius - offset - width
+            self.maxx = self.point.x - self.point.radius - offset
+            self.miny = self.point.y - 0.5 * height
+            self.maxy = self.point.y + 0.5 * height
         elif position == 5:
-            self.minx = self.point.x - self.point.radius - self.angle_offset - self.width
-            self.maxx = self.point.x - self.point.radius - self.angle_offset
-            self.miny = self.point.y - self.point.radius - self.angle_offset - self.height
-            self.maxy = self.point.y - self.point.radius - self.angle_offset
+            self.minx = self.point.x - self.point.radius - angle_offset - width
+            self.maxx = self.point.x - self.point.radius - angle_offset
+            self.miny = self.point.y - self.point.radius - angle_offset - height
+            self.maxy = self.point.y - self.point.radius - angle_offset
         elif position == 6:
-            self.minx = self.point.x - 0.5 * self.width
-            self.maxx = self.point.x + 0.5 * self.width
-            self.miny = self.point.y - self.point.radius - offset - self.height
+            self.minx = self.point.x - 0.5 * width
+            self.maxx = self.point.x + 0.5 * width
+            self.miny = self.point.y - self.point.radius - offset - height
             self.maxy = self.point.y - self.point.radius - offset
         elif position == 7:
-            self.minx = self.point.x + self.point.radius + self.angle_offset
-            self.maxx = self.point.x + self.point.radius + self.angle_offset + self.width
-            self.miny = self.point.y - self.point.radius - self.angle_offset - self.height
-            self.maxy = self.point.y - self.point.radius - self.angle_offset
+            self.minx = self.point.x + self.point.radius + angle_offset
+            self.maxx = self.point.x + self.point.radius + angle_offset + width
+            self.miny = self.point.y - self.point.radius - angle_offset - height
+            self.maxy = self.point.y - self.point.radius - angle_offset
 
     def overlap(self, other, record=False):
         left = max(self.minx, other.box[0])
@@ -169,6 +170,11 @@ class Label(object):
     @property
     def box(self):
         return self.minx, self.miny, self.maxx, self.maxy
+
+    def determine_penalty(self, selected_label_candidates):
+        penalty = self.penalty
+        penalty += sum([self.label_penalties[i] for i in selected_label_candidates])
+        return penalty
 
 
 class Point(object):

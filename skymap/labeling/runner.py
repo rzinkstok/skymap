@@ -5,7 +5,7 @@ from PIL import Image, ImageDraw
 from skymap.labeling.common import Point, BoundingBox, evaluate_labels, POSITION_WEIGHT
 from skymap.labeling.greedy import GreedyLabeler, AdvancedGreedyLabeler
 from skymap.labeling.grasp import GraspLabeler
-from skymap.labeling.genetic import GeneticLabeler
+from skymap.labeling.genetic import GeneticLabeler, CachedGeneticLabeler
 
 
 def evaluate(points, bounding_box):
@@ -51,7 +51,7 @@ if __name__ == "__main__":
     random.seed(1)
 
     npoints = 1000
-    nlabels = 100
+    nlabels = 200
     mapwidth = 500
     mapheight = 500
     bounding_box = BoundingBox(0, 0, mapwidth, mapheight)
@@ -67,7 +67,7 @@ if __name__ == "__main__":
             p = Point(x, y, 1)
         points.append(p)
 
-    method = 4
+    method = 5
     if method == 1:
         g = GreedyLabeler(points, bounding_box)
     elif method == 2:
@@ -76,6 +76,8 @@ if __name__ == "__main__":
         g = GraspLabeler(points, bounding_box)
     elif method == 4:
         g = GeneticLabeler(points, bounding_box)
+    elif method == 5:
+        g = CachedGeneticLabeler(points, bounding_box)
 
     t1 = time.clock()
 
