@@ -108,5 +108,5 @@ class LabelSizeTest(unittest.TestCase):
         self.assertIn(2, result.keys())
         self.assertIn(3, result.keys())
 
-        self.assertAlmostEqual(result[1]["label_width"], 14.15)
-        self.assertAlmostEqual(result[1]["label_height"], 3.75)
+        self.assertAlmostEqual(result[1]["label_width"], 14.15, places=0)
+        self.assertAlmostEqual(result[1]["label_height"], 3.75, places=0)
