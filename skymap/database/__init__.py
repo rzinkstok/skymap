@@ -1,1 +1,1 @@
-from database import SkyMapDatabase
+from .database import SkyMapDatabase

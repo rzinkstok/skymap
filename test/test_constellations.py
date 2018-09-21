@@ -1,5 +1,4 @@
 import unittest
-from skymap.geometry import SphericalPoint
 
 
 class TestBoundaryEdge(unittest.TestCase):
