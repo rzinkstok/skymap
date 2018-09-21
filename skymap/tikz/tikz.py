@@ -128,8 +128,8 @@ class Tikz(object):
         # Run XeLaTeX
         if verbose:
             print(f"Rendering {filepath or os.path.join(TEX_OUTPUT_FOLDER, self.texfile_name)}")
-        subprocess.check_output(["xelatex", "-halt-on-error", self.texfile_name], cwd=TEX_OUTPUT_FOLDER)
-        output = subprocess.check_output(["xelatex", "-halt-on-error", self.texfile_name], cwd=TEX_OUTPUT_FOLDER, universal_newlines=True)
+        subprocess.check_output(["xelatex", "-halt-on-error", "-interaction", "batchmode", self.texfile_name], cwd=TEX_OUTPUT_FOLDER)
+        output = subprocess.check_output(["xelatex", "-halt-on-error", "-interaction", "batchmode", self.texfile_name], cwd=TEX_OUTPUT_FOLDER, universal_newlines=True)
 
         # Move output file
         if filepath:
