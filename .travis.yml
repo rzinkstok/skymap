@@ -4,7 +4,7 @@ python:
 cache: pip
 before_install:
   - sudo apt-get install -y libspatialindex-dev
-  - supo apt-get install -y texlive-xetex
+  - sudo apt-get install -y texlive-xetex
   - sudo apt-get install -y pipenv
 install:
   - pipenv install
