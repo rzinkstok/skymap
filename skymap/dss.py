@@ -22,8 +22,8 @@ dem = res['DEm']
 dec = ded + dem/60.0
 if des == "-":
     dec *= -1
-print "{}h {}m -> {}".format(rah, ram, ra)
-print "{}{}deg {}m -> {}".format(des, ded, dem, dec)
+print("{}h {}m -> {}".format(rah, ram, ra))
+print("{}{}deg {}m -> {}".format(des, ded, dem, dec))
 
 
 

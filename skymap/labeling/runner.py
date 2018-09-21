@@ -84,8 +84,8 @@ if __name__ == "__main__":
 
     g.run()
     t2 = time.clock()
-    print "Run time:", t2 - t1
+    print(f"Run time: {t2 - t1}")
     penalty = evaluate(g.points, g.bounding_box)
-    print "Penalty:", penalty
+    print(f"Penalty: {penalty}")
 
     draw(points, mapwidth, mapheight)

@@ -126,7 +126,7 @@ class Tikz(object):
             fp.write(rendered_template)
 
         # Run XeLaTeX
-        print "Rendering", filepath or os.path.join(TEX_OUTPUT_FOLDER, self.texfile_name)
+        print(f"Rendering {filepath or os.path.join(TEX_OUTPUT_FOLDER, self.texfile_name)}")
         subprocess.check_output(["xelatex", self.texfile_name], cwd=TEX_OUTPUT_FOLDER)
         output = subprocess.check_output(["xelatex", self.texfile_name], cwd=TEX_OUTPUT_FOLDER)
 

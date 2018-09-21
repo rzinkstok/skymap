@@ -183,7 +183,7 @@ def create_table(db):
 
     db.drop_table("skymap_stars")
 
-    print "Creating table"
+    print("Creating table")
     t1 = time.time()
     q = """CREATE TABLE skymap_stars (
                         id INT NOT NULL AUTO_INCREMENT,
@@ -234,7 +234,7 @@ def create_table(db):
 
     db.commit_query(q)
     t2 = time.time()
-    print "{:.1f} s".format(t2 - t1)
+    print("{:.1f} s".format(t2 - t1))
 
 
 def add_tycho2(db):
@@ -247,7 +247,7 @@ def add_tycho2(db):
         db (skymap.database.SkyMapDatabase): An open SkyMapDatabase instance
     """
 
-    print "Inserting Tycho-2 data"
+    print("Inserting Tycho-2 data")
     t1 = time.time()
     q = """
                 INSERT INTO skymap_stars (
@@ -282,7 +282,7 @@ def add_tycho2(db):
             """
     db.commit_query(q)
     t2 = time.time()
-    print "{:.1f} s".format(t2 - t1)
+    print("{:.1f} s".format(t2 - t1))
 
 
 def add_tycho1(db):
@@ -295,7 +295,7 @@ def add_tycho1(db):
     Args:
         db (skymap.database.SkyMapDatabase): An open SkyMapDatabase instance
     """
-    print "Inserting Tycho-1 data"
+    print("Inserting Tycho-1 data")
     t1 = time.time()
 
     delta_t = (Time("J2000.0") - Time("J1991.25")).value/365.25
@@ -331,7 +331,7 @@ def add_tycho1(db):
             """
     db.commit_query(q)
     t2 = time.time()
-    print "{:.1f} s".format(t2 - t1)
+    print("{:.1f} s".format(t2 - t1))
 
 
 def add_hipparcos(db):
@@ -343,7 +343,7 @@ def add_hipparcos(db):
         db (skymap.database.SkyMapDatabase): An open SkyMapDatabase instance
     """
 
-    print "Inserting Hipparcos data"
+    print("Inserting Hipparcos data")
     t1 = time.time()
     q = """
                 INSERT INTO skymap_stars (
@@ -403,7 +403,7 @@ def add_hipparcos(db):
     """
     db.commit_query(q)
     t2 = time.time()
-    print "{:.1f} s".format(t2 - t1)
+    print("{:.1f} s".format(t2 - t1))
 
 
 def add_indexes(db):
@@ -414,7 +414,7 @@ def add_indexes(db):
         db (skymap.database.SkyMapDatabase): An open SkyMapDatabase instance
     """
 
-    print "Adding indexes"
+    print("Adding indexes")
     t1 = time.time()
     db.add_index("skymap_stars", "HIP")
     db.add_index("skymap_stars", "TYC1")
@@ -425,7 +425,7 @@ def add_indexes(db):
     db.add_index("skymap_stars", "HD2")
     db.add_index("skymap_stars", "HR")
     t2 = time.time()
-    print "{:.1f} s".format(t2 - t1)
+    print("{:.1f} s".format(t2 - t1))
 
 
 def add_cross_index(db):
@@ -436,7 +436,7 @@ def add_cross_index(db):
         db (skymap.database.SkyMapDatabase): An open SkyMapDatabase instance
     """
 
-    print "Adding New Cross Index data"
+    print("Adding New Cross Index data")
     t1 = time.time()
     q = """
                 UPDATE skymap_stars, cross_index_catalog
@@ -448,7 +448,7 @@ def add_cross_index(db):
             """
     db.commit_query(q)
     t2 = time.time()
-    print "{:.1f} s".format(t2 - t1)
+    print("{:.1f} s".format(t2 - t1))
 
 
 def add_bright_star_catalog(db):
@@ -459,7 +459,7 @@ def add_bright_star_catalog(db):
         db (skymap.database.SkyMapDatabase): An open SkyMapDatabase instance
     """
 
-    print "Adding Bright Star Catalog data"
+    print("Adding Bright Star Catalog data")
     t1 = time.time()
     q = """
                 UPDATE skymap_stars, bsc_catalog
@@ -469,7 +469,7 @@ def add_bright_star_catalog(db):
     """
     db.commit_query(q)
     t2 = time.time()
-    print "{:.1f} s".format(t2 - t1)
+    print("{:.1f} s".format(t2 - t1))
 
 
 def add_proper_names(db):
@@ -480,7 +480,7 @@ def add_proper_names(db):
         db (skymap.database.SkyMapDatabase): An open SkyMapDatabase instance
     """
 
-    print "Adding proper names"
+    print("Adding proper names")
     t1 = time.time()
 
     # Retrieve the proper name list
@@ -537,7 +537,7 @@ def add_proper_names(db):
         db.commit_query(q)
 
     t2 = time.time()
-    print "{:.1f} s".format(t2 - t1)
+    print("{:.1f} s".format(t2 - t1))
 
 
 def add_constellations(db):
@@ -548,7 +548,7 @@ def add_constellations(db):
         db (skymap.database.SkyMapDatabase): An open SkyMapDatabase instance
     """
 
-    print "Adding constellations"
+    print("Adding constellations")
     t1 = time.time()
     rows = db.query("""SELECT id, right_ascension, declination, source FROM skymap_stars""")
     nrecords = len(rows)
@@ -572,8 +572,8 @@ def add_constellations(db):
         db.commit_query("UPDATE skymap_stars SET constellation='{}' WHERE id={}".format(c, r['id']))
 
     t2 = time.time()
-    print
-    print "{:.1f} s".format(t2 - t1)
+    print()
+    print("{:.1f} s".format(t2 - t1))
 
 
 def select_stars(magnitude, constellation=None, ra_range=None, dec_range=None):

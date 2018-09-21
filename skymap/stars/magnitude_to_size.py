@@ -23,15 +23,15 @@ if __name__=="__main__":
 
     popt, pcov = curve_fit(f, magnitude, size)
 
-    print popt
-    print np.sqrt(np.diag(pcov))
+    print(popt)
+    print(np.sqrt(np.diag(pcov)))
 
     stderr = 0
 
     for x, y in zip(magnitude, size):
         fval = f(x, *popt)
         stderr += pow(fval-y, 2)
-        print "X: {0:.2f} Y: {1:.2f} F: {2:.2f} Delta: {3:.6f}".format(x, y, fval, fval-y)
+        print("X: {0:.2f} Y: {1:.2f} F: {2:.2f} Delta: {3:.6f}".format(x, y, fval, fval-y))
 
-    print
-    print math.sqrt(stderr)
+    print()
+    print(math.sqrt(stderr))

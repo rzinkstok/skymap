@@ -204,7 +204,7 @@ class LabelManager(object):
             #             print o
             l.draw(figure)
             self.objects.append(l.bounding_box)
-        print "\n"
+        print("\n")
 
 
 

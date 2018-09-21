@@ -41,10 +41,10 @@ def calculate_label_sizes(labeldict, normalsize=11, fontsize="normal", verbose=F
                 "label_height": label_height
             }
             if verbose:
-                print "---------------------"
-                print "Object ID:", object_id
-                print "Label text:", label_text
-                print "Label width:", label_width
-                print "Label height:", label_height
+                print("---------------------")
+                print(f"Object ID: {object_id}")
+                print(f"Label text: {label_text}")
+                print(f"Label width: {label_width}")
+                print(f"Label height: {label_height}")
 
     return result

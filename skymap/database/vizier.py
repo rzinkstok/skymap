@@ -96,8 +96,8 @@ def parse_datafile(db, foldername, filename, table, coldefs, columns):
         coldefs (list): the column definitions for the data file
         columns (list): the column names of the table
     """
-    print
-    print "Parsing", filename
+    print()
+    print(f"Parsing {filename}")
 
     filepath = os.path.join(DATA_FOLDER, foldername, filename)
     ext = os.path.splitext(filepath)[-1]
@@ -177,10 +177,10 @@ def download_files(catalogue, foldername):
         destfile = os.path.join(destfolder, f)
 
         if os.path.exists(destfile):
-            print "Already downloaded:", f
+            print(f"Already downloaded: {f}")
             continue
 
-        print "Downloading", f
+        print(f"Downloading {f}")
         ftp.retrbinary('RETR {}'.format(f), open(destfile, 'wb').write)
 
     ftp.quit()
@@ -197,8 +197,8 @@ def build_database(catalogue, foldername, indices=(), extra_function=None):
         indices (list): the columns to generate indices for
         extra_function (function): a function to call after the database is built
     """
-    print
-    print "Building database for {} ({})".format(catalogue, foldername)
+    print()
+    print(f"Building database for {catalogue} ({foldername})")
     t1 = time.time()
 
     files = download_files(catalogue, foldername)
@@ -242,9 +242,9 @@ def build_database(catalogue, foldername, indices=(), extra_function=None):
                 db.add_index(table, ind)
 
     t2 = time.time()
-    print
-    print
-    print "Time: {} s".format(t2-t1)
+    print()
+    print()
+    print(f"Time: {t2-t1} s")
 
     if extra_function:
         extra_function()

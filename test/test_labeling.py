@@ -22,13 +22,13 @@ class RTreeTest(unittest.TestCase):
         basen = 100
         boxes = [Box(i) for i in range(basen)]
         t = timeit.Timer(lambda: self.insert_boxes(boxes), setup=lambda: self.create_index_data([]))
-        print t.timeit(number=repeat) / repeat
+        print(t.timeit(number=repeat) / repeat)
 
         n = 100000
         prior_boxes = [Box(i) for i in range(n)]
         boxes = [Box(i) for i in range(n, n + basen)]
         t = timeit.Timer(lambda: self.insert_boxes(boxes), setup=lambda: self.create_index_data(prior_boxes))
-        print t.timeit(number=repeat) / repeat
+        print(t.timeit(number=repeat) / repeat)
 
     def Xtest_creation(self):
         repeat = 10
@@ -36,14 +36,14 @@ class RTreeTest(unittest.TestCase):
         boxes = [Box(i) for i in range(basen)]
         t = timeit.Timer(lambda: self.create_index_data(boxes))
         t0 = t.timeit(number=repeat) / repeat
-        print basen, t0
+        print(basen, t0)
         for i in range(6):
             m = 2 ** (i + 1)
             n = m * basen
             boxes = [Box(i) for i in range(n)]
             t = timeit.Timer(lambda: self.create_index_data(boxes))
             t1 = t.timeit(number=repeat) / repeat
-            print n, m, t1, t1 / t0
+            print(n, m, t1, t1 / t0)
 
     def Xtest_stream(self):
         repeat = 10
@@ -58,10 +58,10 @@ class RTreeTest(unittest.TestCase):
                 yield (b.index, b.box, b.index)
 
         t = timeit.Timer(lambda: self.create_index_data(boxes))
-        print t.timeit(number=repeat) / repeat
+        print(t.timeit(number=repeat) / repeat)
 
         t = timeit.Timer(lambda: self.create_index_stream(box_generator()))
-        print t.timeit(number=repeat) / repeat
+        print(t.timeit(number=repeat) / repeat)
 
     def Xtest_query(self):
         repeat = 10
@@ -70,14 +70,14 @@ class RTreeTest(unittest.TestCase):
         test_boxes = random.sample(boxes, 10)
 
         t = timeit.Timer(lambda: self.query_index(test_boxes))
-        print t.timeit(number=repeat) / repeat
+        print(t.timeit(number=repeat) / repeat)
 
         boxes = [Box(i) for i in range(100000)]
         self.create_index_data(boxes)
         test_boxes = random.sample(boxes, 10)
 
         t = timeit.Timer(lambda: self.query_index(test_boxes))
-        print t.timeit(number=repeat) / repeat
+        print(t.timeit(number=repeat) / repeat)
 
     def insert_boxes(self, boxes):
         for b in boxes:
