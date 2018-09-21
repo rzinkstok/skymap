@@ -2,7 +2,7 @@ language: python
 python:
   - "3.7"
 cache: pip
-before_install: :
+before_install:
   - sudo apt-get install -y libspatialindex
   - supo apt-get install -y texlive-xetex
   - sudo apt-get install -y pipenv
