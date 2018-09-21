@@ -3,7 +3,7 @@ python:
   - "3.6"
 cache: pip
 before_install:
-  - sudo apt-get install -y libspatialindex
+  - sudo apt-get install -y libspatialindex-dev
   - supo apt-get install -y texlive-xetex
   - sudo apt-get install -y pipenv
 install:
