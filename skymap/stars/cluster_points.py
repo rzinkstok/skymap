@@ -152,7 +152,7 @@ if __name__ == "__main__":
     use_brute = False
     number_of_points = int(1e5)
     cluster_threshold = 0.0001*360*180*1.0/number_of_points
-    print "Threshold:", cluster_threshold
+    print(f"Threshold: {cluster_threshold}")
     if use_pseudo:
         np.random.seed(1)
 
@@ -161,17 +161,17 @@ if __name__ == "__main__":
     input_points = generate_random_points(number_of_points)
 
     t1 = time.clock()
-    print "Generation time: {} s".format(t1-t0)
+    print(f"Generation time: {t1-t0} s")
 
     pairs = cluster_wrapper(input_points, cluster_threshold, brute=use_brute)
 
-    print
-    print "Pairs:"
-    print "--------------"
+    print()
+    print("Pairs:")
+    print("--------------")
     for pp in pairs:
         pid1, pid2 = (int(x) for x in pp.split())
         pp1 = input_points[pid1, :]
         pp2 = input_points[pid2, :]
-        print pid1, pid2, distance(pp1, pp2)
-    print "--------------"
-    print "Clustering time: {} s".format(time.clock()-t1)
+        print(f"{pid1} {pid2} {distance(pp1, pp2)}")
+    print("--------------")
+    print("Clustering time: {time.clock()-t1} s")

@@ -8,4 +8,4 @@ if __name__ == "__main__":
     build_stellar_source_databases()
     build_stellar_database()
     t2 = time.time()
-    print "Total build time: {:.1f} s".format(t2 - t1)
+    print("Total build time: {:.1f} s".format(t2 - t1))

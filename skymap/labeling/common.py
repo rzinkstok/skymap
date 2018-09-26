@@ -64,15 +64,15 @@ def evaluate_labels(labels, points, bounding_box):
         idx.insert(i, item.box)
 
     t2 = time.clock()
-    #print "Index creation:", t2-t1
+    #print(f"Index creation: {t2-t1}")
 
     # Update penalties for overlap with other objects
     penalties = [evaluate_label(l, items, idx) for l in labels]
 
     t3 = time.clock()
-    #print "Overlap checking:", t3 - t2
+    #print(f"Overlap checking: {t3 - t2}")
 
-    #print "Total time:", t3 - t1
+    print(f"Total time: {t3 - t1}")
     return penalties
 
 

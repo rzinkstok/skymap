@@ -184,13 +184,13 @@ class PaperMargin(object):
 
 
 if __name__ == "__main__":
-    print PaperSize()
-    print PaperSize("ANSI-A")
-    print PaperSize("letter")
-    print PaperSize("A4")
-    print PaperSize("A3")
-    print PaperSize("A2")
+    print(PaperSize())
+    print(PaperSize("ANSI-A"))
+    print(PaperSize("letter"))
+    print(PaperSize("A4"))
+    print(PaperSize("A3"))
+    print(PaperSize("A2"))
 
-    print PaperMargin(24, 24)
-    print PaperMargin(0, 0)
-    print PaperMargin()
+    print(PaperMargin(24, 24))
+    print(PaperMargin(0, 0))
+    print(PaperMargin())

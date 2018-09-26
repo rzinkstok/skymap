@@ -1,0 +1,22 @@
+[[source]]
+url = "https://pypi.org/simple"
+verify_ssl = true
+name = "pypi"
+
+[packages]
+numpy = "*"
+mysql-connector = "*"
+deap = "*"
+astropy = "*"
+matplotlib = "*"
+"beautifulsoup4" = "*"
+astroquery = "*"
+Pillow = "*"
+"Jinja2" = "*"
+Rtree = "*"
+skymap = {editable = true, path = "."}
+
+[dev-packages]
+
+[requires]
+python_version = "3.7"

@@ -375,21 +375,21 @@ class QuickEdge(object):
 
 
 def build_constellation_boundary_database():
-    print
-    print "Creating constellation boundary database"
+    print()
+    print("Creating constellation boundary database")
     db = SkyMapDatabase()
     db.drop_table("skymap_constellation_boundaries")
     db.create_table("skymap_constellation_boundaries", ["ra1", "dec1", "ra2", "dec2"], [float, float, float, float])
 
     # Retrieve data from Vizier
-    print
-    print "Retrieving data from Vizier"
+    print()
+    print("Retrieving data from Vizier")
     Vizier.ROW_LIMIT = -1
     catalog = Vizier.get_catalogs("VI/49")
     constbnd = catalog['VI/49/constbnd']
 
-    print
-    print "Building edges from {} points".format(len(constbnd))
+    print()
+    print("Building edges from {} points".format(len(constbnd)))
     prev_hash = None
     edges = []
     for row in constbnd:
@@ -405,22 +405,22 @@ def build_constellation_boundary_database():
 
         prev_hash = current_hash
 
-    print
-    print "Connecting {} edges".format(len(edges))
+    print()
+    print("Connecting {} edges".format(len(edges)))
     for i, e1 in enumerate(edges):
         for e2 in edges[i+1:]:
             e1.connect(e2)
 
-    print
-    print "Building extended edges"
+    print()
+    print("Building extended edges")
     new_edges = []
     for i, e in enumerate(edges):
         new_edge = e.extended_edge
         if new_edge not in new_edges:
             new_edges.append(new_edge)
 
-    print
-    print "Loading {} edges to database".format(len(new_edges))
+    print()
+    print(f"Loading {len(new_edges)} edges to database")
     for i, e in enumerate(new_edges):
         db.insert_row("skymap_constellation_boundaries", ["ra1", "dec1", "ra2", "dec2"], e.coordinates)
 

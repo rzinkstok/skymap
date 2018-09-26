@@ -64,8 +64,8 @@ class FontSize(OrderedDict):
 if __name__ == "__main__":
     fs = FontSize(11, "exp")
     for sn, s in fs.items():
-        print sn, "->", s
-    print
+        print(f"{sn} -> {s}")
+    print()
     fs = FontSize(11, lambda x: (x+6)**2)
     for sn, s in fs.items():
-        print sn, "->", s
+        print(f"{sn} -> {s}")
