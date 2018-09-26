@@ -1,13 +1,45 @@
 import random
 import numpy
-from deap import base, creator, tools, algorithms
+from deap import base, tools, algorithms
 from rtree.index import Index
 import matplotlib.pyplot as plt
 
-from skymap.labeling.common import evaluate_label, POSITION_WEIGHT, BoundingBoxBorder, Label
+from skymap.labeling.common import evaluate_label, POSITION_WEIGHT, BoundingBoxBorder, Label, local_search, evaluate
 
 
-def eaSimpleStop(population, toolbox, cxpb, mutpb, ngen, stopn=10, stats=None, halloffame=None, verbose=__debug__):
+"""
+Ideas:
+* Local search
+* conflict mutation (mutate only/preferentially genes that correspond to conflicting labels)
+"""
+
+
+def local_search_pop(population, toolbox, points, bounding_box):
+    labeled_points = [p for p in points if p.text]
+    offspring = [toolbox.clone(ind) for ind in population]
+    sorted_fitness = sorted([x.fitness.values[0] for x in offspring], reverse=True)
+    min_fitness = sorted_fitness[len(offspring)/100]
+
+    for i in range(len(offspring)):
+        individual = offspring[i]
+        if individual.fitness.values[0] < min_fitness:
+            continue
+
+        # Select current individuals labels
+        for p, lc in zip(labeled_points, individual):
+            p.label_candidates[lc].select()
+
+        local_search(points, bounding_box, 1)
+
+        # Set new values for individual
+        for pid, p in enumerate(labeled_points):
+            offspring[i][pid] = p.label_index
+
+        del offspring[i].fitness.values
+    return offspring
+
+
+def eaSimpleStop(population, toolbox, cxpb, mutpb, ngen, stopn=10, stats=None, halloffame=None, points=None, bounding_box=None, verbose=__debug__):
     """
     This algorithm reproduce the simplest evolutionary algorithm as
     presented in chapter 7 of [Back2000]_.
@@ -102,6 +134,15 @@ def eaSimpleStop(population, toolbox, cxpb, mutpb, ngen, stopn=10, stats=None, h
         for ind, fit in zip(invalid_ind, fitnesses):
             ind.fitness.values = fit
 
+        # if points and gen%10 == 0:
+        #     offspring = local_search_pop(offspring, toolbox, points, bounding_box)
+        #
+        #     # Evaluate the individuals with an invalid fitness
+        #     invalid_ind = [ind for ind in offspring if not ind.fitness.valid]
+        #     fitnesses = toolbox.map(toolbox.evaluate, invalid_ind)
+        #     for ind, fit in zip(invalid_ind, fitnesses):
+        #         ind.fitness.values = fit
+
         # Update the hall of fame with the generated individuals
         if halloffame is not None:
             halloffame.update(offspring)
@@ -125,7 +166,7 @@ def eaSimpleStop(population, toolbox, cxpb, mutpb, ngen, stopn=10, stats=None, h
 
 
 class BaseGeneticLabeler(object):
-    def __init__(self, points, bounding_box):
+    def __init__(self, creator, points, bounding_box):
         self.points = points
         self.bounding_box = bounding_box
         self.labeled_points = [p for p in self.points if p.text]
@@ -133,14 +174,14 @@ class BaseGeneticLabeler(object):
             lp.labeled_point_index = i
 
         # DEAP parameters
-        self.ngenerations = 1000
+        self.ngenerations = 300
         self.stopn = 10
         self.nindividuals = 400
-        self.mutation_prob = 0.4
-        self.crossover_prob = 0.8
+        self.mutation_prob = 0.35
+        self.crossover_prob = 0.9
 
-        creator.create("FitnessMax", base.Fitness, weights=(1.0,))
-        creator.create("Individual", list, fitness=creator.FitnessMax)
+        # creator.create("FitnessMax", base.Fitness, weights=(1.0,))
+        # creator.create("Individual", list, fitness=creator.FitnessMax)
 
         self.toolbox = base.Toolbox()
         self.toolbox.register("attr_bool", random.randint, 0, 7)
@@ -150,7 +191,7 @@ class BaseGeneticLabeler(object):
         self.toolbox.register("evaluate", self.evaluate_fitness)
         self.toolbox.register("mate", tools.cxTwoPoint)
         self.toolbox.register("mutate", tools.mutUniformInt, low=0, up=7, indpb=0.05)
-        self.toolbox.register("select", tools.selTournament, tournsize=5)
+        self.toolbox.register("select", tools.selTournament, tournsize=3)
 
     def run(self):
         pop = self.toolbox.population(n=self.nindividuals)
@@ -161,22 +202,28 @@ class BaseGeneticLabeler(object):
         stats.register("min", numpy.min)
         stats.register("max", numpy.max)
 
-        pop, log = eaSimpleStop(
+        pop, log = algorithms.eaSimple(
             pop,
             self.toolbox,
             cxpb=self.crossover_prob,
             mutpb=self.mutation_prob,
             ngen=self.ngenerations,
-            stopn=self.stopn,
+            #stopn=self.stopn,
             stats=stats,
             halloffame=hof,
+            # points=self.points,
+            # bounding_box=self.bounding_box,
             verbose=True
         )
 
-        self.plot(log)
+        #self.plot(log)
 
         for lp, i in zip(self.labeled_points, hof[0]):
             lp.label_candidates[i].select()
+
+        print "Penalty:", evaluate(self.points, self.bounding_box)
+        local_search(self.points, self.bounding_box, 5)
+        print "Penalty after local search: ", evaluate(self.points, self.bounding_box)
 
     def plot(self, logbook):
         gen = logbook.select("gen")
@@ -233,8 +280,8 @@ class GeneticLabeler(BaseGeneticLabeler):
 
 
 class CachedGeneticLabeler(BaseGeneticLabeler):
-    def __init__(self, points, bounding_box):
-        BaseGeneticLabeler.__init__(self, points, bounding_box)
+    def __init__(self, creator, points, bounding_box):
+        BaseGeneticLabeler.__init__(self, creator, points, bounding_box)
         self.build_cache()
 
     def build_cache(self):

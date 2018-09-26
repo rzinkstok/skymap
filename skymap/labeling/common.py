@@ -9,8 +9,8 @@ MM_PER_POINT = 0.352778
 AVG_CHAR_WIDTH = AVG_POINT_PER_CHAR * POINTSIZE * MM_PER_POINT
 CHAR_HEIGHT = 1.5 * MM_PER_POINT * POINTSIZE
 
-POINT_PENALTY = 100
-BBOX_PENALTY = 500
+POINT_PENALTY = 10
+BBOX_PENALTY = 20
 POSITION_WEIGHT = 0.1
 
 
@@ -44,7 +44,7 @@ def evaluate_label(label, items, idx, selected_only=False):
             if bbox_counted:
                 continue
             bbox_counted = True
-            
+
         penalty += item.overlap(label, True)
     label.penalty = penalty
     return penalty
@@ -72,8 +72,60 @@ def evaluate_labels(labels, points, bounding_box):
     t3 = time.clock()
     #print "Overlap checking:", t3 - t2
 
-    print "Total time:", t3 - t1
+    #print "Total time:", t3 - t1
     return penalties
+
+
+def evaluate(points, bounding_box):
+    labels = [p.label for p in points if p.label]
+    penalties = evaluate_labels(labels, points, bounding_box)
+
+    total_penalty = sum(penalties)
+
+    return total_penalty
+
+
+def local_search(points, bounding_box, iterations):
+    labeled_points = [p for p in points if p.text]
+
+    items = []
+    items.extend([p.label for p in labeled_points])
+    items.extend(points)
+    items.extend(bounding_box.borders)
+
+    idx = Index()
+    for i, item in enumerate(items):
+        item.index = i
+        idx.insert(item.index, item.box)
+
+    for i in range(iterations):
+        for lp in labeled_points:
+            best_candidate = None
+            min_penalty = None
+            for lc1 in lp.label_candidates:
+                penalty = POSITION_WEIGHT * lc1.position
+
+                # Check overlap with other labels and points
+                intersecting_item_ids = idx.intersection(lc1.box)
+                for item_id in intersecting_item_ids:
+                    item = items[item_id]
+                    if hasattr(item, "point") and lc1.point == item.point:
+                        continue
+                    penalty += item.overlap(lc1)
+
+                if min_penalty is None or penalty < min_penalty:
+                    min_penalty = penalty
+                    best_candidate = lc1
+
+            # Remove the old label from the index
+            idx.delete(lp.label.index, lp.label.box)
+
+            # Select the new label
+            best_candidate.select()
+
+            # Add the new label to the index and item list
+            idx.insert(len(items), lp.label.box)
+            items.append(lp.label)
 
 
 class Label(object):
@@ -177,14 +229,11 @@ class Label(object):
         return penalty
 
 
-class Point(object):
-    def __init__(self, x, y, radius, text=None, label_offset=0):
-        self.x = x
-        self.y = y
-        self.radius = radius
+class LabelableObject(object):
+    def __init__(self, text=None, label_offset=0):
+        self.index = None
         self.text = text
         self.label_offset = label_offset
-        self.index = None
 
         self.label_candidates = []
         self.label_index = None
@@ -202,6 +251,16 @@ class Point(object):
         for i in range(8):
             self.label_candidates.append(Label(self, self.text, i, self.label_offset))
 
+
+class Point(LabelableObject):
+    def __init__(self, x, y, radius, text=None, label_offset=0):
+        self.x = x
+        self.y = y
+        self.radius = radius
+
+
+        LabelableObject.__init__(self, text, label_offset)
+
     @property
     def box(self):
         return self.x-self.radius, self.y - self.radius, self.x + self.radius, self.y + self.radius
@@ -218,6 +277,18 @@ class Point(object):
 
     def distance(self, other):
         return math.sqrt((self.x - other.x) ** 2 + (self.y - other.y) **2)
+
+
+class Ellipse(object):
+    def __init__(self, x, y, semi_major_axis, semi_minor_axis, position_angle, text=None, label_offset=0):
+        self.x = x
+        self.y = y
+        self.semi_major_axis = semi_major_axis
+        self.semi_minor_axis = semi_minor_axis
+        self.position_angle = position_angle
+
+    def overlap(self, label, record=False):
+        pass
 
 
 class BoundingBox(tuple):

@@ -2,19 +2,12 @@ import time
 import random
 from PIL import Image, ImageDraw
 
-from skymap.labeling.common import Point, BoundingBox, evaluate_labels, POSITION_WEIGHT
+from skymap.labeling.common import Point, BoundingBox, evaluate, POSITION_WEIGHT
 from skymap.labeling.greedy import GreedyLabeler, AdvancedGreedyLabeler
 from skymap.labeling.grasp import GraspLabeler
 from skymap.labeling.genetic import GeneticLabeler, CachedGeneticLabeler
 
-
-def evaluate(points, bounding_box):
-    labels = [p.label for p in points if p.label]
-    penalties = evaluate_labels(labels, points, bounding_box)
-
-    total_penalty = sum(penalties)
-
-    return total_penalty
+from deap import creator, base
 
 
 def draw(points, width, height):
@@ -48,7 +41,11 @@ def draw(points, width, height):
 
 
 if __name__ == "__main__":
+    print "Starting"
     random.seed(1)
+
+    creator.create("FitnessMax", base.Fitness, weights=(1.0,))
+    creator.create("Individual", list, fitness=creator.FitnessMax)
 
     npoints = 1000
     nlabels = 200
@@ -77,7 +74,7 @@ if __name__ == "__main__":
     elif method == 4:
         g = GeneticLabeler(points, bounding_box)
     elif method == 5:
-        g = CachedGeneticLabeler(points, bounding_box)
+        g = CachedGeneticLabeler(creator, points, bounding_box)
 
     t1 = time.clock()
 
@@ -88,4 +85,4 @@ if __name__ == "__main__":
     penalty = evaluate(g.points, g.bounding_box)
     print "Penalty:", penalty
 
-    draw(points, mapwidth, mapheight)
+    #draw(points, mapwidth, mapheight)
