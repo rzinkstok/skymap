@@ -1,11 +1,24 @@
 import unittest
+import numpy as np
 from skymap.geometry import *
+
+
+class RotationTest(unittest.TestCase):
+    def test_rotation(self):
+        r = rotation_matrix((1, 0, 0), np.pi/2)
+        p = (0, 1, 0)
+        self.assertTrue(np.allclose(np.dot(r, p), (0, 0, 1)))
+
+    def test_sky2cartesian(self):
+        r = np.array(((0, 0),))
+        self.assertTrue(np.allclose(sky2cartesian(r), (1, 0, 0)))
 
 
 class RectangleTest(unittest.TestCase):
     def test_center(self):
         r = Rectangle(Point(1, 2), Point(5, 3))
-        self.assertEqual(r.center, Point(3, 2.5))
+        p = Point(3.0, 2.5)
+        self.assertEqual(r.center, p)
 
     def test_overlap(self):
         r1 = Rectangle(Point(0, 0), Point(1,1))

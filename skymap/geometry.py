@@ -1,4 +1,106 @@
 import math
+import numpy as np
+from astropy.coordinates import SkyCoord
+from astropy import units
+
+
+TOLERANCE = 1e-12
+
+
+class SkyCoordDeg(SkyCoord):
+    def __init__(self, *args, **kwargs):
+        if "unit" not in kwargs:
+            kwargs["unit"] = units.deg
+        SkyCoord.__init__(self, *args, **kwargs)
+
+    def __eq__(self, other):
+        return (abs(self.dec.degree - other.dec.degree) < TOLERANCE) and (abs(self.ra.degree - other.ra.degree) < TOLERANCE)
+
+    def __ne__(self, other):
+        return not self == other
+
+
+# For tracking precession of north pole
+# SkyCoord(0,90, unit="degree", frame=PrecessedGeocentric(equinox="J2100")).transform_to("icrs")
+
+# For mapping the ecliptic (equinox is map equinox)
+# SkyCoord(90, 0, unit="degree", frame=BarycentricTrueEcliptic(equinox="J2000")).transform_to("icrs")
+
+# For mapping the galactic pole
+# SkyCoord(0, 90, unit="degree", frame=Galactic).transform_to("icrs")
+
+# For converting constellation boundary to ICRS
+# SkyCoord(0, 0, unit="degree", frame=PrecessedGeocentric(equinox="B1875")).transform_to("icrs")
+
+
+def distance(p1, p2):
+    return np.linalg.norm(p1[:2] - p2[:2])
+
+
+def rotation_matrix(axis, angle):
+    sina = math.sin(angle)
+    cosa = math.cos(angle)
+    direction = axis/np.linalg.norm(axis)
+
+    rmatrix = np.diag([cosa, cosa, cosa])
+    rmatrix += np.outer(direction, direction) * (1.0 - cosa)
+    direction *= sina
+    rmatrix += np.array(
+        [[0.0, -direction[2], direction[1]],
+         [direction[2], 0.0, -direction[0]],
+         [-direction[1], direction[0], 0.0]]
+    )
+    return rmatrix
+
+
+def sky2cartesian(points):
+    phi = np.deg2rad(points[:, 0])
+    theta = np.pi/2 - np.deg2rad(points[:, 1])
+    result = np.zeros((points.shape[0], 3))
+    result[:, 0] = np.sin(theta) * np.cos(phi)
+    result[:, 1] = np.sin(theta) * np.sin(phi)
+    result[:, 2] = np.cos(theta)
+    return result
+
+
+def sky2cartesian_with_parallax(points_with_parallax):
+    """
+
+    Args:
+        points_with_parallax: (ra, dec, parallax) with ra and dec in degrees and parallax in mas
+
+    Returns:
+        x, y, z in parsecs
+    """
+    phi = np.deg2rad(points_with_parallax[:, 0])
+    theta = np.pi / 2 - np.deg2rad(points_with_parallax[:, 1])
+    rho = 1000.0/points_with_parallax[:, 2]
+    result = np.zeros((points_with_parallax.shape[0], 3))
+    result[:, 0] = rho * np.sin(theta) * np.cos(phi)
+    result[:, 1] = rho * np.sin(theta) * np.sin(phi)
+    result[:, 2] = rho * np.cos(theta)
+    return result
+
+
+def cartesian2sky(points):
+    theta = np.arccos(points[:, 2])
+    phi = np.arctan2(points[:, 1], points[:, 0])
+    result = np.zeros((points.shape[0], 2))
+    result[:, 0] = np.rad2deg(phi)
+    result[:, 1] = np.rad2deg(np.pi/2 - theta)
+    return result
+
+
+def cartesian2sky_with_parallax(points):
+    """Cartesian coordinates in parsecs to ra, dec, parallax."""
+    r = np.linalg.norm(points, axis=1)
+    theta = np.arccos(points[:, 2]/r)
+    phi = np.arctan2(points[:, 1], points[:, 0])
+    result = np.zeros((points.shape[0], 3))
+    result[:, 0] = np.rad2deg(phi)
+    result[:, 1] = np.rad2deg(np.pi / 2 - theta)
+    result[:, 2] = 1000.0/r
+    return result
 
 
 def point_to_coordinates(point):
@@ -10,78 +112,6 @@ def point_to_coordinates(point):
         y = 0.0
 
     return "({0}mm,{1}mm)".format(x, y)
-
-
-class HourAngle(object):
-    def __init__(self, hours=0, minutes=0, seconds=0):
-        self.hours = hours
-        self.minutes = minutes
-        self.seconds = seconds
-
-    def to_degrees(self):
-        return 15.0*self.hours + 0.25*self.minutes + 0.25*self.seconds/60.0
-
-    def from_degrees(self, degrees):
-        while degrees < 0:
-            degrees += 360.0
-
-        hours, rest = divmod(degrees, 15.0)
-        minutes, rest = divmod(60.0*rest/15.0, 1)
-        self.hours = int(round(hours))
-        self.minutes = int(round(minutes))
-        self.seconds = 60*rest
-
-    def from_fractional_hours(self, fractional_hours):
-        self.hours= int(fractional_hours)
-        fractional_minutes = (fractional_hours - self.hours) * 60.0
-        self.minutes = int(fractional_minutes)
-        self.seconds = (fractional_minutes - self.minutes) * 60.0
-
-    def to_fractional_hours(self):
-        return self.hours + self.minutes/60.0 + self.seconds/3600.0
-
-    def __repr__(self):
-        return "HA {0}h {1}m {2}s".format(self.hours, self.minutes, self.seconds)
-
-    def __str__(self):
-        return self.__repr__()
-
-
-class DMSAngle(object):
-    def __init__(self, degrees=0, minutes=0, seconds=0, sign=1):
-        self.degrees = degrees
-        self.minutes = minutes
-        self.seconds = seconds
-        self.sign = sign
-
-    def from_degrees(self, degrees):
-        sign = degrees>=0
-        degrees = abs(degrees)
-        degrees, rest = divmod(degrees, 1)
-        minutes, rest = divmod(60.0*rest, 1)
-        seconds = 60.0*rest
-        if sign:
-            self.sign = 1
-        else:
-            self.sign = -1
-        self.degrees = int(degrees)
-        self.minutes = int(minutes)
-        self.seconds = seconds
-
-    def to_degrees(self):
-        degrees = self.sign * self.degrees
-        degrees += self.sign * self.minutes/60.0
-        degrees += self.sign * self.seconds/3600.0
-        return degrees
-
-    def __repr__(self):
-        result =  "{0}d {1}' {2}\"".format(self.degrees, self.minutes, self.seconds)
-        if self.sign < 0:
-            result = "-" + result
-        return result
-
-    def __str__(self):
-        return self.__repr__()
 
 
 class Point(object):
@@ -122,7 +152,10 @@ class Point(object):
         return self.__class__(self.x/other, self.y/other)
 
     def __eq__(self, other):
-        return self.distance(other) < 1e-10
+        return self.distance(other) < 1e-6
+
+    def __ne__(self, other):
+        return not self.__eq__(other)
 
     def distance(self, other):
         return math.sqrt((self.x - other.x) ** 2 + (self.y - other.y) ** 2)
@@ -142,67 +175,6 @@ class Point(object):
     @property
     def norm(self):
         return self.distance(Point(0,0))
-
-
-class SphericalPoint(Point):
-    """
-    A point on the sphere specified by a longitude and a latitude.
-    """
-    def __init__(self, a, b=None):
-        """
-        Initialize the point from a tuple or two numbers
-        :param a: longitude or tuple (longitude, latitude)
-        :param b: latitude or None
-        """
-        Point.__init__(self, a, b)
-
-    def __str__(self):
-        return "SphericalPoint({}, {})".format(self.longitude, self.latitude)
-
-    @property
-    def longitude(self):
-        return self.x
-
-    @longitude.setter
-    def longitude(self, longitude):
-        self.x = longitude
-
-    @property
-    def latitude(self):
-        return self.y
-
-    @latitude.setter
-    def latitude(self, latitude):
-        self.y = latitude
-
-    @property
-    def ra(self):
-        return self.x
-
-    @ra.setter
-    def ra(self, ra):
-        self.x = ra
-
-    @property
-    def dec(self):
-        return self.y
-
-    @dec.setter
-    def dec(self, dec):
-        self.y = dec
-
-    def reduce(self):
-        while self.longitude < 0:
-            self.longitude += 360.0
-        while self.longitude >= 360.0:
-            self.longitude -= 360
-
-    def __eq__(self, other):
-        p1 = SphericalPoint(self)
-        p2 = SphericalPoint(other)
-        p1.reduce()
-        p2.reduce()
-        return Point(p1) == Point(p2)
 
 
 class Line(object):

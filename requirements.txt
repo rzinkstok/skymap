@@ -1,0 +1,11 @@
+numpy
+Pillow
+mysql-connector
+deap
+jinja2
+rtree
+numpy
+astropy
+matplotlib
+beautifulsoup4
+astroquery
