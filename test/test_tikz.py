@@ -5,7 +5,7 @@ from skymap.geometry import Point, Circle, Rectangle
 
 class TikzTest(unittest.TestCase):
     def test_picture(self):
-        t = Tikz("test1")
+        t = Tikz("tizk_test1")
         p = TikzPicture(t, Point(20,20), Point(190, 277))
 
         p.draw_circle(Circle(Point(85, 128.5), 30))
@@ -13,7 +13,7 @@ class TikzTest(unittest.TestCase):
         t.render()
 
     def test_multiple_pictures(self):
-        t = Tikz("test2")
+        t = Tikz("tikz_test2")
         p1 = TikzPicture(t, Point(20, 20), Point(190, 138.5))
         p1.draw_circle(Circle(Point(85, 59.25), 30))
         p1.draw_rectangle(Rectangle(Point(55, 29.25), Point(115, 89.25)))

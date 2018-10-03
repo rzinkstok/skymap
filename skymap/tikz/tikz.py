@@ -93,7 +93,7 @@ class Tikz(object):
 
         self.current_picture = picture
 
-    def render(self, filepath=None, open=True, extra_context=None, verbose=False):
+    def render(self, filepath=None, open_pdf=True, extra_context=None, verbose=False):
         if not self.started:
             self.start()
 
@@ -129,7 +129,11 @@ class Tikz(object):
         if verbose:
             print(f"Rendering {filepath or os.path.join(TEX_OUTPUT_FOLDER, self.texfile_name)}")
         subprocess.check_output(["xelatex", "-halt-on-error", "-interaction", "batchmode", self.texfile_name], cwd=TEX_OUTPUT_FOLDER)
-        output = subprocess.check_output(["xelatex", "-halt-on-error", "-interaction", "batchmode", self.texfile_name], cwd=TEX_OUTPUT_FOLDER, universal_newlines=True)
+        subprocess.check_output(["xelatex", "-halt-on-error", "-interaction", "batchmode", self.texfile_name], cwd=TEX_OUTPUT_FOLDER)
+
+        # Open log file
+        with open(os.path.join(TEX_OUTPUT_FOLDER, self.name + ".log"), "r") as fp:
+            output = fp.read()
 
         # Move output file
         if filepath:
@@ -137,7 +141,7 @@ class Tikz(object):
             if folder and not os.path.exists(folder):
                 os.makedirs(folder)
             shutil.move(os.path.join(TEX_OUTPUT_FOLDER, "{0}.pdf".format(self.name)), filepath)
-            if open:
+            if open_pdf:
                 subprocess.Popen(["open", filepath]).wait()
 
         return output
