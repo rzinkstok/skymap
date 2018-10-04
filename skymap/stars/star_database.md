@@ -2,9 +2,9 @@
 
 The stars plotted in SkyMap all come from the Hipparcos, Tycho and Tycho-2 catalogues published by ESA:
 
-* The Hipparcos and Tycho Catalogues (ESA 1997), http://cdsarc.u-strasbg.fr/viz-bin/Cat?I/239
-* The Tycho-2 Catalogue of the 2.5 Million Brightest Stars, Hog et al., Astron. Astrophys. 355, L27 (2000), http://cdsarc.u-strasbg.fr/viz-bin/Cat?I/259
-* Hipparcos, the new Reduction of the Raw data, van Leeuwen F., Astron. Astrophys. 474, 653 (2007), http://cdsarc.u-strasbg.fr/viz-bin/Cat?I/311
+* The Hipparcos and Tycho Catalogues (ESA 1997), <http://cdsarc.u-strasbg.fr/viz-bin/Cat?I/239>
+* The Tycho-2 Catalogue of the 2.5 Million Brightest Stars, Hog et al., Astron. Astrophys. 355, L27 (2000), <http://cdsarc.u-strasbg.fr/viz-bin/Cat?I/259>
+* Hipparcos, the new Reduction of the Raw data, van Leeuwen F., Astron. Astrophys. 474, 653 (2007), <http://cdsarc.u-strasbg.fr/viz-bin/Cat?I/311>
 
 For ease of use, these were converted to MySQL databases: all queries below are performed on these databases.
 
@@ -24,6 +24,7 @@ precision is 0.0015 mag, while Tycho-1 is limited to 0.012 mag (Vt).
 ## Structure of the databases
 
 ### Hipparcos
+
 * Identifier: HIP
 * Reference system: ICRS
 * Position epoch: J1991.25
@@ -31,6 +32,7 @@ precision is 0.0015 mag, while Tycho-1 is limited to 0.012 mag (Vt).
   * Main catalogue: astrometrics, photometrics
   * Double and Multiple System Annex (DMSA): component information for entries resolved into 2 or more components
   * Variability Annex: variability data
+
 
 ### Tycho
 * Identifier: TYC1, TYC2, TYC3, HIP
@@ -90,8 +92,7 @@ variability induced movers and stochastic solutions). These are not counted as r
 
 This means multiple systems can be found by the following:
 * Find all entries linked by a common CCDM identifier
-* Find all entries with number of components greater than 1; these have a multiplicity flag equal to C, and their component 
-data is found in part C of the Double and Multiple Systems Annex)
+* Find all entries with number of components greater than 1; these have a multiplicity flag equal to C, and their component data is found in part C of the Double and Multiple Systems Annex)
 
 If required, dubious multiple systems can be found by looking at entries where the multiplicity flag is set but unequal 
 to C (that is, G, O, V or X).
@@ -170,7 +171,6 @@ SELECT COUNT(*) FROM (
 WHERE npointing=2 AND ncomponents=2;
 ````
 
-
 ### Linking Hipparcos and Tycho-1
 
 A simple join of the main Hipparcos file with part C of the DMSA would yield a complete list of all resolved stars in
@@ -187,8 +187,7 @@ The 263 stars in Hipparcos that have no proper astrometry are not found in Tycho
 
 In order to generate a list of all individual stars in Hipparcos and Tycho-1, the following method is used:
 * Left join Hipparcos main (excluding stars without proper astrometrics) to the DMSA part C yields all individual stars in Hipparcos; call this IndiHip
-* Right join IndiHip and Tycho-1 on the HIP number and component ID, omitting all 5,898 unresolved entries where 
-LENGTH(TRIM(m_HIP)) > 1; call this IndiHipTyc
+* Right join IndiHip and Tycho-1 on the HIP number and component ID, omitting all 5,898 unresolved entries where LENGTH(TRIM(m_HIP)) > 1; call this IndiHipTyc
 * Add to IndiHipTyc the Hipparcos records for the unresolved doubles
 * Add to IndiHipTyc the Hipparcos records for the unresolved triples
 
