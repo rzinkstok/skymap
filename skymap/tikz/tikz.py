@@ -130,18 +130,22 @@ class Tikz(object):
         # Run XeLaTeX
         if verbose:
             print(f"Rendering {filepath or os.path.join(TEX_OUTPUT_FOLDER, self.texfile_name)}")
+
+        xelatex_error = False
         try:
-            subprocess.check_output(["xelatex", "-halt-on-error", "-interaction", "batchmode", self.texfile_name], cwd=TEX_OUTPUT_FOLDER, stderr=subprocess.STDOUT)
+            subprocess.check_output(["xelatex", "-halt-on-error", "-interaction", "batchmode", self.texfile_name], cwd=TEX_OUTPUT_FOLDER)
+            subprocess.check_output(["xelatex", "-halt-on-error", "-interaction", "batchmode", self.texfile_name], cwd=TEX_OUTPUT_FOLDER)
         except subprocess.CalledProcessError as exc:
-            print("XeLaTeX compilation failed\n", exc.output)
-            print("LOG:")
-            with open(os.path.join(TEX_OUTPUT_FOLDER, self.name + ".log"), "r") as fp:
-                print(fp.read())
-        subprocess.check_output(["xelatex", "-halt-on-error", "-interaction", "batchmode", self.texfile_name], cwd=TEX_OUTPUT_FOLDER)
+            print("XeLaTeX compilation failed")
+            print("="*60)
+            xelatex_error = exc
 
         # Open log file
         with open(os.path.join(TEX_OUTPUT_FOLDER, self.name + ".log"), "r") as fp:
             output = fp.read()
+        if xelatex_error:
+            print(output)
+            raise xelatex_error
 
         # Move output file
         if filepath:

@@ -1,4 +1,6 @@
 # skymap
+[![Build Status](https://travis-ci.org/rzinkstok/skymap.svg?branch=master)](https://travis-ci.org/rzinkstok/skymap)
+
 Generate star charts based on Hipparcos/Tycho data
 
 [Star database](skymap/stars/star_database.md)
