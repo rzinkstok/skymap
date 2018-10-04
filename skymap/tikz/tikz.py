@@ -130,7 +130,10 @@ class Tikz(object):
         # Run XeLaTeX
         if verbose:
             print(f"Rendering {filepath or os.path.join(TEX_OUTPUT_FOLDER, self.texfile_name)}")
-        subprocess.check_output(["xelatex", "-halt-on-error", "-interaction", "batchmode", self.texfile_name], cwd=TEX_OUTPUT_FOLDER)
+        try:
+            subprocess.check_output(["xelatex", "-halt-on-error", "-interaction", "batchmode", self.texfile_name], cwd=TEX_OUTPUT_FOLDER, stderr=subprocess.STDOUT)
+        except subprocess.CalledProcessError as exc:
+            print("XeLaTeX compilation failed\n", exc.output)
         subprocess.check_output(["xelatex", "-halt-on-error", "-interaction", "batchmode", self.texfile_name], cwd=TEX_OUTPUT_FOLDER)
 
         # Open log file
