@@ -7,9 +7,7 @@ before_install:
   - sudo apt-get install -y texlive-xetex
   - pip install pipenv
   - mkdir ~/.fonts
-  - pwd
-  - ls -al
-  - cp ~/rzinkstok/skymap/resources/font/* ~/.fonts
+  - cp resources/font/* ~/.fonts
   - sudo fc-cache -f -v
 install:
   - pipenv install
