@@ -2,6 +2,7 @@
 Tikz figure interface.
 """
 import os
+import platform
 import subprocess
 import shutil
 import jinja2
@@ -14,7 +15,8 @@ from skymap.tikz import PaperSize, FontSize, PaperMargin
 BASEDIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 TEX_OUTPUT_FOLDER = os.path.join(BASEDIR, "temp")
 JINJA_TEMPLATE_FOLDER = os.path.join(BASEDIR, "skymap", "tikz", "templates")
-os.environ['PATH'] = "/Library/TeX/texbin:"+os.environ['PATH']
+if platform.system() == 'Darwin':
+    os.environ['PATH'] = "/Library/TeX/texbin:"+os.environ['PATH']
 
 
 class Tikz(object):
