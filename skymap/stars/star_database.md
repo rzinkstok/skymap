@@ -2,9 +2,9 @@
 
 The stars plotted in SkyMap all come from the Hipparcos, Tycho and Tycho-2 catalogues published by ESA:
 
-* The Hipparcos and Tycho Catalogues (ESA 1997), <http://cdsarc.u-strasbg.fr/viz-bin/Cat?I/239>
-* The Tycho-2 Catalogue of the 2.5 Million Brightest Stars, Hog et al., Astron. Astrophys. 355, L27 (2000), <http://cdsarc.u-strasbg.fr/viz-bin/Cat?I/259>
-* Hipparcos, the new Reduction of the Raw data, van Leeuwen F., Astron. Astrophys. 474, 653 (2007), <http://cdsarc.u-strasbg.fr/viz-bin/Cat?I/311>
+*   The Hipparcos and Tycho Catalogues (ESA 1997), <http://cdsarc.u-strasbg.fr/viz-bin/Cat?I/239>
+*   The Tycho-2 Catalogue of the 2.5 Million Brightest Stars, Hog et al., Astron. Astrophys. 355, L27 (2000), <http://cdsarc.u-strasbg.fr/viz-bin/Cat?I/259>
+*   Hipparcos, the new Reduction of the Raw data, van Leeuwen F., Astron. Astrophys. 474, 653 (2007), <http://cdsarc.u-strasbg.fr/viz-bin/Cat?I/311>
 
 For ease of use, these were converted to MySQL databases: all queries below are performed on these databases.
 
@@ -25,13 +25,13 @@ precision is 0.0015 mag, while Tycho-1 is limited to 0.012 mag (Vt).
 
 ### Hipparcos
 
-* Identifier: HIP
-* Reference system: ICRS
-* Position epoch: J1991.25
-* Catalogue parts:
-  * Main catalogue: astrometrics, photometrics
-  * Double and Multiple System Annex (DMSA): component information for entries resolved into 2 or more components
-  * Variability Annex: variability data
+*   Identifier: HIP
+*   Reference system: ICRS
+*   Position epoch: J1991.25
+*   Catalogue parts:
+    *   Main catalogue: astrometrics, photometrics
+    *   Double and Multiple System Annex (DMSA): component information for entries resolved into 2 or more components
+    *   Variability Annex: variability data
 
 
 ### Tycho
@@ -39,16 +39,16 @@ precision is 0.0015 mag, while Tycho-1 is limited to 0.012 mag (Vt).
 * Reference system: ICRS
 * Position epoch: J1991.25
 * Catalogue parts:
-  * Main catalogue
+    * Main catalogue
 
 ### Tycho-2
 * Identifier: TYC1, TYC2, TYC3, HIP
 * Reference system: ICRS
 * Position epoch: J2000
 * Catalogue parts:
-  * Main catalogue
-  * Supplement 1 (Hipparcos/Tycho-1 stars not in Tycho-2)
-  * Supplement 2 (Tycho-1 stars either false or heavily disturbed)
+    * Main catalogue
+    * Supplement 1 (Hipparcos/Tycho-1 stars not in Tycho-2)
+    * Supplement 2 (Tycho-1 stars either false or heavily disturbed)
 
 ## Combining the databases
 
@@ -62,8 +62,7 @@ solution type also indicates double stars: it seems that no new doubles or multi
 The general idea will be as follows:
 * Use all Hipparcos data
 * Use all data from Tycho-1 except Hipparcos stars (Tycho-1 stars with HIP number) and Tycho-2 supplement 2 stars
-* Use all data from Tycho-2 except Hipparcos stars (Tycho-2 stars with HIP number); overwrite astrometrics and photometrics 
-for Tycho-1 stars
+* Use all data from Tycho-2 except Hipparcos stars (Tycho-2 stars with HIP number); overwrite astrometrics and photometrics for Tycho-1 stars
 
 Further data will come from other sources:
 * Variability data from GCVS
