@@ -5,6 +5,7 @@ cache: pip
 before_install:
   - sudo apt-get install -y libspatialindex-dev
   - sudo apt-get install -y texlive-xetex
+  - sudo apt-get install -y texlive-latex-extra
   - pip install pipenv
   - mkdir ~/.fonts
   - cp resources/font/* ~/.fonts
