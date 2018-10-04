@@ -235,12 +235,13 @@ class Line(object):
 
 
 class Polygon(object):
-    def __init__(self, points=[], closed=True):
+    def __init__(self, points=None, closed=True):
         self.points = []
         self.lines = []
         self.closed = closed
-        for p in points:
-            self.add_point(p)
+        if points:
+            for p in points:
+                self.add_point(p)
         if closed:
             self.close()
 

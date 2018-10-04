@@ -41,7 +41,7 @@ def draw(points, width, height):
 
 
 if __name__ == "__main__":
-    print "Starting"
+    print("Starting")
     random.seed(1)
 
     creator.create("FitnessMax", base.Fitness, weights=(1.0,))
