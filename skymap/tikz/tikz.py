@@ -134,6 +134,9 @@ class Tikz(object):
             subprocess.check_output(["xelatex", "-halt-on-error", "-interaction", "batchmode", self.texfile_name], cwd=TEX_OUTPUT_FOLDER, stderr=subprocess.STDOUT)
         except subprocess.CalledProcessError as exc:
             print("XeLaTeX compilation failed\n", exc.output)
+            print("LOG:")
+            with open(os.path.join(TEX_OUTPUT_FOLDER, self.name + ".log"), "r") as fp:
+                print(fp.read())
         subprocess.check_output(["xelatex", "-halt-on-error", "-interaction", "batchmode", self.texfile_name], cwd=TEX_OUTPUT_FOLDER)
 
         # Open log file
