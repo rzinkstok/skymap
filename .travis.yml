@@ -6,6 +6,9 @@ before_install:
   - sudo apt-get install -y libspatialindex-dev
   - sudo apt-get install -y texlive-xetex
   - pip install pipenv
+  - mkdir ~/.fonts
+  - cp rzinkstok/skymap/resources/font/* ~/.fonts
+  - sudo fc-cache -f -v
 install:
   - pipenv install
 script:

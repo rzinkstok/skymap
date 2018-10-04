@@ -46,8 +46,7 @@ class TestAzimuthalEquidistantProjection(unittest.TestCase):
 
     def test_reference_longitude(self):
         self.p.reference_longitude = 40
-
-        self.assertEqual(self.origin.distance(self.p.project(SkyCoordDeg(0, 50))), 1.0)
+        self.assertAlmostEqual(self.origin.distance(self.p.project(SkyCoordDeg(0, 50))), 1.0)
         self.assertEqual(self.p.project(SkyCoordDeg(40, 50)), Point(0, -1))
         self.assertEqual(self.p.project(SkyCoordDeg(130, 50)), Point(1, 0))
         self.assertEqual(self.p.project(SkyCoordDeg(220, 50)), Point(0, 1))
