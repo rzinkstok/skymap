@@ -27,7 +27,7 @@ def local_search_pop(population, toolbox, points, bounding_box):
     sorted_fitness = sorted([x.fitness.values[0] for x in offspring], reverse=True)
     min_fitness = sorted_fitness[len(offspring) / 100]
 
-    for i, individual in enumerate(offspring):
+    for individual in offspring:
         if individual.fitness.values[0] < min_fitness:
             continue
 

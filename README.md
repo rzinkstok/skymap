@@ -11,11 +11,10 @@ Generate star charts based on Hipparcos/Tycho data
 * Database: should be converted to astroquery
 * Geometry: SphericalPoint, HourAngle, DMSAngle should be converted to astropy.coordinates.
 * Projections: should be adapted to use astropy.coordinates
-* Constellations; precession to B1875 can be done in astropy (see
- get_constellation function). Rest of functionality in
+* Constellations; precession to B1875 can be done in astropy (see get_constellation function). Rest of functionality in
  
- # Installation
- Dependencies:
- * libspatialindex
- * xelatex
+# Installation
+Dependencies:
+* libspatialindex
+* xelatex
  
