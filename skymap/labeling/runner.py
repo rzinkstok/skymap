@@ -57,7 +57,7 @@ if __name__ == "__main__":
     for i in range(npoints):
         x = mapwidth * random.random()
         y = mapheight * random.random()
-        if random.random() < float(nlabels)/npoints:
+        if random.random() < float(nlabels) / npoints:
             text = "Label for point {}".format(i)
             p = Point(x, y, 1, text, 0)
         else:
@@ -78,11 +78,10 @@ if __name__ == "__main__":
 
     t1 = time.clock()
 
-
     g.run()
     t2 = time.clock()
     print(f"Run time: {t2 - t1}")
     penalty = evaluate(g.points, g.bounding_box)
     print(f"Penalty: {penalty}")
 
-    #draw(points, mapwidth, mapheight)
+    # draw(points, mapwidth, mapheight)

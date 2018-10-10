@@ -14,7 +14,9 @@ class SkyCoordDeg(SkyCoord):
         SkyCoord.__init__(self, *args, **kwargs)
 
     def __eq__(self, other):
-        return (abs(self.dec.degree - other.dec.degree) < TOLERANCE) and (abs(self.ra.degree - other.ra.degree) < TOLERANCE)
+        return (abs(self.dec.degree - other.dec.degree) < TOLERANCE) and (
+            abs(self.ra.degree - other.ra.degree) < TOLERANCE
+        )
 
     def __ne__(self, other):
         return not self == other
@@ -40,22 +42,24 @@ def distance(p1, p2):
 def rotation_matrix(axis, angle):
     sina = math.sin(angle)
     cosa = math.cos(angle)
-    direction = axis/np.linalg.norm(axis)
+    direction = axis / np.linalg.norm(axis)
 
     rmatrix = np.diag([cosa, cosa, cosa])
     rmatrix += np.outer(direction, direction) * (1.0 - cosa)
     direction *= sina
     rmatrix += np.array(
-        [[0.0, -direction[2], direction[1]],
-         [direction[2], 0.0, -direction[0]],
-         [-direction[1], direction[0], 0.0]]
+        [
+            [0.0, -direction[2], direction[1]],
+            [direction[2], 0.0, -direction[0]],
+            [-direction[1], direction[0], 0.0],
+        ]
     )
     return rmatrix
 
 
 def sky2cartesian(points):
     phi = np.deg2rad(points[:, 0])
-    theta = np.pi/2 - np.deg2rad(points[:, 1])
+    theta = np.pi / 2 - np.deg2rad(points[:, 1])
     result = np.zeros((points.shape[0], 3))
     result[:, 0] = np.sin(theta) * np.cos(phi)
     result[:, 1] = np.sin(theta) * np.sin(phi)
@@ -74,7 +78,7 @@ def sky2cartesian_with_parallax(points_with_parallax):
     """
     phi = np.deg2rad(points_with_parallax[:, 0])
     theta = np.pi / 2 - np.deg2rad(points_with_parallax[:, 1])
-    rho = 1000.0/points_with_parallax[:, 2]
+    rho = 1000.0 / points_with_parallax[:, 2]
     result = np.zeros((points_with_parallax.shape[0], 3))
     result[:, 0] = rho * np.sin(theta) * np.cos(phi)
     result[:, 1] = rho * np.sin(theta) * np.sin(phi)
@@ -87,19 +91,19 @@ def cartesian2sky(points):
     phi = np.arctan2(points[:, 1], points[:, 0])
     result = np.zeros((points.shape[0], 2))
     result[:, 0] = np.rad2deg(phi)
-    result[:, 1] = np.rad2deg(np.pi/2 - theta)
+    result[:, 1] = np.rad2deg(np.pi / 2 - theta)
     return result
 
 
 def cartesian2sky_with_parallax(points):
     """Cartesian coordinates in parsecs to ra, dec, parallax."""
     r = np.linalg.norm(points, axis=1)
-    theta = np.arccos(points[:, 2]/r)
+    theta = np.arccos(points[:, 2] / r)
     phi = np.arctan2(points[:, 1], points[:, 0])
     result = np.zeros((points.shape[0], 3))
     result[:, 0] = np.rad2deg(phi)
     result[:, 1] = np.rad2deg(np.pi / 2 - theta)
-    result[:, 2] = 1000.0/r
+    result[:, 2] = 1000.0 / r
     return result
 
 
@@ -149,7 +153,7 @@ class Point(object):
 
     def __div__(self, other):
         other = float(other)
-        return self.__class__(self.x/other, self.y/other)
+        return self.__class__(self.x / other, self.y / other)
 
     def __eq__(self, other):
         return self.distance(other) < 1e-6
@@ -162,19 +166,19 @@ class Point(object):
 
     def rotate(self, angle, origin=None):
         if origin is None:
-            origin = Point(0,0)
+            origin = Point(0, 0)
         angle = math.radians(angle)
         dx = self.x - origin.x
         dy = self.y - origin.y
-        new_dx = dx*math.cos(angle) - dy*math.sin(angle)
-        new_dy = dx*math.sin(angle) + dy*math.cos(angle)
+        new_dx = dx * math.cos(angle) - dy * math.sin(angle)
+        new_dy = dx * math.sin(angle) + dy * math.cos(angle)
         x = origin.x + new_dx
         y = origin.y + new_dy
         return self.__class__(x, y)
 
     @property
     def norm(self):
-        return self.distance(Point(0,0))
+        return self.distance(Point(0, 0))
 
 
 class Line(object):
@@ -196,7 +200,7 @@ class Line(object):
         b2 = other.p2.x - other.p1.x
         c2 = other.p1.x * other.p2.y - other.p2.x * other.p1.y
 
-        den = (a1 * b2 - a2 * b1)
+        den = a1 * b2 - a2 * b1
         if abs(den) == 0.0:
             return None
 
@@ -214,8 +218,8 @@ class Line(object):
 
     def point_on_line_segment(self, p):
         point_vector = p - self.p1
-        ip = (point_vector.x * self.vector.x + point_vector.y * self.vector.y)
-        comp = ip/self.length
+        ip = point_vector.x * self.vector.x + point_vector.y * self.vector.y
+        comp = ip / self.length
         if comp >= 0 and comp <= self.length:
             return True
         return False
@@ -227,11 +231,15 @@ class Line(object):
 
     @property
     def path(self):
-        return "{}--{}".format(point_to_coordinates(self.p1), point_to_coordinates(self.p2))
+        return "{}--{}".format(
+            point_to_coordinates(self.p1), point_to_coordinates(self.p2)
+        )
 
     @property
     def reverse_path(self):
-        return "{}--{}".format(point_to_coordinates(self.p2), point_to_coordinates(self.p1))
+        return "{}--{}".format(
+            point_to_coordinates(self.p2), point_to_coordinates(self.p1)
+        )
 
 
 class Polygon(object):
@@ -271,10 +279,10 @@ class Circle(object):
         # ax+by+c = 0
         a = line.p1.y - line.p2.y
         b = line.p2.x - line.p1.x
-        c = - line.p1.x * line.p2.y + line.p2.x * line.p1.y
+        c = -line.p1.x * line.p2.y + line.p2.x * line.p1.y
         cp = c - a * self.center.x - b * self.center.y
 
-        absq = (a ** 2 + b ** 2)
+        absq = a ** 2 + b ** 2
 
         # If line does not intersect circle, or touches circle: no intersection
         if absq * self.radius ** 2 - cp ** 2 <= 0:
@@ -323,14 +331,18 @@ class Arc(Circle):
         self.p2 = self.center + self.radius * Point(math.cos(sar), math.sin(sar))
 
     def __str__(self):
-        return "Arc({}, {}, start={}, stop={})".format(self.center, self.radius, self.start_angle, self.stop_angle)
+        return "Arc({}, {}, start={}, stop={})".format(
+            self.center, self.radius, self.start_angle, self.stop_angle
+        )
 
     def interpolated_points(self, npoints=100):
         points = []
         delta_angle = self.stop_angle - self.start_angle
         for i in range(npoints):
-            angle = self.start_angle + i * delta_angle / float(npoints-1)
-            p = self.center + self.radius * Point(math.cos(math.radians(angle)), math.sin(math.radians(angle)))
+            angle = self.start_angle + i * delta_angle / float(npoints - 1)
+            p = self.center + self.radius * Point(
+                math.cos(math.radians(angle)), math.sin(math.radians(angle))
+            )
             points.append(p)
         return points
 
@@ -376,11 +388,11 @@ class Rectangle(object):
 
     @property
     def center(self):
-        return 0.5*(self.p1 + self.p2)
+        return 0.5 * (self.p1 + self.p2)
 
     @property
     def size(self):
-        return abs(self.p2.x-self.p1.x), abs(self.p2.y - self.p1.y)
+        return abs(self.p2.x - self.p1.x), abs(self.p2.y - self.p1.y)
 
     def overlap(self, other):
         if isinstance(other, Rectangle):
@@ -397,7 +409,7 @@ class Rectangle(object):
                 h = top - bottom
             else:
                 return 0
-            return w*h
+            return w * h
 
         if isinstance(other, Circle):
             left = max(self.p1.x, other.center.x - other.radius)
@@ -412,7 +424,7 @@ class Rectangle(object):
                 h = top - bottom
             else:
                 return 0
-            return w*h
+            return w * h
 
     @property
     def points(self):

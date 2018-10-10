@@ -4,7 +4,14 @@ from deap import base, tools, algorithms
 from rtree.index import Index
 import matplotlib.pyplot as plt
 
-from skymap.labeling.common import evaluate_label, POSITION_WEIGHT, BoundingBoxBorder, Label, local_search, evaluate
+from skymap.labeling.common import (
+    evaluate_label,
+    POSITION_WEIGHT,
+    BoundingBoxBorder,
+    Label,
+    local_search,
+    evaluate,
+)
 
 
 """
@@ -18,7 +25,7 @@ def local_search_pop(population, toolbox, points, bounding_box):
     labeled_points = [p for p in points if p.text]
     offspring = [toolbox.clone(ind) for ind in population]
     sorted_fitness = sorted([x.fitness.values[0] for x in offspring], reverse=True)
-    min_fitness = sorted_fitness[len(offspring)/100]
+    min_fitness = sorted_fitness[len(offspring) / 100]
 
     for i in range(len(offspring)):
         individual = offspring[i]
@@ -39,7 +46,19 @@ def local_search_pop(population, toolbox, points, bounding_box):
     return offspring
 
 
-def eaSimpleStop(population, toolbox, cxpb, mutpb, ngen, stopn=10, stats=None, halloffame=None, points=None, bounding_box=None, verbose=__debug__):
+def eaSimpleStop(
+    population,
+    toolbox,
+    cxpb,
+    mutpb,
+    ngen,
+    stopn=10,
+    stats=None,
+    halloffame=None,
+    points=None,
+    bounding_box=None,
+    verbose=__debug__,
+):
     """
     This algorithm reproduce the simplest evolutionary algorithm as
     presented in chapter 7 of [Back2000]_.
@@ -104,7 +123,7 @@ def eaSimpleStop(population, toolbox, cxpb, mutpb, ngen, stopn=10, stats=None, h
        Basic Algorithms and Operators", 2000.
     """
     logbook = tools.Logbook()
-    logbook.header = ['gen', 'nevals'] + (stats.fields if stats else [])
+    logbook.header = ["gen", "nevals"] + (stats.fields if stats else [])
 
     # Evaluate the individuals with an invalid fitness
     invalid_ind = [ind for ind in population if not ind.fitness.valid]
@@ -185,8 +204,16 @@ class BaseGeneticLabeler(object):
 
         self.toolbox = base.Toolbox()
         self.toolbox.register("attr_bool", random.randint, 0, 7)
-        self.toolbox.register("individual", tools.initRepeat, creator.Individual, self. toolbox.attr_bool, len(self.labeled_points))
-        self.toolbox.register("population", tools.initRepeat, list, self.toolbox.individual)
+        self.toolbox.register(
+            "individual",
+            tools.initRepeat,
+            creator.Individual,
+            self.toolbox.attr_bool,
+            len(self.labeled_points),
+        )
+        self.toolbox.register(
+            "population", tools.initRepeat, list, self.toolbox.individual
+        )
 
         self.toolbox.register("evaluate", self.evaluate_fitness)
         self.toolbox.register("mate", tools.cxTwoPoint)
@@ -208,22 +235,22 @@ class BaseGeneticLabeler(object):
             cxpb=self.crossover_prob,
             mutpb=self.mutation_prob,
             ngen=self.ngenerations,
-            #stopn=self.stopn,
+            # stopn=self.stopn,
             stats=stats,
             halloffame=hof,
             # points=self.points,
             # bounding_box=self.bounding_box,
-            verbose=True
+            verbose=True,
         )
 
-        #self.plot(log)
+        # self.plot(log)
 
         for lp, i in zip(self.labeled_points, hof[0]):
             lp.label_candidates[i].select()
 
-        print "Penalty:", evaluate(self.points, self.bounding_box)
+        print("Penalty:", evaluate(self.points, self.bounding_box))
         local_search(self.points, self.bounding_box, 5)
-        print "Penalty after local search: ", evaluate(self.points, self.bounding_box)
+        print("Penalty after local search: ", evaluate(self.points, self.bounding_box))
 
     def plot(self, logbook):
         gen = logbook.select("gen")
@@ -276,7 +303,7 @@ class GeneticLabeler(BaseGeneticLabeler):
             lc = lp.label_candidates[lcid]
 
             penalty += evaluate_label(lc, self.items, self.idx, selected_only=True)
-        return -penalty,
+        return (-penalty,)
 
 
 class CachedGeneticLabeler(BaseGeneticLabeler):
@@ -325,10 +352,12 @@ class CachedGeneticLabeler(BaseGeneticLabeler):
                 lc.penalty += item.overlap(lc)
 
     def evaluate_fitness(self, individual):
-        lcs = [self.labeled_points[i].label_candidates[k] for i, k in enumerate(individual)]
+        lcs = [
+            self.labeled_points[i].label_candidates[k] for i, k in enumerate(individual)
+        ]
         indices = [lc.index for lc in lcs]
         penalty = 0
 
         for lc in lcs:
             penalty += lc.determine_penalty(indices)
-        return -penalty,
+        return (-penalty,)

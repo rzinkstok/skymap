@@ -14,7 +14,9 @@ class GreedyLabeler(object):
         evaluate_labels(self.label_candidates, self.points, self.bounding_box)
 
     def run(self):
-        sorted_label_candidates = sorted(self.label_candidates, key=attrgetter("penalty"))
+        sorted_label_candidates = sorted(
+            self.label_candidates, key=attrgetter("penalty")
+        )
         for label_candidate in sorted_label_candidates:
             p = label_candidate.point
             if not p.label:

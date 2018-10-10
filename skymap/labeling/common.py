@@ -5,7 +5,7 @@ from rtree.index import Index
 
 AVG_POINT_PER_CHAR = 0.3
 POINTSIZE = 11
-MM_PER_POINT = 0.352778
+MM_PER_POINT = 0.352_778
 AVG_CHAR_WIDTH = AVG_POINT_PER_CHAR * POINTSIZE * MM_PER_POINT
 CHAR_HEIGHT = 1.5 * MM_PER_POINT * POINTSIZE
 
@@ -16,10 +16,30 @@ POSITION_WEIGHT = 0.1
 
 def create_bounding_box_borders(bounding_box):
     border_boxes = [
-        (bounding_box[0] - 1, bounding_box[1] - 1, bounding_box[0], bounding_box[3] + 1),
-        (bounding_box[2], bounding_box[1] - 1, bounding_box[2] + 1, bounding_box[3] + 1),
-        (bounding_box[0] - 1, bounding_box[1] - 1, bounding_box[2] + 1, bounding_box[1]),
-        (bounding_box[0] - 1, bounding_box[3], bounding_box[2] + 1, bounding_box[3] + 1)
+        (
+            bounding_box[0] - 1,
+            bounding_box[1] - 1,
+            bounding_box[0],
+            bounding_box[3] + 1,
+        ),
+        (
+            bounding_box[2],
+            bounding_box[1] - 1,
+            bounding_box[2] + 1,
+            bounding_box[3] + 1,
+        ),
+        (
+            bounding_box[0] - 1,
+            bounding_box[1] - 1,
+            bounding_box[2] + 1,
+            bounding_box[1],
+        ),
+        (
+            bounding_box[0] - 1,
+            bounding_box[3],
+            bounding_box[2] + 1,
+            bounding_box[3] + 1,
+        ),
     ]
     return [BoundingBoxBorder(b) for b in border_boxes]
 
@@ -64,13 +84,13 @@ def evaluate_labels(labels, points, bounding_box):
         idx.insert(i, item.box)
 
     t2 = time.clock()
-    #print(f"Index creation: {t2-t1}")
+    # print(f"Index creation: {t2-t1}")
 
     # Update penalties for overlap with other objects
     penalties = [evaluate_label(l, items, idx) for l in labels]
 
     t3 = time.clock()
-    #print(f"Overlap checking: {t3 - t2}")
+    # print(f"Overlap checking: {t3 - t2}")
 
     print(f"Total time: {t3 - t1}")
     return penalties
@@ -258,12 +278,16 @@ class Point(LabelableObject):
         self.y = y
         self.radius = radius
 
-
         LabelableObject.__init__(self, text, label_offset)
 
     @property
     def box(self):
-        return self.x-self.radius, self.y - self.radius, self.x + self.radius, self.y + self.radius
+        return (
+            self.x - self.radius,
+            self.y - self.radius,
+            self.x + self.radius,
+            self.y + self.radius,
+        )
 
     def overlaps(self, label):
         dx = self.x - max(label.box[0], min(self.x, label.box[2]))
@@ -276,11 +300,20 @@ class Point(LabelableObject):
         return 0
 
     def distance(self, other):
-        return math.sqrt((self.x - other.x) ** 2 + (self.y - other.y) **2)
+        return math.sqrt((self.x - other.x) ** 2 + (self.y - other.y) ** 2)
 
 
 class Ellipse(object):
-    def __init__(self, x, y, semi_major_axis, semi_minor_axis, position_angle, text=None, label_offset=0):
+    def __init__(
+        self,
+        x,
+        y,
+        semi_major_axis,
+        semi_minor_axis,
+        position_angle,
+        text=None,
+        label_offset=0,
+    ):
         self.x = x
         self.y = y
         self.semi_major_axis = semi_major_axis
@@ -305,7 +338,7 @@ class BoundingBox(tuple):
             (self[0] - 1, self[1] - 1, self[0], self[3] + 1),
             (self[2], self[1] - 1, self[2] + 1, self[3] + 1),
             (self[0] - 1, self[1] - 1, self[2] + 1, self[1]),
-            (self[0] - 1, self[3], self[2] + 1, self[3] + 1)
+            (self[0] - 1, self[3], self[2] + 1, self[3] + 1),
         ]
         return [BoundingBoxBorder(b) for b in border_boxes]
 
