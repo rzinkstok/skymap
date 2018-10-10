@@ -21,6 +21,7 @@ class PaperSize(object):
         name (str): the name of the paper size
         landscape (bool): whether to set the largest value to width or not
     """
+
     MATCH_TARGETS = (
         re.compile("(a)(\d+)"),
         re.compile("(b)(\d+)"),
@@ -28,10 +29,7 @@ class PaperSize(object):
         re.compile("(ansi)-([a-e])"),
         re.compile("(legal)"),
     )
-    ALIASES = {
-        "letter": "ANSI-A",
-        "tabloid": "ANSI-B"
-    }
+    ALIASES = {"letter": "ANSI-A", "tabloid": "ANSI-B"}
 
     def __init__(self, name="", width=None, height=None, landscape=False):
         if not (width or height or name):
@@ -107,7 +105,7 @@ class PaperSize(object):
         area1 = x1 * y1
         area2 = x2 * y2
         area = math.sqrt(area1 * area2)
-        x = int(round(math.sqrt(area/math.sqrt(2))))
+        x = int(round(math.sqrt(area / math.sqrt(2))))
         y = int(round(x * math.sqrt(2)))
 
         return x, y
@@ -180,7 +178,9 @@ class PaperMargin(object):
         return self.bottom
 
     def __repr__(self):
-        return "PaperMargins(left {} mm, right {} mm, top {} mm, bottom {} mm)".format(self.left, self.right, self.top, self.bottom)
+        return "PaperMargins(left {} mm, right {} mm, top {} mm, bottom {} mm)".format(
+            self.left, self.right, self.top, self.bottom
+        )
 
 
 if __name__ == "__main__":

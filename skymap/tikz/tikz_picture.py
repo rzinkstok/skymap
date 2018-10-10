@@ -19,6 +19,7 @@ class TikzPicture(object):
             system, in paper coordinates
         boxed (bool): whether to draw a box around the picture
     """
+
     def __init__(self, tikz, p1, p2, origin=None, boxed=True):
         self.p1 = p1
         self.p2 = p2
@@ -57,7 +58,9 @@ class TikzPicture(object):
         self.miny = self.p1.y - self.origin.y
         self.maxy = self.p2.y - self.origin.y
 
-        self.bounding_box = Rectangle(Point(self.minx, self.miny), Point(self.maxx, self.maxy))
+        self.bounding_box = Rectangle(
+            Point(self.minx, self.miny), Point(self.maxx, self.maxy)
+        )
 
     def open(self):
         if self.opened:
@@ -66,11 +69,17 @@ class TikzPicture(object):
             raise RuntimeError("You cannot re-open a TikzPicture")
 
         if self.origin != Point(0, 0):
-            shift = "{([shift={" + self.point_to_coordinates(self.origin) + "}]current page.south west)}"
+            shift = (
+                "{([shift={"
+                + self.point_to_coordinates(self.origin)
+                + "}]current page.south west)}"
+            )
         else:
             shift = "{(current page.south west)}"
 
-        self.texstring += "\\begin{{tikzpicture}}[remember picture, overlay, shift={0}, every node/.style={{inner sep=0mm, outer sep=0mm, minimum size=0mm, text height=\\normaltextheight, text depth=\\normaltextdepth}}]\n".format(shift)
+        self.texstring += "\\begin{{tikzpicture}}[remember picture, overlay, shift={0}, every node/.style={{inner sep=0mm, outer sep=0mm, minimum size=0mm, text height=\\normaltextheight, text depth=\\normaltextdepth}}]\n".format(
+            shift
+        )
         self.opened = True
 
         if self.boxed:
@@ -233,7 +242,12 @@ class TikzPicture(object):
 
     def draw_arc(self, arc, delay_write=False):
         self.open()
-        if not hasattr(arc, "center") or not hasattr(arc, "radius") or not hasattr(arc, "start_angle") or not hasattr(arc, "stop_angle"):
+        if (
+            not hasattr(arc, "center")
+            or not hasattr(arc, "radius")
+            or not hasattr(arc, "start_angle")
+            or not hasattr(arc, "stop_angle")
+        ):
             raise DrawError
         if arc.radius > 2000:
             self.draw_interpolated_arc(arc, delay_write)
@@ -241,7 +255,9 @@ class TikzPicture(object):
         c = "([shift=({}:{}mm)]".format(arc.start_angle, arc.radius)
         c += self.point_to_coordinates(arc.center)[1:]
         opts = self.draw_options()
-        self.texstring += "\\draw {} {} arc ({}:{}:{}mm);\n".format(opts, c, arc.start_angle, arc.stop_angle, arc.radius)
+        self.texstring += "\\draw {} {} arc ({}:{}:{}mm);\n".format(
+            opts, c, arc.start_angle, arc.stop_angle, arc.radius
+        )
 
     def draw_interpolated_arc(self, arc, delay_write=False):
         self.open()
@@ -268,14 +284,23 @@ class TikzPicture(object):
             labelfill = ""
 
         text = "{{{}:{{\\{} {}}}}}".format(label.position, label.fontsize, label.text)
-        text = "{{[label distance=0mm, rotate={}, text height={} mm, text depth={} mm{}, text={}]".format(label.angle, textheight, textdepth, labelfill, label.color) + text[1:]
+        text = (
+            "{{[label distance=0mm, rotate={}, text height={} mm, text depth={} mm{}, text={}]".format(
+                label.angle, textheight, textdepth, labelfill, label.color
+            )
+            + text[1:]
+        )
 
-        self.texstring += "\\node at {} [text height=0mm, text depth=0mm, label={}] {{}};\n".format(p, text)
+        self.texstring += "\\node at {} [text height=0mm, text depth=0mm, label={}] {{}};\n".format(
+            p, text
+        )
 
     def fill_circle(self, point, radius):
         self.open()
         p = self.point_to_coordinates(point)
-        self.texstring += "\\fill [{}] {} circle ({}mm);\n".format(self.color, p, radius)
+        self.texstring += "\\fill [{}] {} circle ({}mm);\n".format(
+            self.color, p, radius
+        )
 
     def fill_rectangle(self, rectangle):
         self.open()

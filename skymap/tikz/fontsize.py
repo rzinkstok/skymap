@@ -19,20 +19,21 @@ class FontSize(OrderedDict):
         normalsize (int): the fontsize in points for the normalsize font
         sizefunc (str): the type of generator function for the fontsize series
     """
+
     SIZENAMES = (
-        'nano',
-        'miniscule',
-        'tiny',
-        'scriptsize',
-        'footnotesize',
-        'small',
-        'normalsize',
-        'large',
-        'Large',
-        'LARGE',
-        'huge',
-        'Huge',
-        'HUGE'
+        "nano",
+        "miniscule",
+        "tiny",
+        "scriptsize",
+        "footnotesize",
+        "small",
+        "normalsize",
+        "large",
+        "Large",
+        "LARGE",
+        "huge",
+        "Huge",
+        "HUGE",
     )
 
     def __init__(self, normalsize=11, sizefunc="exp"):
@@ -46,7 +47,7 @@ class FontSize(OrderedDict):
             self.sizefunc = sizefunc
 
         for index, sn in enumerate(self.SIZENAMES):
-            self[sn] = self.sizefunc(index-self.normalindex)
+            self[sn] = self.sizefunc(index - self.normalindex)
 
     def _exp(self, index):
 
@@ -66,6 +67,6 @@ if __name__ == "__main__":
     for sn, s in fs.items():
         print(f"{sn} -> {s}")
     print()
-    fs = FontSize(11, lambda x: (x+6)**2)
+    fs = FontSize(11, lambda x: (x + 6) ** 2)
     for sn, s in fs.items():
         print(f"{sn} -> {s}")

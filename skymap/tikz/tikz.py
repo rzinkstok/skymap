@@ -15,8 +15,8 @@ from skymap.tikz import PaperSize, FontSize, PaperMargin
 BASEDIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 TEX_OUTPUT_FOLDER = os.path.join(BASEDIR, "temp")
 JINJA_TEMPLATE_FOLDER = os.path.join(BASEDIR, "skymap", "tikz", "templates")
-if platform.system() == 'Darwin':
-    os.environ['PATH'] = "/Library/TeX/texbin:"+os.environ['PATH']
+if platform.system() == "Darwin":
+    os.environ["PATH"] = "/Library/TeX/texbin:" + os.environ["PATH"]
 
 
 class Tikz(object):
@@ -29,7 +29,15 @@ class Tikz(object):
         margins (skymap.tikz.PaperMargin): PaperMargin instance describing the margins to use
         normalsize (int): the standard fontsize to use
     """
-    def __init__(self, name, papersize=PaperSize(), margins=PaperMargin(), normalsize=11, template=None):
+
+    def __init__(
+        self,
+        name,
+        papersize=PaperSize(),
+        margins=PaperMargin(),
+        normalsize=11,
+        template=None,
+    ):
         self.name = name
         self.papersize = papersize
         self.margins = margins
@@ -39,9 +47,12 @@ class Tikz(object):
         # Landmark points
         self.llcorner = Point(self.margins.l, self.margins.b)
         self.ulcorner = Point(self.margins.l, self.papersize.height - self.margins.t)
-        self.urcorner = Point(self.papersize.width - self.margins.r, self.papersize.height - self.margins.t)
+        self.urcorner = Point(
+            self.papersize.width - self.margins.r,
+            self.papersize.height - self.margins.t,
+        )
         self.lrcorner = Point(self.papersize.width - self.margins.r, self.margins.b)
-        self.center = 0.5*(self.llcorner + self.urcorner)
+        self.center = 0.5 * (self.llcorner + self.urcorner)
 
         self.texfile_name = "{0}.tex".format(self.name)
         self.texstring = ""
@@ -50,7 +61,9 @@ class Tikz(object):
         self.started = False
         self.finished = False
 
-        self.j2_env = jinja2.Environment(loader=jinja2.FileSystemLoader(JINJA_TEMPLATE_FOLDER), trim_blocks=True)
+        self.j2_env = jinja2.Environment(
+            loader=jinja2.FileSystemLoader(JINJA_TEMPLATE_FOLDER), trim_blocks=True
+        )
 
     def append(self, s):
         self.texstring += s
@@ -118,26 +131,50 @@ class Tikz(object):
             "paperwidth": self.papersize.width,
             "paperheight": self.papersize.height,
             "fontsizes": self.fontsizes,
-            "normal_pointsize": self.fontsizes['normalsize']
+            "normal_pointsize": self.fontsizes["normalsize"],
         }
         if extra_context:
             context.update(extra_context)
 
         rendered_template = template.render(context)
-        with io.open(os.path.join(TEX_OUTPUT_FOLDER, self.texfile_name), mode="w", encoding="utf-8") as fp:
+        with io.open(
+            os.path.join(TEX_OUTPUT_FOLDER, self.texfile_name),
+            mode="w",
+            encoding="utf-8",
+        ) as fp:
             fp.write(rendered_template)
 
         # Run XeLaTeX
         if verbose:
-            print(f"Rendering {filepath or os.path.join(TEX_OUTPUT_FOLDER, self.texfile_name)}")
+            print(
+                f"Rendering {filepath or os.path.join(TEX_OUTPUT_FOLDER, self.texfile_name)}"
+            )
 
         xelatex_error = False
         try:
-            subprocess.check_output(["xelatex", "-halt-on-error", "-interaction", "batchmode", self.texfile_name], cwd=TEX_OUTPUT_FOLDER)
-            subprocess.check_output(["xelatex", "-halt-on-error", "-interaction", "batchmode", self.texfile_name], cwd=TEX_OUTPUT_FOLDER)
+            subprocess.check_output(
+                [
+                    "xelatex",
+                    "-halt-on-error",
+                    "-interaction",
+                    "batchmode",
+                    self.texfile_name,
+                ],
+                cwd=TEX_OUTPUT_FOLDER,
+            )
+            subprocess.check_output(
+                [
+                    "xelatex",
+                    "-halt-on-error",
+                    "-interaction",
+                    "batchmode",
+                    self.texfile_name,
+                ],
+                cwd=TEX_OUTPUT_FOLDER,
+            )
         except subprocess.CalledProcessError as exc:
             print("XeLaTeX compilation failed")
-            print("="*60)
+            print("=" * 60)
             xelatex_error = exc
 
         # Open log file
@@ -152,7 +189,9 @@ class Tikz(object):
             folder = os.path.dirname(filepath)
             if folder and not os.path.exists(folder):
                 os.makedirs(folder)
-            shutil.move(os.path.join(TEX_OUTPUT_FOLDER, "{0}.pdf".format(self.name)), filepath)
+            shutil.move(
+                os.path.join(TEX_OUTPUT_FOLDER, "{0}.pdf".format(self.name)), filepath
+            )
             if open_pdf:
                 subprocess.Popen(["open", filepath]).wait()
 

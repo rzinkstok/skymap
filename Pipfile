@@ -15,8 +15,13 @@ Pillow = "*"
 "Jinja2" = "*"
 Rtree = "*"
 skymap = {editable = true, path = "."}
+prospector = "*"
+black = "*"
 
 [dev-packages]
 
 [requires]
 python_version = "3.7"
+
+[pipenv]
+allow_prereleases = true
