@@ -1,10 +1,10 @@
-# SkyMap's stellar database
+# SkyMap stellar database
 
 The stars plotted in SkyMap all come from the Hipparcos, Tycho and Tycho-2 catalogues published by ESA:
 
-*   The Hipparcos and Tycho Catalogues (ESA 1997), <http://cdsarc.u-strasbg.fr/viz-bin/Cat?I/239>
-*   The Tycho-2 Catalogue of the 2.5 Million Brightest Stars, Hog et al., Astron. Astrophys. 355, L27 (2000), <http://cdsarc.u-strasbg.fr/viz-bin/Cat?I/259>
-*   Hipparcos, the new Reduction of the Raw data, van Leeuwen F., Astron. Astrophys. 474, 653 (2007), <http://cdsarc.u-strasbg.fr/viz-bin/Cat?I/311>
+* The Hipparcos and Tycho Catalogues (ESA 1997), <http://cdsarc.u-strasbg.fr/viz-bin/Cat?I/239>
+* The Tycho-2 Catalogue of the 2.5 Million Brightest Stars, Hog et al., Astron. Astrophys. 355, L27 (2000), <http://cdsarc.u-strasbg.fr/viz-bin/Cat?I/259>
+* Hipparcos, the new Reduction of the Raw data, van Leeuwen F., Astron. Astrophys. 474, 653 (2007), <http://cdsarc.u-strasbg.fr/viz-bin/Cat?I/311>
 
 For ease of use, these were converted to MySQL databases: all queries below are performed on these databases.
 
@@ -25,30 +25,29 @@ precision is 0.0015 mag, while Tycho-1 is limited to 0.012 mag (Vt).
 
 ### Hipparcos
 
-*   Identifier: HIP
-*   Reference system: ICRS
-*   Position epoch: J1991.25
-*   Catalogue parts:
-    *   Main catalogue: astrometrics, photometrics
-    *   Double and Multiple System Annex (DMSA): component information for entries resolved into 2 or more components
-    *   Variability Annex: variability data
-
+* Identifier: HIP
+* Reference system: ICRS
+* Position epoch: J1991.25
+* Catalogue parts:
+  * Main catalogue: astrometrics, photometrics
+  * Double and Multiple System Annex (DMSA): component information for entries resolved into 2 or more components
+  * Variability Annex: variability data
 
 ### Tycho
 * Identifier: TYC1, TYC2, TYC3, HIP
 * Reference system: ICRS
 * Position epoch: J1991.25
 * Catalogue parts:
-    * Main catalogue
+  * Main catalogue
 
 ### Tycho-2
 * Identifier: TYC1, TYC2, TYC3, HIP
 * Reference system: ICRS
 * Position epoch: J2000
 * Catalogue parts:
-    * Main catalogue
-    * Supplement 1 (Hipparcos/Tycho-1 stars not in Tycho-2)
-    * Supplement 2 (Tycho-1 stars either false or heavily disturbed)
+  * Main catalogue
+  * Supplement 1 (Hipparcos/Tycho-1 stars not in Tycho-2)
+  * Supplement 2 (Tycho-1 stars either false or heavily disturbed)
 
 ## Combining the databases
 
@@ -189,7 +188,6 @@ In order to generate a list of all individual stars in Hipparcos and Tycho-1, th
 * Right join IndiHip and Tycho-1 on the HIP number and component ID, omitting all 5,898 unresolved entries where LENGTH(TRIM(m_HIP)) > 1; call this IndiHipTyc
 * Add to IndiHipTyc the Hipparcos records for the unresolved doubles
 * Add to IndiHipTyc the Hipparcos records for the unresolved triples
-
 
 | Description                                    | Number    |
 | ---------------------------------------------- | --------: |
@@ -341,13 +339,15 @@ Astrometrics should come from Hipparcos-2 and Tycho-2: both are an improvement o
 means taking all Hipparcos-2 stars, and then add all Tycho-2 stars that are not in Hipparcos-2. 
 
 Problems to solve: 
+
 * the multiples in Hipparcos. These are not included in Hipparcos-2, so probably the easiest approach is to take Hipparcos-1
-data for all stars included in the multiples annex.
+  data for all stars included in the multiples annex.
+
 * Hipparcos-2 and Tycho-2 do not include all photometry data, especially about variability. It would seem that photometry in Hipparcos-2
-is equal to that in Hipparcos-1 (though Hipparcos-2 includes only Hpmag, not VTmag and BTmag). Tycho-2 seems to have 
-updated photometry for all Tycho-1 stars but omits any variability data. This would suggest to take Hipparcos-1 
-photometry where available, and use Tycho-2 data elsewhere. Variability data for non-Hipparcos stars can be added from 
-Tycho-1.
+  is equal to that in Hipparcos-1 (though Hipparcos-2 includes only Hpmag, not VTmag and BTmag). Tycho-2 seems to have 
+  updated photometry for all Tycho-1 stars but omits any variability data. This would suggest to take Hipparcos-1 
+  photometry where available, and use Tycho-2 data elsewhere. Variability data for non-Hipparcos stars can be added from 
+  Tycho-1.
  
 ```SQL
 -- Hipparcos-2 stars that are not in the multiples annex
@@ -364,8 +364,6 @@ SELECT COUNT(*) FROM tyc2_tyc2 WHERE HIP IS NULL;
 -- Tycho-2 supplement 1 stars not in Hipparcos
 SELECT COUNT(*) FROM tyc2_suppl_1 WHERE HIP IS NULL;
 ```
-
-
 
 ## Database colums
 
