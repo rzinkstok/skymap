@@ -54,13 +54,13 @@ def evaluate_label(label, items, idx, selected_only=False):
         if item == label or item == label.point:
             continue
 
-        if type(item) == Label:
+        if isinstance(item, Label):
             if label.point == item.point:
                 continue
             if selected_only and not item.selected:
                 continue
 
-        if type(item) == BoundingBoxBorder:
+        if isinstance(item, BoundingBoxBorder):
             if bbox_counted:
                 continue
             bbox_counted = True

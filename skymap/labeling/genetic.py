@@ -27,8 +27,7 @@ def local_search_pop(population, toolbox, points, bounding_box):
     sorted_fitness = sorted([x.fitness.values[0] for x in offspring], reverse=True)
     min_fitness = sorted_fitness[len(offspring) / 100]
 
-    for i in range(len(offspring)):
-        individual = offspring[i]
+    for i, individual in enumerate(offspring):
         if individual.fitness.values[0] < min_fitness:
             continue
 
@@ -40,9 +39,9 @@ def local_search_pop(population, toolbox, points, bounding_box):
 
         # Set new values for individual
         for pid, p in enumerate(labeled_points):
-            offspring[i][pid] = p.label_index
+            individual[pid] = p.label_index
 
-        del offspring[i].fitness.values
+        del individual.fitness.values
     return offspring
 
 
@@ -337,14 +336,14 @@ class CachedGeneticLabeler(BaseGeneticLabeler):
                 if item == lc or item == lc.point:
                     continue
 
-                if type(item) == Label:
+                if isinstance(item, Label):
                     if lc.point == item.point:
                         continue
                     else:
                         lc.label_penalties[item.index] = item.overlap(lc)
                         continue
 
-                if type(item) == BoundingBoxBorder:
+                if isinstance(item, BoundingBoxBorder):
                     if bbox_counted:
                         continue
                     bbox_counted = True
