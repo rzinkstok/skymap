@@ -39,11 +39,8 @@ GREEK_LETTERS = {
     "phi": "phi",
     "chi": "chi",
     "psi": "psi",
-    "ome": "omega"
+    "ome": "omega",
 }
-
-
-
 
 
 def angular_sep_to_local_degrees(ra, de, sep):
@@ -56,7 +53,7 @@ def angular_sep_to_local_degrees(ra, de, sep):
     :return: A tuple containing the separation in degrees in RA and DE direction, both equal to the input separation
     """
 
-    return sep/(3600.0*math.cos(de)), sep/3600.0
+    return sep / (3600.0 * math.cos(de)), sep / 3600.0
 
 
 class Star(object):
@@ -75,22 +72,22 @@ class Star(object):
 
     @property
     def hip(self):
-        return self.data['hip']
+        return self.data["hip"]
 
     @property
     def bayer(self):
         """Returns the Bayer designation for the star, if present"""
-        return self.data['bayer']
+        return self.data["bayer"]
 
     @property
     def flamsteed(self):
         """Returns the Flamsteed number for the star, if present"""
-        return self.data['flamsteed']
+        return self.data["flamsteed"]
 
     @property
     def proper_name(self):
         """Returns the proper name for the star, if present"""
-        return self.data['proper_name']
+        return self.data["proper_name"]
 
     @property
     def identifier_string(self):
@@ -99,48 +96,63 @@ class Star(object):
     @property
     def magnitude(self):
         """Retuns the visual magnitude for the star"""
-        m = [self.data['hp_magnitude'], self.data['vt_magnitude'], self.data['magnitude']]
+        m = [
+            self.data["hp_magnitude"],
+            self.data["vt_magnitude"],
+            self.data["magnitude"],
+        ]
         return next((item for item in m if item is not None), None)
 
     @property
     def is_variable(self):
         """Returns true if the star is variable"""
-        return (self.data['variability_type'] == "P") or (self.data['tyc_variable_flag'] == "V")
+        return (self.data["variability_type"] == "P") or (
+            self.data["tyc_variable_flag"] == "V"
+        )
 
     @property
     def is_multiple(self):
         """Returns True if the star is a binary or multiple star system"""
-        ncomp = self.data['number_of_components']
+        ncomp = self.data["number_of_components"]
         if ncomp is not None and ncomp > 1:
             return True
-        if self.data['tyc_multiple_flag'] == 'D':
+        if self.data["tyc_multiple_flag"] == "D":
             return True
         return False
 
     @property
     def min_magnitude(self):
         """Returns the minimum magnitude for variable stars"""
-        return self.data['min_magnitude']
+        return self.data["min_magnitude"]
 
     @property
     def max_magnitude(self):
         """Returns the maximum magnitude for variable stars"""
-        return self.data['max_magnitude']
+        return self.data["max_magnitude"]
 
     def propagate_position(self, date=None):
         """Propagates the position of the star to the given date"""
-        epoch = datetime(2000, 1, 1).date()  # TODO: Use constant, and use that constant epoch as well for building the database
-        return propagate_position(epoch, date, self.right_ascension, self.declination, self.proper_motion_ra, self.proper_motion_dec)
+        epoch = datetime(
+            2000, 1, 1
+        ).date()  # TODO: Use constant, and use that constant epoch as well for building the database
+        return propagate_position(
+            epoch,
+            date,
+            self.right_ascension,
+            self.declination,
+            self.proper_motion_ra,
+            self.proper_motion_dec,
+        )
 
     @property
     def right_ascension(self):
         """Returns the database right ascension for the catalogue epoch in degrees"""
-        return self.data['right_ascension']
+        return self.data["right_ascension"]
 
     @property
     def declination(self):
         """Returns the database declination for the catalogue epoch in degrees"""
-        return self.data['declination']
+        return self.data["declination"]
 
     @property
     def position(self):
@@ -150,7 +162,7 @@ class Star(object):
     @property
     def constellation(self):
         """Returns the constellation the star is in"""
-        return self.data['constellation']
+        return self.data["constellation"]
 
 
 def build_star_database():
@@ -298,8 +310,7 @@ def add_tycho1(db):
     print("Inserting Tycho-1 data")
     t1 = time.time()
 
-    delta_t = (Time("J2000.0") - Time("J1991.25")).value/365.25
-
+    delta_t = (Time("J2000.0") - Time("J1991.25")).value / 365.25
 
     q = """
                 INSERT INTO skymap_stars (
@@ -510,14 +521,24 @@ def add_proper_names(db):
         date = tds[9].get_text().strip()
 
         # Omit the stars that were added because of exoplanets
-        if date == '2015-12-15':
+        if date == "2015-12-15":
             continue
 
         # Find and update the database record
-        row = db.query_one("""SELECT id FROM skymap_stars WHERE hip={} ORDER BY hp_magnitude ASC LIMIT 1""".format(hip))
+        row = db.query_one(
+            """SELECT id FROM skymap_stars WHERE hip={} ORDER BY hp_magnitude ASC LIMIT 1""".format(
+                hip
+            )
+        )
         if row is None:
-            row = db.query_one("""SELECT id FROM skymap_stars WHERE hd1={0} OR hd2={0} ORDER BY hp_magnitude ASC LIMIT 1""".format(hd))
-        q = """UPDATE skymap_stars SET proper_name="{}" WHERE id={}""".format(proper_name, row['id'])
+            row = db.query_one(
+                """SELECT id FROM skymap_stars WHERE hd1={0} OR hd2={0} ORDER BY hp_magnitude ASC LIMIT 1""".format(
+                    hd
+                )
+            )
+        q = """UPDATE skymap_stars SET proper_name="{}" WHERE id={}""".format(
+            proper_name, row["id"]
+        )
         db.commit_query(q)
 
     # Add some special cases
@@ -528,12 +549,18 @@ def add_proper_names(db):
         105090: "Lacaille 8760",
         114046: "Lacaille 9352",
         54035: "Lalande 21185",
-        114622: "Bradley 3077"
+        114622: "Bradley 3077",
     }
 
     for hip, proper_name in special_cases.items():
-        rid = db.query_one("""SELECT id FROM skymap_stars WHERE hip={} ORDER BY hp_magnitude ASC LIMIT 1""".format(hip))['id']
-        q = """UPDATE skymap_stars SET proper_name="{}" WHERE id={}""".format(proper_name, rid)
+        rid = db.query_one(
+            """SELECT id FROM skymap_stars WHERE hip={} ORDER BY hp_magnitude ASC LIMIT 1""".format(
+                hip
+            )
+        )["id"]
+        q = """UPDATE skymap_stars SET proper_name="{}" WHERE id={}""".format(
+            proper_name, rid
+        )
         db.commit_query(q)
 
     t2 = time.time()
@@ -550,7 +577,9 @@ def add_constellations(db):
 
     print("Adding constellations")
     t1 = time.time()
-    rows = db.query("""SELECT id, right_ascension, declination, source FROM skymap_stars""")
+    rows = db.query(
+        """SELECT id, right_ascension, declination, source FROM skymap_stars"""
+    )
     nrecords = len(rows)
 
     # Prepare ConstellationFinders for Tycho and Hipparcos
@@ -564,12 +593,14 @@ def add_constellations(db):
             sys.stdout.write("\r{0:.1f}%".format(i * 100.0 / (nrecords - 1)))
             sys.stdout.flush()
 
-        if r['source'] == 'T2':
+        if r["source"] == "T2":
             cf = cftyc
         else:
             cf = cfhip
-        c = cf.find(r['right_ascension'], r['declination'])
-        db.commit_query("UPDATE skymap_stars SET constellation='{}' WHERE id={}".format(c, r['id']))
+        c = cf.find(r["right_ascension"], r["declination"])
+        db.commit_query(
+            "UPDATE skymap_stars SET constellation='{}' WHERE id={}".format(c, r["id"])
+        )
 
     t2 = time.time()
     print()
@@ -602,9 +633,13 @@ def select_stars(magnitude, constellation=None, ra_range=None, dec_range=None):
         max_ra = ensure_angle_range(max_ra)
 
         if min_ra < max_ra:
-            q += """ AND right_ascension>={0} AND right_ascension<={1}""".format(min_ra, max_ra)
+            q += """ AND right_ascension>={0} AND right_ascension<={1}""".format(
+                min_ra, max_ra
+            )
         elif max_ra < min_ra:
-            q += """ AND (right_ascension>={0} OR right_ascension<={1})""".format(min_ra, max_ra)
+            q += """ AND (right_ascension>={0} OR right_ascension<={1})""".format(
+                min_ra, max_ra
+            )
         else:
             # min_ra is equal to max_ra: full circle: no ra limits
             pass
@@ -612,7 +647,13 @@ def select_stars(magnitude, constellation=None, ra_range=None, dec_range=None):
     if dec_range:
         min_dec, max_dec = dec_range
 
-        if min_dec < -90 or min_dec > 90 or max_dec < -90 or max_dec > 90 or max_dec <= min_dec:
+        if (
+            min_dec < -90
+            or min_dec > 90
+            or max_dec < -90
+            or max_dec > 90
+            or max_dec <= min_dec
+        ):
             raise ValueError("Illegal DEC range!")
         q += """ AND declination>={0} AND declination<={1}""".format(min_dec, max_dec)
 
@@ -628,7 +669,6 @@ def select_stars(magnitude, constellation=None, ra_range=None, dec_range=None):
     return result
 
 
-
 """
 Multiples:
 
@@ -636,6 +676,7 @@ For each star, find stars within a certain angular separation.
 Create table with IDs and for each star of the bunch add a reference to the brightest star of the bunch, and add the
 angular separation to the brightest.
 """
+
 
 def sum_magnitudes(m1, m2):
     """
@@ -651,7 +692,7 @@ def sum_magnitudes(m1, m2):
         float: The combined magnitude
     """
 
-    return -2.5*math.log10(pow(10, -m1/2.5) + pow(10, -m2/2.5))
+    return -2.5 * math.log10(pow(10, -m1 / 2.5) + pow(10, -m2 / 2.5))
 
 
 def get_stars_around_coordinate(ra, dec, angular_separation, db):
@@ -676,23 +717,28 @@ def get_stars_around_coordinate(ra, dec, angular_separation, db):
     q = """SELECT * FROM skymap_stars WHERE """
 
     if ra - delta_ra < 0:
-        q += """(right_ascension < {} OR right_ascension > {}) AND """.format(ra + delta_ra, ra - delta_ra + 360)
+        q += """(right_ascension < {} OR right_ascension > {}) AND """.format(
+            ra + delta_ra, ra - delta_ra + 360
+        )
     elif ra + delta_ra > 360:
-        q += """(right_ascension < {} OR right_ascension > {}) AND """.format(ra + delta_ra - 360, ra - delta_ra)
+        q += """(right_ascension < {} OR right_ascension > {}) AND """.format(
+            ra + delta_ra - 360, ra - delta_ra
+        )
     else:
-        q += """right_ascension > {} AND right_ascension < {} AND """.format(ra - delta_ra, ra + delta_ra)
+        q += """right_ascension > {} AND right_ascension < {} AND """.format(
+            ra - delta_ra, ra + delta_ra
+        )
 
     if dec - delta_de < -90:
         q += """declination < {}""".format(dec + delta_de)
     elif dec + delta_de > 90:
         q += """declination > {}""".format(dec - delta_de)
     else:
-        q += """declination > {} AND declination < {}""".format(dec - delta_de, dec + delta_de)
+        q += """declination > {} AND declination < {}""".format(
+            dec - delta_de, dec + delta_de
+        )
 
     return db.query(q)
-
-
-
 
 
 if __name__ == "__main__":

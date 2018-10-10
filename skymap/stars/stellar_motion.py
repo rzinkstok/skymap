@@ -3,7 +3,7 @@ import numpy as np
 from astropy.time import Time
 from skymap.geometry import sky2cartesian_with_parallax, cartesian2sky_with_parallax
 
-KM_PER_S_TO_PARSEC_PER_YEAR = 1.0/977780.0
+KM_PER_S_TO_PARSEC_PER_YEAR = 1.0 / 977780.0
 MAS_TO_DEG = 1.0 / (1000 * 60 * 60)
 MAS_TO_RAD = np.deg2rad(MAS_TO_DEG)
 
@@ -73,7 +73,7 @@ def rigorous_propagation(ra_dec_parallax_array, velocity_array, from_epoch, to_e
 
     # Compute normal triad
     z = np.array((0, 0, 1))
-    r = r0/np.linalg.norm(r0, axis=1).reshape((npoints, 1))
+    r = r0 / np.linalg.norm(r0, axis=1).reshape((npoints, 1))
     p = np.cross(z, r)
     q = np.cross(r, p)
 

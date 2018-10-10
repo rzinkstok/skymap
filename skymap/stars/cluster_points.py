@@ -15,7 +15,7 @@ def brute_cluster(points, threshold):
     """
     brute_pairs = []
     for i in range(points.shape[0]):
-        for j in range(i+1, points.shape[0]):
+        for j in range(i + 1, points.shape[0]):
             p1 = points[i, :]
             p2 = points[j, :]
             d = distance(p1, p2)
@@ -38,7 +38,7 @@ def strip_cluster(points, threshold):
     strip_pairs = []
     sorted_points = points[points[:, 1].argsort()]
     for i in range(sorted_points.shape[0]):
-        for j in range(i+1, i+7):
+        for j in range(i + 1, i + 7):
             try:
                 p1 = sorted_points[i, :]
                 p2 = sorted_points[j, :]
@@ -69,8 +69,8 @@ def cluster(points, threshold):
         return brute_cluster(points, threshold)
 
     sorted_points = points[points[:, 0].argsort()]
-    mid = sorted_points.shape[0]/2
-    midx = 0.5*(sorted_points[mid-1, 0] + sorted_points[mid, 0])
+    mid = sorted_points.shape[0] / 2
+    midx = 0.5 * (sorted_points[mid - 1, 0] + sorted_points[mid, 0])
 
     pairs1 = cluster(sorted_points[:mid, :], threshold)
     all_pairs = all_pairs.union(pairs1)
@@ -114,7 +114,7 @@ def rotate_points(points):
     maxs = np.max(points[:, :2], axis=0)
     center_ra = 0.5 * (mins[0] + maxs[0])
     center_de = 0.5 * (mins[1] + maxs[1])
-    center = sky2cartesian(np.array([[center_ra, center_de], ]))[0, :]
+    center = sky2cartesian(np.array([[center_ra, center_de]]))[0, :]
 
     # Setup rotation matrix for rotation from center to (ra, de) = (0, 0)
     target = np.array((1, 0, 0))
@@ -151,7 +151,7 @@ if __name__ == "__main__":
     use_pseudo = True
     use_brute = False
     number_of_points = int(1e5)
-    cluster_threshold = 0.0001*360*180*1.0/number_of_points
+    cluster_threshold = 0.0001 * 360 * 180 * 1.0 / number_of_points
     print(f"Threshold: {cluster_threshold}")
     if use_pseudo:
         np.random.seed(1)

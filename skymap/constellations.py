@@ -8,94 +8,94 @@ from skymap.geometry import ensure_angle_range, SkyCoordDeg, TOLERANCE
 
 
 CONSTELLATIONS = {
-    'and': 'Andromeda',
-    'ant': 'Antlia',
-    'aps': 'Apus',
-    'aqr': 'Aquarius',
-    'aql': 'Aquila',
-    'ara': 'Ara',
-    'ari': 'Aries',
-    'aur': 'Auriga',
-    'boo': 'Bootes',
-    'cae': 'Caelum',
-    'cam': 'Camelopardalis',
-    'cnc': 'Cancer',
-    'cvn': 'Canes Venatici',
-    'cma': 'Canis Major',
-    'cmi': 'Canis Minor',
-    'cap': 'Capricornus',
-    'car': 'Carina',
-    'cas': 'Cassiopeia',
-    'cen': 'Centaurus',
-    'cep': 'Cepheus',
-    'cet': 'Cetus',
-    'cha': 'Chamaeleon',
-    'cir': 'Circinus',
-    'col': 'Columba',
-    'com': 'Coma Berenices',
-    'cra': 'Corona Austrina',
-    'crb': 'Corona Borealis',
-    'crv': 'Corvus',
-    'crt': 'Crater',
-    'cru': 'Crux',
-    'cyg': 'Cygnus',
-    'del': 'Delphinus',
-    'dor': 'Dorado',
-    'dra': 'Draco',
-    'equ': 'Equuleus',
-    'eri': 'Eridanus',
-    'for': 'Fornax',
-    'gem': 'Gemini',
-    'gru': 'Grus',
-    'her': 'Hercules',
-    'hor': 'Horologium',
-    'hya': 'Hydra',
-    'hyi': 'Hydrus',
-    'ind': 'Indus',
-    'lac': 'Lacerta',
-    'leo': 'Leo',
-    'lmi': 'Leo Minor',
-    'lep': 'Lepus',
-    'lib': 'Libra',
-    'lup': 'Lupus',
-    'lyn': 'Lynx',
-    'lyr': 'Lyra',
-    'men': 'Mensa',
-    'mic': 'Microscopium',
-    'mon': 'Monoceros',
-    'mus': 'Musca',
-    'nor': 'Norma',
-    'oct': 'Octans',
-    'oph': 'Ophiuchus',
-    'ori': 'Orion',
-    'pav': 'Pavo',
-    'peg': 'Pegasus',
-    'per': 'Perseus',
-    'phe': 'Phoenix',
-    'pic': 'Pictor',
-    'psc': 'Pisces',
-    'psa': 'Piscis Austrinus',
-    'pup': 'Puppis',
-    'pyx': 'Pyxis',
-    'ret': 'Reticulum',
-    'sge': 'Sagitta',
-    'sgr': 'Sagittarius',
-    'sco': 'Scorpius',
-    'scl': 'Sculptor',
-    'sct': 'Scutum',
-    'ser': 'Serpens',
-    'sex': 'Sextans',
-    'tau': 'Taurus',
-    'tel': 'Telescopium',
-    'tri': 'Triangulum',
-    'tra': 'Triangulum Australe',
-    'tuc': 'Tucana',
-    'uma': 'Ursa Major',
-    'umi': 'Ursa Minor',
-    'vel': 'Vela',
-    'vir': 'Virgo',
-    'vol': 'Volans',
-    'vul': 'Vulpecula'
+    "and": "Andromeda",
+    "ant": "Antlia",
+    "aps": "Apus",
+    "aqr": "Aquarius",
+    "aql": "Aquila",
+    "ara": "Ara",
+    "ari": "Aries",
+    "aur": "Auriga",
+    "boo": "Bootes",
+    "cae": "Caelum",
+    "cam": "Camelopardalis",
+    "cnc": "Cancer",
+    "cvn": "Canes Venatici",
+    "cma": "Canis Major",
+    "cmi": "Canis Minor",
+    "cap": "Capricornus",
+    "car": "Carina",
+    "cas": "Cassiopeia",
+    "cen": "Centaurus",
+    "cep": "Cepheus",
+    "cet": "Cetus",
+    "cha": "Chamaeleon",
+    "cir": "Circinus",
+    "col": "Columba",
+    "com": "Coma Berenices",
+    "cra": "Corona Austrina",
+    "crb": "Corona Borealis",
+    "crv": "Corvus",
+    "crt": "Crater",
+    "cru": "Crux",
+    "cyg": "Cygnus",
+    "del": "Delphinus",
+    "dor": "Dorado",
+    "dra": "Draco",
+    "equ": "Equuleus",
+    "eri": "Eridanus",
+    "for": "Fornax",
+    "gem": "Gemini",
+    "gru": "Grus",
+    "her": "Hercules",
+    "hor": "Horologium",
+    "hya": "Hydra",
+    "hyi": "Hydrus",
+    "ind": "Indus",
+    "lac": "Lacerta",
+    "leo": "Leo",
+    "lmi": "Leo Minor",
+    "lep": "Lepus",
+    "lib": "Libra",
+    "lup": "Lupus",
+    "lyn": "Lynx",
+    "lyr": "Lyra",
+    "men": "Mensa",
+    "mic": "Microscopium",
+    "mon": "Monoceros",
+    "mus": "Musca",
+    "nor": "Norma",
+    "oct": "Octans",
+    "oph": "Ophiuchus",
+    "ori": "Orion",
+    "pav": "Pavo",
+    "peg": "Pegasus",
+    "per": "Perseus",
+    "phe": "Phoenix",
+    "pic": "Pictor",
+    "psc": "Pisces",
+    "psa": "Piscis Austrinus",
+    "pup": "Puppis",
+    "pyx": "Pyxis",
+    "ret": "Reticulum",
+    "sge": "Sagitta",
+    "sgr": "Sagittarius",
+    "sco": "Scorpius",
+    "scl": "Sculptor",
+    "sct": "Scutum",
+    "ser": "Serpens",
+    "sex": "Sextans",
+    "tau": "Taurus",
+    "tel": "Telescopium",
+    "tri": "Triangulum",
+    "tra": "Triangulum Australe",
+    "tuc": "Tucana",
+    "uma": "Ursa Major",
+    "umi": "Ursa Minor",
+    "vel": "Vela",
+    "vir": "Virgo",
+    "vol": "Volans",
+    "vul": "Vulpecula",
 }
 
 
@@ -103,7 +103,9 @@ CONSTELLATIONS = {
 CONST_BOUND_EPOCH = "B1875"
 
 
-def constellations_in_area(min_longitude, max_longitude, min_latitude, max_latitude, nsamples=1000):
+def constellations_in_area(
+    min_longitude, max_longitude, min_latitude, max_latitude, nsamples=1000
+):
     """Generates a list of all constellations that overlap with the given area.
 
     Uses a simple Monte Carlo strategy.
@@ -117,7 +119,9 @@ def constellations_in_area(min_longitude, max_longitude, min_latitude, max_latit
         latitude = min_latitude + (max_latitude - min_latitude) * random.random()
 
         # Retrieve the short name of the constellation for that coordinate
-        constellation = get_constellation(SkyCoordDeg(longitude, latitude), short_name=True)
+        constellation = get_constellation(
+            SkyCoordDeg(longitude, latitude), short_name=True
+        )
 
         # Use the cosine of the latitude as weight, so higher latitude areas are not dominating
         weight = math.cos(math.radians(latitude))
@@ -130,11 +134,13 @@ def constellations_in_area(min_longitude, max_longitude, min_latitude, max_latit
         sum_weight += weight
 
     # Sort the constellation dict by value and return the constellations of decreasing area
-    res = sorted([(v/sum_weight, k) for k, v in constellations.items()], reverse=True)
+    res = sorted([(v / sum_weight, k) for k, v in constellations.items()], reverse=True)
     return [x[1] for x in res]
 
 
-def get_constellation_boundaries_for_area(min_longitude, max_longitude, min_latitude, max_latitude, epoch="J2000.0"):
+def get_constellation_boundaries_for_area(
+    min_longitude, max_longitude, min_latitude, max_latitude, epoch="J2000.0"
+):
     # Convert longitude to 0-360 values
     # TODO: sometimes boundaries cross the map but have no vertices within the map area + margin and are not plotted
     min_longitude = ensure_angle_range(min_longitude)
@@ -163,8 +169,8 @@ def get_constellation_boundaries_for_area(min_longitude, max_longitude, min_lati
 
     result = []
     for row in res:
-        p1 = SkyCoordDeg(row['ra1'], row['dec1'])
-        p2 = SkyCoordDeg(row['ra2'], row['dec2'])
+        p1 = SkyCoordDeg(row["ra1"], row["dec1"])
+        p2 = SkyCoordDeg(row["ra2"], row["dec2"])
         e = ConstellationBoundaryEdge(p1, p2)
         e.precess()
         result.append(e)
@@ -183,14 +189,14 @@ class ConstellationBoundaryEdge(object):
         self.interpolated_points = []
 
         if abs(self.coord1.ra.degree - self.coord2.ra.degree) < TOLERANCE:
-            self.direction =  "parallel"
+            self.direction = "parallel"
         elif abs(self.coord1.dec.degree - self.coord2.dec.degree) < TOLERANCE:
             self.direction = "meridian"
         raise ValueError("Edge is slanted")
 
     def __eq__(self, other):
-        eq = (self.coord1 == other.coord1 and self.coord2 == other.coord2)
-        eq_inv = (self.coord1 == other.coord2 and self.coord2 == other.coord1)
+        eq = self.coord1 == other.coord1 and self.coord2 == other.coord2
+        eq_inv = self.coord1 == other.coord2 and self.coord2 == other.coord1
         return eq or eq_inv
 
     def __str__(self):
@@ -201,7 +207,9 @@ class ConstellationBoundaryEdge(object):
 
     def interpolate_points(self, step=1.0):
         if self.epoch != CONST_BOUND_EPOCH:
-            raise ValueError("Interpolations is only allowed for epoch 1875.0 boundaries!")
+            raise ValueError(
+                "Interpolations is only allowed for epoch 1875.0 boundaries!"
+            )
 
         if self.direction == "parallel":
             # dec is changing
@@ -241,7 +249,7 @@ class ConstellationBoundaryEdge(object):
                 # Interpolate from v1 to v2 (forward), with zero crossing
                 new_values = [v1]
                 new_val = step * math.ceil(v1 / step)
-                while new_val < v2+360:
+                while new_val < v2 + 360:
                     new_values.append(new_val)
                     new_val += step
                 new_values.append(v2)
@@ -249,7 +257,7 @@ class ConstellationBoundaryEdge(object):
                 # Interpolate from v2 to v2 (backward), with zero crossing
                 new_values = [v1]
                 new_val = step * math.floor(v1 / step)
-                while new_val+360 >= v2:
+                while new_val + 360 >= v2:
                     new_values.append(new_val)
                     new_val -= step
                 new_values.append(v2)
@@ -276,6 +284,7 @@ class ConstellationBoundaryEdge(object):
 
 # Build constellation boundary database
 
+
 def point_hash(x, y, mult=1e5):
     hx = int(round(x * mult))
     hy = int(round((y + 90.0) * mult))
@@ -284,8 +293,8 @@ def point_hash(x, y, mult=1e5):
 
 def point_unhash(h, mult=1e5):
     hstr = "{:016d}".format(h)
-    x = int(hstr[:8])/mult
-    y = int(hstr[8:])/mult - 90.0
+    x = int(hstr[:8]) / mult
+    y = int(hstr[8:]) / mult - 90.0
     return x, y
 
 
@@ -379,24 +388,28 @@ def build_constellation_boundary_database():
     print("Creating constellation boundary database")
     db = SkyMapDatabase()
     db.drop_table("skymap_constellation_boundaries")
-    db.create_table("skymap_constellation_boundaries", ["ra1", "dec1", "ra2", "dec2"], [float, float, float, float])
+    db.create_table(
+        "skymap_constellation_boundaries",
+        ["ra1", "dec1", "ra2", "dec2"],
+        [float, float, float, float],
+    )
 
     # Retrieve data from Vizier
     print()
     print("Retrieving data from Vizier")
     Vizier.ROW_LIMIT = -1
     catalog = Vizier.get_catalogs("VI/49")
-    constbnd = catalog['VI/49/constbnd']
+    constbnd = catalog["VI/49/constbnd"]
 
     print()
     print("Building edges from {} points".format(len(constbnd)))
     prev_hash = None
     edges = []
     for row in constbnd:
-        if not row['adj']:
+        if not row["adj"]:
             prev_hash = None
 
-        current_hash = point_hash(row['RAB1875'], row['DEB1875'])
+        current_hash = point_hash(row["RAB1875"], row["DEB1875"])
         if prev_hash is not None:
             e = QuickEdge(prev_hash, current_hash)
 
@@ -408,7 +421,7 @@ def build_constellation_boundary_database():
     print()
     print("Connecting {} edges".format(len(edges)))
     for i, e1 in enumerate(edges):
-        for e2 in edges[i+1:]:
+        for e2 in edges[i + 1 :]:
             e1.connect(e2)
 
     print()
@@ -422,9 +435,12 @@ def build_constellation_boundary_database():
     print()
     print(f"Loading {len(new_edges)} edges to database")
     for i, e in enumerate(new_edges):
-        db.insert_row("skymap_constellation_boundaries", ["ra1", "dec1", "ra2", "dec2"], e.coordinates)
+        db.insert_row(
+            "skymap_constellation_boundaries",
+            ["ra1", "dec1", "ra2", "dec2"],
+            e.coordinates,
+        )
 
 
 if __name__ == "__main__":
     build_constellation_boundary_database()
-

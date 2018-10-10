@@ -328,7 +328,11 @@ def add_proper_names(db):
         else:
             result_table = Simbad.query_objectids(designation)
             try:
-                value = int([x for x in result_table if x["ID"].startswith("HIP")][0]["ID"][3:].strip())
+                value = int(
+                    [x for x in result_table if x["ID"].startswith("HIP")][0]["ID"][
+                        3:
+                    ].strip()
+                )
             except IndexError:
                 continue
             columns = ["HIP"]
@@ -345,7 +349,9 @@ def add_proper_names(db):
             continue
 
         # Update the database record
-        q = """UPDATE skymap_stars SET proper_name="{}" WHERE id={}""".format(proper_name, row['id'])
+        q = """UPDATE skymap_stars SET proper_name="{}" WHERE id={}""".format(
+            proper_name, row["id"]
+        )
         db.commit_query(q)
 
     # Add some special cases
@@ -356,12 +362,18 @@ def add_proper_names(db):
         105090: "Lacaille 8760",
         114046: "Lacaille 9352",
         54035: "Lalande 21185",
-        114622: "Bradley 3077"
+        114622: "Bradley 3077",
     }
 
     for hip, proper_name in special_cases.items():
-        rid = db.query_one("""SELECT id FROM skymap_stars WHERE hip={} ORDER BY hp_magnitude ASC LIMIT 1""".format(hip))['id']
-        q = """UPDATE skymap_stars SET proper_name="{}" WHERE id={}""".format(proper_name, rid)
+        rid = db.query_one(
+            """SELECT id FROM skymap_stars WHERE hip={} ORDER BY hp_magnitude ASC LIMIT 1""".format(
+                hip
+            )
+        )["id"]
+        q = """UPDATE skymap_stars SET proper_name="{}" WHERE id={}""".format(
+            proper_name, rid
+        )
         db.commit_query(q)
 
     t2 = time.time()
@@ -378,4 +390,3 @@ def build_stellar_database():
     add_cross_index(db)
     add_bright_star_catalog(db)
     add_proper_names(db)
-

@@ -24,13 +24,13 @@ class SkyCoordDeg(SkyCoord):
 
 # For tracking precession of north pole
 # SkyCoord(0,90, unit="degree", frame=PrecessedGeocentric(equinox="J2100")).transform_to("icrs")
-
+#
 # For mapping the ecliptic (equinox is map equinox)
 # SkyCoord(90, 0, unit="degree", frame=BarycentricTrueEcliptic(equinox="J2000")).transform_to("icrs")
-
+#
 # For mapping the galactic pole
 # SkyCoord(0, 90, unit="degree", frame=Galactic).transform_to("icrs")
-
+#
 # For converting constellation boundary to ICRS
 # SkyCoord(0, 0, unit="degree", frame=PrecessedGeocentric(equinox="B1875")).transform_to("icrs")
 

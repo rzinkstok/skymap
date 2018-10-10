@@ -37,7 +37,9 @@ class UnitProjection(object):
 
 
 class AzimuthalEquidistantProjection(Projection):
-    def __init__(self, reference_longitude=0, reference_scale=45, celestial=False, north=True):
+    def __init__(
+        self, reference_longitude=0, reference_scale=45, celestial=False, north=True
+    ):
         """
         :param north: whether to plot the north pole
         :param reference_longitude: the longitude that points to the right
@@ -51,12 +53,20 @@ class AzimuthalEquidistantProjection(Projection):
 
         if self.north:
             if self.reference_scale >= 90:
-                raise ProjectionError("Invalid reference scale {} for north pole".format(self.reference_scale))
+                raise ProjectionError(
+                    "Invalid reference scale {} for north pole".format(
+                        self.reference_scale
+                    )
+                )
             self.origin_latitude = 90
         else:
             self.reference_scale *= -1
             if self.reference_scale <= -90:
-                raise ProjectionError("Invalid reference scale {} for south pole".format(self.reference_scale))
+                raise ProjectionError(
+                    "Invalid reference scale {} for south pole".format(
+                        self.reference_scale
+                    )
+                )
             self.origin_latitude = -90
 
     @property
@@ -95,7 +105,9 @@ class AzimuthalEquidistantProjection(Projection):
 
 
 class EquidistantCylindricalProjection(Projection):
-    def __init__(self, center_longitude, reference_scale, lateral_scale=1.0, celestial=False):
+    def __init__(
+        self, center_longitude, reference_scale, lateral_scale=1.0, celestial=False
+    ):
         Projection.__init__(self, center_longitude, reference_scale, celestial)
         self.lateral_scale = lateral_scale
 
@@ -103,14 +115,20 @@ class EquidistantCylindricalProjection(Projection):
         longitude = self.reduce_longitude(skycoord.ra.degree)
         latitude = skycoord.dec.degree
 
-        x = self.lateral_scale * (longitude - self.center_longitude) / self.reference_scale
+        x = (
+            self.lateral_scale
+            * (longitude - self.center_longitude)
+            / self.reference_scale
+        )
         if self.celestial:
             x *= -1
         y = latitude / self.reference_scale
         return Point(x, y)
 
     def backproject(self, point):
-        longitude = self.center_longitude + self.reference_scale * point.x / self.lateral_scale
+        longitude = (
+            self.center_longitude + self.reference_scale * point.x / self.lateral_scale
+        )
 
         if self.celestial:
             longitude *= -1
@@ -120,7 +138,14 @@ class EquidistantCylindricalProjection(Projection):
 
 
 class EquidistantConicProjection(Projection):
-    def __init__(self, center, standard_parallel1, standard_parallel2, reference_scale=50, celestial=False):
+    def __init__(
+        self,
+        center,
+        standard_parallel1,
+        standard_parallel2,
+        reference_scale=50,
+        celestial=False,
+    ):
         Projection.__init__(self, center.ra.degree, reference_scale, celestial)
 
         self.center_latitude = center.dec.degree
@@ -128,12 +153,16 @@ class EquidistantConicProjection(Projection):
         self.standard_parallel2 = standard_parallel2
 
         # Calculate projection parameters
-        self.cone_angle = 90 - 0.5 * abs(self.standard_parallel1 + self.standard_parallel2)
+        self.cone_angle = 90 - 0.5 * abs(
+            self.standard_parallel1 + self.standard_parallel2
+        )
         phi_1 = math.radians(self.standard_parallel1)
         phi_2 = math.radians(self.standard_parallel2)
         self.n = (math.cos(phi_1) - math.cos(phi_2)) / (phi_2 - phi_1)
         self.G = math.cos(phi_1) / self.n + phi_1
-        self.rho_0 = (self.G - math.radians(self.center_latitude))/math.radians(self.reference_scale)
+        self.rho_0 = (self.G - math.radians(self.center_latitude)) / math.radians(
+            self.reference_scale
+        )
         # self.parallel_circle_center = SphericalPoint(0, math.degrees(self.G))
 
     @property
@@ -144,7 +173,7 @@ class EquidistantConicProjection(Projection):
         longitude = self.reduce_longitude(skycoord.ra.degree)
         latitude = skycoord.dec.degree
 
-        rho = (self.G - math.radians(latitude))/math.radians(self.reference_scale)
+        rho = (self.G - math.radians(latitude)) / math.radians(self.reference_scale)
         theta = math.radians(self.n * (longitude - self.center_longitude))
 
         if self.celestial:
@@ -157,7 +186,11 @@ class EquidistantConicProjection(Projection):
 
     def backproject(self, point):
         sign_n = numpy.sign(self.n)
-        rho = math.radians(self.reference_scale) * sign_n * math.sqrt(point.x**2 + (self.rho_0 - point.y)**2)
+        rho = (
+            math.radians(self.reference_scale)
+            * sign_n
+            * math.sqrt(point.x ** 2 + (self.rho_0 - point.y) ** 2)
+        )
         theta = math.degrees(math.atan2(point.x, self.rho_0 - point.y))
 
         if self.celestial:

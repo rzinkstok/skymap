@@ -17,6 +17,7 @@ Rtree = "*"
 skymap = {editable = true, path = "."}
 prospector = "*"
 black = "*"
+scipy = "*"
 
 [dev-packages]
 
