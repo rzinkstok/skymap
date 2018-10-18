@@ -1,4 +1,5 @@
 # skymap
+[![Codacy Badge](https://api.codacy.com/project/badge/Grade/cb07daea7f49492480cdc62a2f8a6ad5)](https://app.codacy.com/app/rzinkstok/skymap?utm_source=github.com&utm_medium=referral&utm_content=rzinkstok/skymap&utm_campaign=Badge_Grade_Dashboard)
 [![Build Status](https://travis-ci.org/rzinkstok/skymap.svg?branch=master)](https://travis-ci.org/rzinkstok/skymap)
 [![Documentation Status](https://readthedocs.org/projects/skymap/badge/?version=latest)](https://skymap.readthedocs.io/en/latest/?badge=latest)
 
