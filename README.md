@@ -1,5 +1,6 @@
 # skymap
 [![Build Status](https://travis-ci.org/rzinkstok/skymap.svg?branch=master)](https://travis-ci.org/rzinkstok/skymap)
+[![Documentation Status](https://readthedocs.org/projects/skymap/badge/?version=latest)](https://skymap.readthedocs.io/en/latest/?badge=latest)
 
 Generate star charts based on Hipparcos/Tycho data
 
