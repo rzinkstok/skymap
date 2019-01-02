@@ -90,7 +90,7 @@ class TikzPicture(object):
         """Close the picture for writing.
 
         Args:
-            add_to_tikz_string: the function to call with the picture tex string as argument.
+            add_to_tikz_string (callable): the function to call with the picture tex string as argument.
         """
         if not self.opened or self.closed:
             return
@@ -106,7 +106,7 @@ class TikzPicture(object):
         Context manager for clipping the enclosed drawing actions to the given path.
 
         Args:
-            path: the clipping path to use
+            path (str): the clipping path to use
         """
         if path is None:
             path = self.bounding_box.path
@@ -151,7 +151,12 @@ class TikzPicture(object):
         return path
 
     def comment(self, comment, prefix_newline=True):
-        """Adds a comment to the Tikz file."""
+        """Adds a comment to the Tikz file.
+
+        Args:
+            comment (str): the comment to add
+            prefix_newline (bool): whether to add a newline before the comment
+        """
         if prefix_newline:
             s = "\n"
         else:
@@ -180,13 +185,16 @@ class TikzPicture(object):
         self._dashed = value
 
     def solid_pen(self):
+        """Set the pen style to solid."""
         self.dashed = False
         self.dotted = False
 
     def dotted_pen(self):
+        """Set the pen style to dotted."""
         self.dotted = True
 
     def dashed_pen(self):
+        """Set the pen style to dashed."""
         self.dashed = True
 
     def draw_options(self):

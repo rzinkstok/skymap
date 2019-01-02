@@ -2,7 +2,7 @@
 
 ## Interfaces
 
-* Drawable objects: should have a draw method 
+* Drawable objects: should have a draw method
   * Circle
   * Ellipse
   * Square
@@ -11,9 +11,12 @@
   * Arc
   * ...
   
-* Labelable objects 
+* Labelable objects
   
-  
+## Real objects vs map objects
+Perhaps have real objects (stars, galaxies, etc), and the derived drawable map objects (star marker, galaxy marker).
+The latter have the map coordinates and all drawing stuff, the former has the sky coordinates and all physical
+characteristics.
   
 ## Map creation workflow
 * Plot map area and gridlines

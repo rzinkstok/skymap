@@ -8,6 +8,7 @@ TOLERANCE = 1e-12
 
 
 class SkyCoordDeg(SkyCoord):
+    """Extension of AstroPy SkyCoord, using degrees as units."""
     def __init__(self, *args, **kwargs):
         if "unit" not in kwargs:
             kwargs["unit"] = units.deg
@@ -36,6 +37,7 @@ class SkyCoordDeg(SkyCoord):
 
 
 def distance(p1, p2):
+    """Calculate the distance between the given points."""
     return np.linalg.norm(p1[:2] - p2[:2])
 
 
@@ -108,6 +110,7 @@ def cartesian2sky_with_parallax(points):
 
 
 def point_to_coordinates(point):
+    """Convert the given point to TikZ coordinate string."""
     x = point.x
     y = point.y
     if abs(x) < 1e-4:
@@ -118,7 +121,19 @@ def point_to_coordinates(point):
     return "({0}mm,{1}mm)".format(x, y)
 
 
+class Drawable(object):
+    def draw(self, tikz_picture):
+        pass
+
+
 class Point(object):
+    """A 2D point on the plane. Supports retrieval of coordinates by attributes (x and y) and by indexing.
+    Supports addition, subtraction, scalar muliplication, scalar division, and equality checks.
+
+    Args:
+        a: the x coordinate, or a pair of (x, y) coordinates
+        b: the optional y coordinate
+    """
     def __init__(self, a, b=None):
         if b is None:
             self.x, self.y = a
@@ -162,9 +177,20 @@ class Point(object):
         return not self.__eq__(other)
 
     def distance(self, other):
+        """Return the distance between the given point and this point.
+
+        Args:
+            other (skymap.geometry.Point): the other point
+        """
         return math.sqrt((self.x - other.x) ** 2 + (self.y - other.y) ** 2)
 
     def rotate(self, angle, origin=None):
+        """Return a copy of the point, rotated the given angle around the origin.
+
+        Args:
+            angle (float): the angle in degrees
+            origin (skymap.geometry.Point): the point around which to rotate
+        """
         if origin is None:
             origin = Point(0, 0)
         angle = math.radians(angle)
@@ -178,11 +204,20 @@ class Point(object):
 
     @property
     def norm(self):
+        """Return the distance between the point and the origin."""
         return self.distance(Point(0, 0))
 
 
 class Line(object):
+    """A straight line in 2D between two points.
+
+    Args:
+        p1 (skymap.geometry.Point): the first point
+        p2 (skymap.geometry.Point): the second point
+    """
     def __init__(self, p1, p2):
+        if p1 == p2:
+            raise ValueError("Line needs two distinct points")
         self.p1 = p1
         self.p2 = p2
         self.vector = p2 - p1
@@ -192,6 +227,11 @@ class Line(object):
         return "Line({}, {})".format(self.p1, self.p2)
 
     def intersect_line(self, other):
+        """Return the intersection between the given line and this line. Returns None for parallel lines.
+
+        Args:
+            other (skymap.geometry.Line): the other line
+        """
         a1 = self.p1.y - self.p2.y
         b1 = self.p2.x - self.p1.x
         c1 = self.p1.x * self.p2.y - self.p2.x * self.p1.y
@@ -209,6 +249,12 @@ class Line(object):
         return Point(x, y)
 
     def inclusive_intersect_line(self, other):
+        """Returns the intersection of two lines if the intersection lies between the end points of both lines. Returns
+        the intersection as an element of a list. If both lines are parallel, an empty list is returned.
+
+        Args:
+            other (skymap.geometry.Line): the other line
+        """
         p = self.intersect_line(other)
         if p is None:
             return []
@@ -217,6 +263,11 @@ class Line(object):
         return []
 
     def point_on_line_segment(self, p):
+        """Check whether the given point lies on the line segment.
+
+        Args:
+            p (skymap.geometry.Point): the point to check
+        """
         point_vector = p - self.p1
         ip = point_vector.x * self.vector.x + point_vector.y * self.vector.y
         comp = ip / self.length
@@ -226,23 +277,34 @@ class Line(object):
 
     @property
     def angle(self):
+        """Returns the angle between the line and the positive x axis."""
         d = self.p2 - self.p1
         return math.degrees(math.atan2(d.y, d.x))
 
     @property
     def path(self):
+        """Returns the TikZ path string for the line."""
         return "{}--{}".format(
             point_to_coordinates(self.p1), point_to_coordinates(self.p2)
         )
 
     @property
     def reverse_path(self):
+        """Returns the TikZ path string for the inverse line."""
         return "{}--{}".format(
             point_to_coordinates(self.p2), point_to_coordinates(self.p1)
         )
 
 
 class Polygon(object):
+    """A 2D polygon.
+
+    The points and the connections between the points are stored in the points and lines attributes.
+
+    Args:
+        points (list): a list of points defining the polygon
+        closed (bool): whether the last point is to be connected to the first
+    """
     def __init__(self, points=None, closed=True):
         self.points = []
         self.lines = []
@@ -254,17 +316,40 @@ class Polygon(object):
             self.close()
 
     def add_point(self, p):
+        """Add a point to the polygon's point list.
+
+        Args:
+            p (skymap.geometry.Point): the point to add
+        """
         self.points.append(p)
         if len(self.points) > 1:
             self.lines.append(Line(self.points[-2], self.points[-1]))
 
     def close(self):
+        """Close the polygon by adding a line connecting the last and the first point."""
         if not self.closed:
             self.closed = True
         self.lines.append(Line(self.points[-1], self.points[0]))
 
+    @property
+    def path(self):
+        if not self.points:
+            return ""
+        s = f"{point_to_coordinates(self.points[0])}"
+        for p in self.points[1:]:
+            s += f"--{point_to_coordinates(p)}"
+        if self.closed:
+            s += "--cycle"
+        return s
+
 
 class Circle(object):
+    """A circle in the 2D plane.
+
+    Args:
+        center (skymap.geometry.Point): the center of the circle
+        radius (float): the radius of the circle
+    """
     def __init__(self, center, radius):
         self.center = center
         self.radius = radius
@@ -276,6 +361,13 @@ class Circle(object):
         return self.__str__()
 
     def intersect_line(self, line):
+        """Calculates the points of intersection of the given line with the circle.
+        Returns a list containing zero or two intersection points: a line touching the
+        circle is not counted as intersecting.
+
+        Args:
+            line (skymap.geometry.Line): the line to intersect
+        """
         # ax+by+c = 0
         a = line.p1.y - line.p2.y
         b = line.p2.x - line.p1.x
@@ -306,6 +398,12 @@ class Circle(object):
         return ip1, ip2
 
     def inclusive_intersect_line(self, line):
+        """Calculates the points of intersection of the given line with the circle that fall between
+        both points defining the line.
+
+        Args:
+            line (skymap.geometry.Line): the line to intersect
+        """
         intersections = self.intersect_line(line)
         inclusive_intersections = []
         for i in intersections:
@@ -315,10 +413,19 @@ class Circle(object):
 
     @property
     def path(self):
+        """Returns the TikZ path string for the circle."""
         return "{} circle ({}mm)".format(point_to_coordinates(self.center), self.radius)
 
 
 class Arc(Circle):
+    """A circular arc.
+
+    Args:
+        center (skymap.geometry.Point): the center of the circle
+        radius (float): the radius of the circle
+        start_angle (float): the angle defining the start of the arc
+        stop_angle (float): the angle defining the end of the arc
+    """
     def __init__(self, center, radius, start_angle, stop_angle):
         Circle.__init__(self, center, radius)
         self.start_angle = start_angle
@@ -336,6 +443,11 @@ class Arc(Circle):
         )
 
     def interpolated_points(self, npoints=100):
+        """A sequence of points approximating the arc.
+
+        Args:
+            npoints (int): the number of interpolated points
+        """
         points = []
         delta_angle = self.stop_angle - self.start_angle
         for i in range(npoints):
@@ -347,6 +459,7 @@ class Arc(Circle):
         return points
 
     def _path(self, reverse=False):
+        """Builds the TikZ path string for the arc."""
         if self.radius < 1000:
             if reverse:
                 start = self.stop_angle
@@ -371,14 +484,22 @@ class Arc(Circle):
 
     @property
     def path(self):
+        """Returns the TikZ path string for the arc."""
         return self._path()
 
     @property
     def reverse_path(self):
+        """Returns the TikZ path string for the reverse arc."""
         return self._path(reverse=True)
 
 
 class Rectangle(object):
+    """A rectangle in 2D.
+
+    Args:
+        p1 (skymap.geometry.Point): the lower left corner of the rectangle
+        p2 (skymap.geometry.Point): the upper right corner of the rectangle
+    """
     def __init__(self, p1, p2):
         self.p1 = Point(min(p1.x, p2.x), min(p1.y, p2.y))
         self.p2 = Point(max(p1.x, p2.x), max(p1.y, p2.y))
@@ -388,13 +509,21 @@ class Rectangle(object):
 
     @property
     def center(self):
+        """Returns the geometric center of the rectangle."""
         return 0.5 * (self.p1 + self.p2)
 
     @property
     def size(self):
+        """Returns a tuple of (width, height) for the rectangle."""
         return abs(self.p2.x - self.p1.x), abs(self.p2.y - self.p1.y)
 
     def overlap(self, other):
+        """Calculates the overlap with other objects.
+        Currently only Rectangle and Circle are implemented.
+
+        Args:
+            other: the object to calculate the overlap with
+        """
         if isinstance(other, Rectangle):
             left = max(self.p1.x, other.p1.x)
             right = min(self.p2.x, other.p2.x)
@@ -426,8 +555,11 @@ class Rectangle(object):
                 return 0
             return w * h
 
+        raise NotImplementedError("Cannot calculate the overlap for {}".format(other.__class__))
+
     @property
     def points(self):
+        """Returns the four corner points of the rectangle."""
         p1 = self.p1
         p2 = Point(self.p2.x, self.p1.y)
         p3 = self.p2
@@ -436,6 +568,7 @@ class Rectangle(object):
 
     @property
     def path(self):
+        """Returns the TikZ path string for the rectangle."""
         path = ""
         for p in self.points:
             path += point_to_coordinates(p)
@@ -444,7 +577,13 @@ class Rectangle(object):
         return path
 
 
-def ensure_angle_range(angle, center=180):
+def ensure_angle_range(angle, center=180.0):
+    """Ensures the angle is constrained to the center +/- 180 degrees.
+
+    Args:
+        angle (float): the angle to reduce
+        center (float): the center of the range
+    """
     while angle < center - 180.0:
         angle += 360.0
     while angle >= center + 180.0:

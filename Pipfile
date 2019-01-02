@@ -18,6 +18,8 @@ skymap = {editable = true, path = "."}
 prospector = "*"
 black = "*"
 scipy = "*"
+sphinx = "*"
+sphinx-rtd-theme = "*"
 
 [dev-packages]
 

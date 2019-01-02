@@ -6,11 +6,14 @@
 Welcome to skymap's documentation!
 ==================================
 
+Contents
+========
+
 .. toctree::
-   :maxdepth: 2
-   :caption: Contents:
+   :maxdepth: 1
 
    modules/tikz
+   modules/geometry
    modules/database
 
 
