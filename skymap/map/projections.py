@@ -8,45 +8,62 @@ class ProjectionError(Exception):
 
 
 class Projection(object):
-    def __init__(self, center_longitude, reference_scale, celestial):
+    """Abstract class for projections.
+
+    Projections should provide a project method, converting a sky coordinate to a map coordinate,
+    and a backproject method for the reverse transformation."""
+
+    def __init__(self, center_longitude, reference_scale=10, celestial=True):
+        """Initialize the projection.
+
+        Args:
+            center_longitude: the central longitude for the map, in degrees
+            reference_scale: degrees of latitude per unit distance on the map
+            celestial: whether to use a celestial map orientation (longitude increasing to the left)
+        """
         self.center_longitude = float(center_longitude)
         self.reference_scale = float(reference_scale)
         self.celestial = celestial
 
     def project(self, skycoord):
+        """Project the given sky coordinates on the map."""
         pass
 
     def backproject(self, point):
+        """Convert the given location on the map to a sky coordinate."""
         pass
 
     def reduce_longitude(self, longitude):
+        """Return the longitude is within +/- 180 degrees from the center longitude."""
         return ensure_angle_range(longitude, self.center_longitude)
 
 
-class UnitProjection(object):
-    def __init__(self):
-        pass
+class UnitProjection(Projection):
+    """Simple linear projection.
+    """
+    def project(self, skycoord):
+        longitude = self.reduce_longitude(skycoord.ra.degree)
+        latitude = skycoord.dec.degree
+        return Point((longitude - self.center_longitude)/self.reference_scale, latitude/self.reference_scale)
 
-    @staticmethod
-    def project(skycoord):
-        return Point(skycoord.ra.deg, skycoord.dec.deg)
-
-    @staticmethod
-    def inverse_project(point):
-        return SkyCoordDeg(point.x, point.y)
+    def inverse_project(self, point):
+        longitude = self.center_longitude + self.reference_scale * point.x
+        latitude = self.reference_scale * point.y
+        return SkyCoordDeg(longitude, latitude)
 
 
 class AzimuthalEquidistantProjection(Projection):
     def __init__(
         self, reference_longitude=0, reference_scale=45, celestial=False, north=True
     ):
-        """
-        :param north: whether to plot the north pole
-        :param reference_longitude: the longitude that points to the right
-        :param reference_scale: degrees of latitude per unit distance
-        :param celestial: longitude increases clockwise around north pole
-        """
+        """Azimuthal equidistant map projection.
 
+        Args:
+            reference_longitude: the longitude that points to the right
+            reference_scale: degrees of latitude per unit distance
+            celestial: longitude increases clockwise around north pole
+            north: whether to plot the north pole (true) or the south pole (false)
+        """
         Projection.__init__(self, reference_longitude, reference_scale, celestial)
         self.north = north
         self.origin = Point(0, 0)
@@ -71,14 +88,17 @@ class AzimuthalEquidistantProjection(Projection):
 
     @property
     def reference_longitude(self):
+        """Alias for the center longitude."""
         return self.center_longitude
 
     @reference_longitude.setter
     def reference_longitude(self, value):
+        """Alias for the center longitude."""
         self.center_longitude = value
 
     @property
     def reverse_polar_direction(self):
+        """Whether increasing longitude is clockwise or anticlockwise."""
         return self.north == self.celestial
 
     def project(self, skycoord):
@@ -108,6 +128,14 @@ class EquidistantCylindricalProjection(Projection):
     def __init__(
         self, center_longitude, reference_scale, lateral_scale=1.0, celestial=False
     ):
+        """Equidistant cylindrical map projection.
+
+        Args:
+            center_longitude: the central longitude for the map, in degrees
+            reference_scale: degrees of latitude per unit distance on the map
+            lateral_scale: degrees of longitude per unit distance on the map
+            celestial: whether to use a celestial map orientation (longitude increasing to the left)
+        """
         Projection.__init__(self, center_longitude, reference_scale, celestial)
         self.lateral_scale = lateral_scale
 
@@ -146,6 +174,15 @@ class EquidistantConicProjection(Projection):
         reference_scale=50,
         celestial=False,
     ):
+        """Equidistant conic map projection.
+
+        Args:
+            center: the central longitude for the map, in degrees
+            standard_parallel1: the first standard parallel
+            standard_parallel2: the second standard parallel
+            reference_scale: degrees of latitude per unit distance on the map
+            celestial: whether to use a celestial map orientation (longitude increasing to the left)
+        """
         Projection.__init__(self, center.ra.degree, reference_scale, celestial)
 
         self.center_latitude = center.dec.degree
@@ -167,6 +204,7 @@ class EquidistantConicProjection(Projection):
 
     @property
     def center(self):
+        """The center of the projection."""
         return SkyCoordDeg(self.center_longitude, self.center_latitude)
 
     def project(self, skycoord):

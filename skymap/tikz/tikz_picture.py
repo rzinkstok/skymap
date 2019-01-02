@@ -63,6 +63,7 @@ class TikzPicture(object):
         )
 
     def open(self):
+        """Open the picture for writing."""
         if self.opened:
             return
         if self.closed:
@@ -86,6 +87,11 @@ class TikzPicture(object):
             self.draw_bounding_box()
 
     def close(self, add_to_tikz_string):
+        """Close the picture for writing.
+
+        Args:
+            add_to_tikz_string: the function to call with the picture tex string as argument.
+        """
         if not self.opened or self.closed:
             return
 
@@ -184,6 +190,7 @@ class TikzPicture(object):
         self.dashed = True
 
     def draw_options(self):
+        """Returns the draw options currently set as a TikZ string."""
         options = "["
         options += "line width={}pt,".format(self.linewidth)
         options += self.color
@@ -197,6 +204,12 @@ class TikzPicture(object):
     # Drawing various objects
 
     def draw_line(self, line, delay_write=False):
+        """Draw the given line.
+
+        Args:
+            line: the line to draw
+            delay_write:
+        """
         self.open()
         if not hasattr(line, "p1") or not hasattr(line, "p2"):
             raise DrawError
@@ -206,11 +219,24 @@ class TikzPicture(object):
         self.texstring += "\\draw {} {}--{};\n".format(opts, p1, p2)
 
     def draw_path(self, path, delay_write=False):
+        """Draw the given path.
+
+        Args:
+            path: the path to draw
+            delay_write:
+        """
         self.open()
         opts = self.draw_options()
         self.texstring += "\\draw {} {};\n".format(opts, path)
 
     def draw_polygon(self, points, cycle=False, delay_write=False):
+        """Draw a polygon connecting the given points.
+
+        Args:
+            points: the polygon points
+            cycle: whether to connect the last to the first point
+            delay_write:
+        """
         self.open()
         opts = self.draw_options()
         cmd = "\\draw {}".format(opts)
@@ -224,6 +250,12 @@ class TikzPicture(object):
         self.texstring += cmd
 
     def draw_rectangle(self, rectangle, delay_write=False):
+        """Draw the given rectangle.
+
+        Args:
+            rectangle: the rectangle to draw
+            delay_write:
+        """
         self.open()
         if not hasattr(rectangle, "p1") or not hasattr(rectangle, "p2"):
             raise DrawError
@@ -233,6 +265,12 @@ class TikzPicture(object):
         self.texstring += "\\draw {} {} rectangle {};\n".format(opts, p1, p2)
 
     def draw_circle(self, circle, delay_write=False):
+        """Draw the given circle.
+
+        Args:
+            circle: the circle to draw
+            delay_write:
+        """
         self.open()
         if not hasattr(circle, "center") or not hasattr(circle, "radius"):
             raise DrawError
@@ -241,6 +279,12 @@ class TikzPicture(object):
         self.texstring += "\\draw {} {} circle ({}mm);\n".format(opts, c, circle.radius)
 
     def draw_arc(self, arc, delay_write=False):
+        """Draw the given arc.
+
+        Args:
+            arc: the arc to draw
+            delay_write:
+        """
         self.open()
         if (
             not hasattr(arc, "center")
@@ -260,10 +304,21 @@ class TikzPicture(object):
         )
 
     def draw_interpolated_arc(self, arc, delay_write=False):
+        """Draw the given arc as a polygon using interpolated points.
+
+        Args:
+            arc: the arc to draw
+            delay_write:
+        """
         self.open()
         self.draw_polygon(arc.interpolated_points(), delay_write=delay_write)
 
     def draw_bounding_box(self, linewidth=0.5):
+        """Draw a bounding box around the picture.
+
+        Args:
+            linewidth: the linewidth to use
+        """
         self.open()
         old_linewidth = self.linewidth
         self.linewidth = linewidth
@@ -271,8 +326,13 @@ class TikzPicture(object):
         self.linewidth = old_linewidth
 
     def draw_label(self, label, delay_write=False):
+        """Draw the given label.
+
+        Args:
+            label: the label to draw
+            delay_write:
+        """
         self.open()
-        """pos can be a position string or an angle float"""
         p = self.point_to_coordinates(label.point)
 
         textheight = "\\{}textheight".format(label.fontsize)
@@ -295,14 +355,28 @@ class TikzPicture(object):
             p, text
         )
 
-    def fill_circle(self, point, radius):
+    def fill_circle(self, circle, delay_write=False):
+        """Draw the given circle and fill it.
+
+        Args:
+            circle: the circle to draw
+            delay_write:
+        """
         self.open()
-        p = self.point_to_coordinates(point)
+        if not hasattr(circle, "center") or not hasattr(circle, "radius"):
+            raise DrawError
+        c = self.point_to_coordinates(circle.center)
         self.texstring += "\\fill [{}] {} circle ({}mm);\n".format(
-            self.color, p, radius
+            self.color, c, circle.radius
         )
 
-    def fill_rectangle(self, rectangle):
+    def fill_rectangle(self, rectangle, delay_write=False):
+        """Draw the given rectangle and fill it.
+
+        Args:
+            rectangle: the rectangle to draw
+            delay_write:
+        """
         self.open()
         p1 = self.point_to_coordinates(rectangle.p1)
         p2 = self.point_to_coordinates(rectangle.p2)

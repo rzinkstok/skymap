@@ -2,7 +2,9 @@
 Tikz figure interface.
 """
 import os
+import sys
 import platform
+import logging
 import subprocess
 import shutil
 import jinja2
@@ -38,6 +40,8 @@ class Tikz(object):
         normalsize=11,
         template=None,
     ):
+        self.logger = logging.getLogger(__name__)
+        logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
         self.name = name
         self.papersize = papersize
         self.margins = margins
@@ -66,31 +70,42 @@ class Tikz(object):
         )
 
     def append(self, s):
+        """Append the given string to the current document."""
         self.texstring += s
 
     def write_header(self):
+        """Add the header to to the current document."""
         self.texstring += "{{% extends '{}' %}}\n".format(self.template)
         self.texstring += "\n"
         self.texstring += "{% block content %}\n"
         self.texstring += "{{ super() }}\n"
 
     def write_footer(self):
+        """Add the footer to the current document."""
         if self.current_picture is not None:
             self.current_picture.close(self.append)
 
         self.texstring += "{% endblock %}\n"
 
     def start(self):
+        """Start the document."""
         self.texstring = ""
         self.write_header()
         self.started = True
 
     def finish(self):
+        """End the document."""
         self.write_footer()
         self.finished = True
 
     # Drawing functions
     def comment(self, comment, prefix_newline=True):
+        """Add a comment to the document.
+
+        Args:
+            comment: the comment to add
+            prefix_newline: whether to include a newline before the comment
+        """
         if prefix_newline:
             s = "\n"
         else:
@@ -100,6 +115,7 @@ class Tikz(object):
         self.texstring += s
 
     def add(self, picture):
+        """Add the given picture to the document."""
         if not self.started:
             self.start()
 
@@ -109,6 +125,14 @@ class Tikz(object):
         self.current_picture = picture
 
     def render(self, filepath=None, open_pdf=True, extra_context=None, verbose=False):
+        """Render the current document as a PDF file.
+
+        Args:
+            filepath: where to save the PDF
+            open_pdf: whether to open the PDF when ready
+            extra_context: dictionary containing extra context items for the jinja2 template
+            verbose: whether to log all actions
+        """
         if not self.started:
             self.start()
 
@@ -146,7 +170,7 @@ class Tikz(object):
 
         # Run XeLaTeX
         if verbose:
-            print(
+            self.logger.info(
                 f"Rendering {filepath or os.path.join(TEX_OUTPUT_FOLDER, self.texfile_name)}"
             )
 
@@ -173,15 +197,15 @@ class Tikz(object):
                 cwd=TEX_OUTPUT_FOLDER,
             )
         except subprocess.CalledProcessError as exc:
-            print("XeLaTeX compilation failed")
-            print("=" * 60)
+            self.logger.error("XeLaTeX compilation failed")
+            self.logger.error("=" * 60)
             xelatex_error = exc
 
         # Open log file
         with open(os.path.join(TEX_OUTPUT_FOLDER, self.name + ".log"), "r") as fp:
             output = fp.read()
         if xelatex_error:
-            print(output)
+            self.logger.debug(output)
             raise xelatex_error
 
         # Move output file
@@ -196,3 +220,14 @@ class Tikz(object):
                 subprocess.Popen(["open", filepath]).wait()
 
         return output
+
+
+if __name__ == "__main__":
+    from skymap.tikz import TikzPicture
+    from skymap.geometry import Circle, Rectangle, Point
+    t = Tikz("tizk_test1")
+    p = TikzPicture(t, Point(20, 20), Point(190, 277))
+
+    p.draw_circle(Circle(Point(85, 128.5), 30))
+    p.draw_rectangle(Rectangle(Point(55, 98.5), Point(115, 158.5)))
+    t.render(verbose=True)
