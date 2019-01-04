@@ -86,7 +86,7 @@ class TikzPicture(object):
         if self.boxed:
             self.draw_bounding_box()
 
-    def close(self, add_to_tikz_string):
+    def close(self):
         """Close the picture for writing.
 
         Args:
@@ -97,8 +97,15 @@ class TikzPicture(object):
 
         self.comment("")
         self.texstring += "\\end{tikzpicture}\n\n"
-        add_to_tikz_string(self.texstring)
+
         self.closed = True
+
+    def __enter__(self):
+        self.open()
+        return self
+
+    def __exit__(self, *args):
+        self.close()
 
     @contextmanager
     def clip(self, path=None):
@@ -209,7 +216,7 @@ class TikzPicture(object):
         options += "]"
         return options
 
-    # Drawing various objects
+    # Drawing primitives
 
     def draw_line(self, line, delay_write=False):
         """Draw the given line.
