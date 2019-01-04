@@ -10,6 +10,7 @@ import shutil
 import jinja2
 import io
 
+from skymap.geometry import Point
 from skymap.tikz import PaperSize, FontSize, PaperMargin
 
 
@@ -63,9 +64,11 @@ class Tikz(object):
         self.pictures = []
 
         # Header/footer
-        self.header = f"{{% extends '{self.template}' %}}\n\n" \
-                      "{% block content %}\n" \
-                      "{{ super() }}\n"
+        self.header = (
+            f"{{% extends '{self.template}' %}}\n\n"
+            "{% block content %}\n"
+            "{{ super() }}\n"
+        )
         self.footer = "{% endblock %}\n"
 
         self.j2_env = jinja2.Environment(

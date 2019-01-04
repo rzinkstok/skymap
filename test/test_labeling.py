@@ -21,13 +21,18 @@ class RTreeTest(unittest.TestCase):
         repeat = 10
         basen = 100
         boxes = [Box(i) for i in range(basen)]
-        t = timeit.Timer(lambda: self.insert_boxes(boxes), setup=lambda: self.create_index_data([]))
+        t = timeit.Timer(
+            lambda: self.insert_boxes(boxes), setup=lambda: self.create_index_data([])
+        )
         print(t.timeit(number=repeat) / repeat)
 
         n = 100000
         prior_boxes = [Box(i) for i in range(n)]
         boxes = [Box(i) for i in range(n, n + basen)]
-        t = timeit.Timer(lambda: self.insert_boxes(boxes), setup=lambda: self.create_index_data(prior_boxes))
+        t = timeit.Timer(
+            lambda: self.insert_boxes(boxes),
+            setup=lambda: self.create_index_data(prior_boxes),
+        )
         print(t.timeit(number=repeat) / repeat)
 
     def Xtest_creation(self):
@@ -98,11 +103,7 @@ class RTreeTest(unittest.TestCase):
 
 class LabelSizeTest(unittest.TestCase):
     def test_label_size(self):
-        star_names = {
-            1: "Albireo",
-            2: "Alcor",
-            3: u"Proxima Centauri \u03B1"
-        }
+        star_names = {1: "Albireo", 2: "Alcor", 3: u"Proxima Centauri \u03B1"}
         result = calculate_label_sizes(star_names, normalsize=11, fontsize="Large")
         self.assertIn(1, result.keys())
         self.assertIn(2, result.keys())

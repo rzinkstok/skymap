@@ -20,6 +20,8 @@ black = "*"
 scipy = "*"
 sphinx = "*"
 sphinx-rtd-theme = "*"
+pytest = "*"
+pipenv = "*"
 
 [dev-packages]
 
