@@ -3,12 +3,12 @@ import numpy as np
 from astropy.coordinates import SkyCoord
 from astropy import units
 
-
 TOLERANCE = 1e-12
 
 
 class SkyCoordDeg(SkyCoord):
     """Extension of AstroPy SkyCoord, using degrees as units."""
+
     def __init__(self, *args, **kwargs):
         if "unit" not in kwargs:
             kwargs["unit"] = units.deg
@@ -134,6 +134,7 @@ class Point(object):
         a: the x coordinate, or a pair of (x, y) coordinates
         b: the optional y coordinate
     """
+
     def __init__(self, a, b=None):
         if b is None:
             self.x, self.y = a
@@ -215,6 +216,7 @@ class Line(object):
         p1 (skymap.geometry.Point): the first point
         p2 (skymap.geometry.Point): the second point
     """
+
     def __init__(self, p1, p2):
         if p1 == p2:
             raise ValueError("Line needs two distinct points")
@@ -305,6 +307,7 @@ class Polygon(object):
         points (list): a list of points defining the polygon
         closed (bool): whether the last point is to be connected to the first
     """
+
     def __init__(self, points=None, closed=True):
         self.points = []
         self.lines = []
@@ -350,6 +353,7 @@ class Circle(object):
         center (skymap.geometry.Point): the center of the circle
         radius (float): the radius of the circle
     """
+
     def __init__(self, center, radius):
         self.center = center
         self.radius = radius
@@ -426,6 +430,7 @@ class Arc(Circle):
         start_angle (float): the angle defining the start of the arc
         stop_angle (float): the angle defining the end of the arc
     """
+
     def __init__(self, center, radius, start_angle, stop_angle):
         Circle.__init__(self, center, radius)
         self.start_angle = start_angle
@@ -500,6 +505,7 @@ class Rectangle(object):
         p1 (skymap.geometry.Point): the lower left corner of the rectangle
         p2 (skymap.geometry.Point): the upper right corner of the rectangle
     """
+
     def __init__(self, p1, p2):
         self.p1 = Point(min(p1.x, p2.x), min(p1.y, p2.y))
         self.p2 = Point(max(p1.x, p2.x), max(p1.y, p2.y))
@@ -555,7 +561,9 @@ class Rectangle(object):
                 return 0
             return w * h
 
-        raise NotImplementedError("Cannot calculate the overlap for {}".format(other.__class__))
+        raise NotImplementedError(
+            "Cannot calculate the overlap for {}".format(other.__class__)
+        )
 
     @property
     def points(self):

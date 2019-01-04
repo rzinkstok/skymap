@@ -10,7 +10,6 @@ import shutil
 import jinja2
 import io
 
-from skymap.geometry import Point
 from skymap.tikz import PaperSize, FontSize, PaperMargin
 
 
@@ -225,6 +224,7 @@ class Tikz(object):
 if __name__ == "__main__":
     from skymap.tikz import TikzPicture
     from skymap.geometry import Circle, Rectangle, Point
+
     t = Tikz("tizk_test1")
     p = TikzPicture(t, Point(20, 20), Point(190, 277))
 

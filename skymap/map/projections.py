@@ -41,10 +41,14 @@ class Projection(object):
 class UnitProjection(Projection):
     """Simple linear projection.
     """
+
     def project(self, skycoord):
         longitude = self.reduce_longitude(skycoord.ra.degree)
         latitude = skycoord.dec.degree
-        return Point((longitude - self.center_longitude)/self.reference_scale, latitude/self.reference_scale)
+        return Point(
+            (longitude - self.center_longitude) / self.reference_scale,
+            latitude / self.reference_scale,
+        )
 
     def inverse_project(self, point):
         longitude = self.center_longitude + self.reference_scale * point.x
