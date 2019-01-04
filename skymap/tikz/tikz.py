@@ -41,6 +41,7 @@ class Tikz(object):
     ):
         self.logger = logging.getLogger(__name__)
         logging.basicConfig(stream=sys.stdout, level=logging.DEBUG)
+
         self.name = name
         self.papersize = papersize
         self.margins = margins
@@ -58,70 +59,25 @@ class Tikz(object):
         self.center = 0.5 * (self.llcorner + self.urcorner)
 
         self.texfile_name = "{0}.tex".format(self.name)
-        self.texstring = ""
         self.delayed = []
-        self.current_picture = None
-        self.started = False
-        self.finished = False
+        self.pictures = []
+
+        # Header/footer
+        self.header = f"{{% extends '{self.template}' %}}\n\n" \
+                      "{% block content %}\n" \
+                      "{{ super() }}\n"
+        self.footer = "{% endblock %}\n"
 
         self.j2_env = jinja2.Environment(
             loader=jinja2.FileSystemLoader(JINJA_TEMPLATE_FOLDER), trim_blocks=True
         )
 
-    def append(self, s):
-        """Append the given string to the current document."""
-        self.texstring += s
-
-    def write_header(self):
-        """Add the header to to the current document."""
-        self.texstring += "{{% extends '{}' %}}\n".format(self.template)
-        self.texstring += "\n"
-        self.texstring += "{% block content %}\n"
-        self.texstring += "{{ super() }}\n"
-
-    def write_footer(self):
-        """Add the footer to the current document."""
-        if self.current_picture is not None:
-            self.current_picture.close(self.append)
-
-        self.texstring += "{% endblock %}\n"
-
-    def start(self):
-        """Start the document."""
-        self.texstring = ""
-        self.write_header()
-        self.started = True
-
-    def finish(self):
-        """End the document."""
-        self.write_footer()
-        self.finished = True
-
-    # Drawing functions
-    def comment(self, comment, prefix_newline=True):
-        """Add a comment to the document.
-
-        Args:
-            comment: the comment to add
-            prefix_newline: whether to include a newline before the comment
-        """
-        if prefix_newline:
-            s = "\n"
-        else:
-            s = ""
-        if comment:
-            s += "% {0}\n".format(comment)
-        self.texstring += s
-
     def add(self, picture):
         """Add the given picture to the document."""
-        if not self.started:
-            self.start()
+        if self.pictures and not self.pictures[-1].closed:
+            self.pictures[-1].close()
 
-        if self.current_picture is not None:
-            self.current_picture.close(self.append)
-
-        self.current_picture = picture
+        self.pictures.append(picture)
 
     def render(self, filepath=None, open_pdf=True, extra_context=None, verbose=False):
         """Render the current document as a PDF file.
@@ -132,23 +88,25 @@ class Tikz(object):
             extra_context: dictionary containing extra context items for the jinja2 template
             verbose: whether to log all actions
         """
-        if not self.started:
-            self.start()
+        if self.pictures and not self.pictures[-1].opened:
+            self.logger.info("Open")
+            self.pictures[-1].open()
 
-        if self.current_picture and not self.current_picture.opened:
-            self.current_picture.open()
+        if self.pictures and not self.pictures[-1].closed:
+            self.logger.info("Close")
+            self.pictures[-1].close()
 
-        if self.current_picture and not self.current_picture.closed:
-            self.current_picture.close(self.append)
-
-        if not self.finished:
-            self.finish()
+        # Build the template souce string
+        texstring = self.header
+        for p in self.pictures:
+            texstring += p.texstring
+        texstring += self.footer
 
         # Render template
         if not os.path.exists(TEX_OUTPUT_FOLDER):
             os.makedirs(TEX_OUTPUT_FOLDER)
 
-        template = self.j2_env.from_string(self.texstring)
+        template = self.j2_env.from_string(texstring)
 
         context = {
             "paperwidth": self.papersize.width,
@@ -226,8 +184,7 @@ if __name__ == "__main__":
     from skymap.geometry import Circle, Rectangle, Point
 
     t = Tikz("tizk_test1")
-    p = TikzPicture(t, Point(20, 20), Point(190, 277))
-
-    p.draw_circle(Circle(Point(85, 128.5), 30))
-    p.draw_rectangle(Rectangle(Point(55, 98.5), Point(115, 158.5)))
+    with TikzPicture(t, Point(20, 20), Point(190, 277)) as p:
+        p.draw_circle(Circle(Point(85, 128.5), 30))
+        p.draw_rectangle(Rectangle(Point(55, 98.5), Point(115, 158.5)))
     t.render(verbose=True)
