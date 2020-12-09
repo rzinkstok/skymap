@@ -1,1 +1,1 @@
-from .maparea import MapArea
+from .maparea import MapArea, MapLegend

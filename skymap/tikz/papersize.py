@@ -5,7 +5,7 @@ import re
 class PaperSize(object):
     """General class for paper sizes.
 
-    For every papersize, the class contains a eegular expression match pattern for the name
+    For every papersize, the class contains a regular expression match pattern for the name
     and a method named ``get_<basename>_papersize``. The match pattern should include at least a group
     for the basename of the papersize, which might be the full name. This basename is used to identify
     the correct method to call. If more than one group is defined in the match pattern, the rest of
@@ -58,7 +58,7 @@ class PaperSize(object):
                 except AttributeError:
                     raise ValueError("Unable to parse papersize name")
 
-                self.width, self.height = func(*args)
+                self.width, self.height = func(*args, landscape=self.landscape)
 
     def _get_a_papersize(self, index, landscape=False):
         """Returns the papersize from the A series with the given index number.
@@ -158,8 +158,8 @@ class PaperMargin(object):
     def __init__(self, left=24, bottom=24, right=None, top=None):
         self.left = left
         self.bottom = bottom
-        self.right = right or left
-        self.top = top or bottom
+        self.right = left if right is None else right
+        self.top = bottom if top is None else top
 
     @property
     def l(self):

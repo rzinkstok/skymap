@@ -128,19 +128,20 @@ class Drawable(object):
 
 class Point(object):
     """A 2D point on the plane. Supports retrieval of coordinates by attributes (x and y) and by indexing.
-    Supports addition, subtraction, scalar muliplication, scalar division, and equality checks.
+    Supports addition, subtraction, scalar multiplication, scalar division, and equality checks.
 
     Args:
         a: the x coordinate, or a pair of (x, y) coordinates
         b: the optional y coordinate
     """
 
-    def __init__(self, a, b=None):
+    def __init__(self, a, b=None, radius=0):
         if b is None:
             self.x, self.y = a
         else:
             self.x = a
             self.y = b
+        self.radius = radius
 
     def __str__(self):
         return "Point({0}, {1})".format(self.x, self.y)
@@ -583,6 +584,16 @@ class Rectangle(object):
             path += "--"
         path += "cycle"
         return path
+
+
+class Label(object):
+    def __init__(self, point, text, fontsize, bold=False, position="above", angle=0):
+        self.point = point
+        self.text = text
+        self.bold = bold
+        self.position = position
+        self.fontsize = fontsize
+        self.angle = angle
 
 
 def ensure_angle_range(angle, center=180.0):

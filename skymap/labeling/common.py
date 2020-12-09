@@ -149,11 +149,15 @@ def local_search(points, bounding_box, iterations):
 
 
 class Label(object):
-    def __init__(self, point, text, position, offset):
+    def __init__(self, point, text, position, offset, fontsize, fill, angle, color):
         self.index = None
         self.point = point
         self.text = text
         self.position = position
+        self.fontsize = fontsize
+        self.fill = fill
+        self.angle = angle
+        self.color = color
         self.penalty = position
         self.overlapping = []
         self.label_penalties = None

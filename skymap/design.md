@@ -1,6 +1,6 @@
 # Design
 
-## Interfaces
+## Map drawing interfaces
 
 * Drawable objects: should have a draw method
   * Circle

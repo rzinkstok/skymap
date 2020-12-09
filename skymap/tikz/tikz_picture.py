@@ -21,8 +21,9 @@ class TikzPicture(object):
     """
 
     def __init__(self, tikz, p1, p2, origin=None, boxed=True):
-        self.p1 = p1
-        self.p2 = p2
+        # Make sure the p1 is lower left and p2 is upper right
+        self.p1 = Point(min(p1.x, p2.x), min(p1.y, p2.y))
+        self.p2 = Point(max(p1.x, p2.x), max(p1.y, p2.y))
 
         if origin is None:
             self.set_origin(p1)
@@ -340,35 +341,40 @@ class TikzPicture(object):
         self.draw_rectangle(self.bounding_box)
         self.linewidth = old_linewidth
 
-    def draw_label(self, label, delay_write=False):
+    def draw_label(self, label, fill=None, delay_write=False):
         """Draw the given label.
 
         Args:
             label: the label to draw
+            fill: the background fill of the label
             delay_write:
         """
         self.open()
         p = self.point_to_coordinates(label.point)
 
-        textheight = "\\{}textheight".format(label.fontsize)
-        textdepth = "\\{}textdepth".format(label.fontsize)
+        textheight = f"\\{label.fontsize}textheight"
+        textdepth = f"\\{label.fontsize}textdepth"
 
-        if label.fill:
-            labelfill = ", fill={}".format(label.fill)
+        if fill:
+            labelfill = f", fill={fill}"
         else:
             labelfill = ""
 
-        text = "{{{}:{{\\{} {}}}}}".format(label.position, label.fontsize, label.text)
+        if label.bold:
+            text = f"\\textbf{{{label.text}}}"
+        else:
+            text = label.text
+        text = f"{{{label.position}:{{\\{label.fontsize} {text}}}}}"
+        print(text)
         text = (
-            "{{[label distance=0mm, rotate={}, text height={} mm, text depth={} mm{}, text={}]".format(
-                label.angle, textheight, textdepth, labelfill, label.color
-            )
+            f"{{[label distance=0mm, rotate={label.angle}, text height={textheight} mm, text depth={textdepth} mm{labelfill}, text={self.color}]"
             + text[1:]
         )
+        print(text)
 
-        self.texstring += "\\node at {} [text height=0mm, text depth=0mm, label={}] {{}};\n".format(
-            p, text
-        )
+        tex = f"\\node at {p} [text height=0mm, text depth=0mm, label={text}] {{}};\n"
+        print(tex)
+        self.texstring += tex
 
     def fill_circle(self, circle, delay_write=False):
         """Draw the given circle and fill it.
@@ -381,9 +387,7 @@ class TikzPicture(object):
         if not hasattr(circle, "center") or not hasattr(circle, "radius"):
             raise DrawError
         c = self.point_to_coordinates(circle.center)
-        self.texstring += "\\fill [{}] {} circle ({}mm);\n".format(
-            self.color, c, circle.radius
-        )
+        self.texstring += f"\\fill [{self.color}] {c} circle ({circle.radius}mm);\n"
 
     def fill_rectangle(self, rectangle, delay_write=False):
         """Draw the given rectangle and fill it.
@@ -395,4 +399,4 @@ class TikzPicture(object):
         self.open()
         p1 = self.point_to_coordinates(rectangle.p1)
         p2 = self.point_to_coordinates(rectangle.p2)
-        self.texstring += "\\fill [{}] {} rectangle {};\n".format(self.color, p1, p2)
+        self.texstring += f"\\fill [{self.color}] {p1} rectangle {p2};\n"

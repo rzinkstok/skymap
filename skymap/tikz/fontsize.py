@@ -8,7 +8,7 @@ class FontSize(OrderedDict):
     Several functions are available for generating a fontsize series:
     - exp, an exponential function
     - lin, a linear function
-    - linexp, linear below normalsiza and exponential above normalsize
+    - linexp, linear below normalsize and exponential above normalsize
 
     As an alternative, a custom function can be passed in: this function should
     accept a single int argument, return the normalsize value when passed zero as
