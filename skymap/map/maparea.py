@@ -27,10 +27,30 @@ class MapArea(TikzPicture):
     Area is defined by the points p1 and p2.
     Origin of the area is lower left corner (p1), and a box is drawn around the map.
 
+    Map is either bounded by a rectangle (independent of coordinate grid), or by parallels and/or meridians. This
+    boundary is implemented as a clipping path. The map area that is actually added to the map is usually larger
+    that the area inside the clipping path, as that is defined by longitude and latitude.
+
+    The boundary can be provided with ticks and/or labels.
+
+    The whole map including ticks and labels can be enclosed in a box.
+
+    Input to the class:
+    - boxed
+    - min/max latitude
+    - min/max longitude
+    - clipping path type (paper or sky)
+    - clipping path points
+    - projection
+    - ...
+
+
+
     Objects to place:
+      - Box
       - Border
       - Ticks and numbers
-      - Gridlines
+      - Meridians and parallels
       - Ecliptic, galactic equator
       - Constellation boundaries
       - Stars

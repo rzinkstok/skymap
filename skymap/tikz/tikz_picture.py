@@ -79,9 +79,7 @@ class TikzPicture(object):
         else:
             shift = "{(current page.south west)}"
 
-        self.texstring += "\\begin{{tikzpicture}}[remember picture, overlay, shift={0}, every node/.style={{inner sep=0mm, outer sep=0mm, minimum size=0mm, text height=\\normaltextheight, text depth=\\normaltextdepth}}]\n".format(
-            shift
-        )
+        self.texstring += f"\\begin{{tikzpicture}}[remember picture, overlay, shift={shift}, every node/.style={{inner sep=0mm, outer sep=0mm, minimum size=0mm, text height=\\normaltextheight, text depth=\\normaltextdepth}}]\n"
         self.opened = True
 
         if self.boxed:
@@ -350,31 +348,26 @@ class TikzPicture(object):
             delay_write:
         """
         self.open()
+
         p = self.point_to_coordinates(label.point)
 
         textheight = f"\\{label.fontsize}textheight"
         textdepth = f"\\{label.fontsize}textdepth"
+
+        if label.bold:
+            text = f"\\textbf{{{label.text}}}"
+        else:
+            text = label.text
 
         if fill:
             labelfill = f", fill={fill}"
         else:
             labelfill = ""
 
-        if label.bold:
-            text = f"\\textbf{{{label.text}}}"
-        else:
-            text = label.text
-        text = f"{{{label.position}:{{\\{label.fontsize} {text}}}}}"
-        print(text)
-        text = (
-            f"{{[label distance=0mm, rotate={label.angle}, text height={textheight} mm, text depth={textdepth} mm{labelfill}, text={self.color}]"
-            + text[1:]
-        )
-        print(text)
+        node_options = f"{label.position}={label.distance}mm, rotate={label.angle}, text={self.color}, text height={textheight} mm, text depth={textdepth} mm{labelfill}"
+        node_text = f"\\{label.fontsize} {text}"
 
-        tex = f"\\node at {p} [text height=0mm, text depth=0mm, label={text}] {{}};\n"
-        print(tex)
-        self.texstring += tex
+        self.texstring += f"\\draw {p} node[{node_options}] {{{node_text}}};\n"
 
     def fill_circle(self, circle, delay_write=False):
         """Draw the given circle and fill it.

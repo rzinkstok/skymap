@@ -36,9 +36,9 @@ class SkyCoordDeg(SkyCoord):
 # SkyCoord(0, 0, unit="degree", frame=PrecessedGeocentric(equinox="B1875")).transform_to("icrs")
 
 
-def distance(p1, p2):
-    """Calculate the distance between the given points."""
-    return np.linalg.norm(p1[:2] - p2[:2])
+# def distance(p1, p2):
+#     """Calculate the distance between the given points."""
+#     return np.linalg.norm(p1[:2] - p2[:2])
 
 
 def rotation_matrix(axis, angle):
@@ -107,18 +107,6 @@ def cartesian2sky_with_parallax(points):
     result[:, 1] = np.rad2deg(np.pi / 2 - theta)
     result[:, 2] = 1000.0 / r
     return result
-
-
-def point_to_coordinates(point):
-    """Convert the given point to TikZ coordinate string."""
-    x = point.x
-    y = point.y
-    if abs(x) < 1e-4:
-        x = 0.0
-    if abs(y) < 1e-4:
-        y = 0.0
-
-    return "({0}mm,{1}mm)".format(x, y)
 
 
 class Drawable(object):
@@ -209,6 +197,18 @@ class Point(object):
         """Return the distance between the point and the origin."""
         return self.distance(Point(0, 0))
 
+    @property
+    def coordinates(self):
+        """Convert the point to a TikZ coordinate string."""
+        x = self.x
+        y = self.y
+        if abs(x) < 1e-4:
+            x = 0.0
+        if abs(y) < 1e-4:
+            y = 0.0
+
+        return "({0}mm,{1}mm)".format(x, y)
+
 
 class Line(object):
     """A straight line in 2D between two points.
@@ -287,16 +287,12 @@ class Line(object):
     @property
     def path(self):
         """Returns the TikZ path string for the line."""
-        return "{}--{}".format(
-            point_to_coordinates(self.p1), point_to_coordinates(self.p2)
-        )
+        return "{}--{}".format(self.p1.coordinates, self.p2.coordinates)
 
     @property
     def reverse_path(self):
         """Returns the TikZ path string for the inverse line."""
-        return "{}--{}".format(
-            point_to_coordinates(self.p2), point_to_coordinates(self.p1)
-        )
+        return "{}--{}".format(self.p2.coordinates, self.p1.coordinates)
 
 
 class Polygon(object):
@@ -339,9 +335,9 @@ class Polygon(object):
     def path(self):
         if not self.points:
             return ""
-        s = f"{point_to_coordinates(self.points[0])}"
+        s = f"{self.points[0].coordinates}"
         for p in self.points[1:]:
-            s += f"--{point_to_coordinates(p)}"
+            s += f"--{p.coordinates}"
         if self.closed:
             s += "--cycle"
         return s
@@ -419,7 +415,7 @@ class Circle(object):
     @property
     def path(self):
         """Returns the TikZ path string for the circle."""
-        return "{} circle ({}mm)".format(point_to_coordinates(self.center), self.radius)
+        return f"{self.center.coordinates} circle ({self.radius}mm)"
 
 
 class Arc(Circle):
@@ -475,7 +471,7 @@ class Arc(Circle):
                 stop = self.stop_angle
 
             path = "([shift=({}:{}mm)]".format(start, self.radius)
-            path += point_to_coordinates(self.center)[1:]
+            path += self.center.coordinates[1:]
             path += " arc ({}:{}:{}mm)".format(start, stop, self.radius)
         else:
             path = ""
@@ -484,7 +480,7 @@ class Arc(Circle):
             else:
                 pts = self.interpolated_points()
             for p in pts:
-                path += "{}--".format(point_to_coordinates(p))
+                path += f"{p.coordinates}--"
             path = path[:-2]
         return path
 
@@ -580,20 +576,23 @@ class Rectangle(object):
         """Returns the TikZ path string for the rectangle."""
         path = ""
         for p in self.points:
-            path += point_to_coordinates(p)
+            path += p.coordinates
             path += "--"
         path += "cycle"
         return path
 
 
 class Label(object):
-    def __init__(self, point, text, fontsize, bold=False, position="above", angle=0):
+    def __init__(
+        self, point, text, fontsize, bold=False, position="above", distance=0, angle=0
+    ):
         self.point = point
         self.text = text
         self.bold = bold
         self.position = position
         self.fontsize = fontsize
         self.angle = angle
+        self.distance = distance
 
 
 def ensure_angle_range(angle, center=180.0):
