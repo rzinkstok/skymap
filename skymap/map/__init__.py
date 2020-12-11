@@ -1,1 +1,1 @@
-from .maparea import MapArea, MapLegend
+from .maparea import MapArea, MapLegend, MapAreaClipMode, MapMargins

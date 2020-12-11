@@ -130,25 +130,25 @@ class AzimuthalEquidistantProjection(Projection):
 
 class EquidistantCylindricalProjection(Projection):
     def __init__(
-        self, center_longitude, reference_scale, lateral_scale=1.0, celestial=False
+        self, center_longitude, reference_scale, horizontal_stretch=1.0, celestial=False
     ):
         """Equidistant cylindrical map projection.
 
         Args:
             center_longitude: the central longitude for the map, in degrees
             reference_scale: degrees of latitude per unit distance on the map
-            lateral_scale: degrees of longitude per unit distance on the map
+            horizontal_stretch: the horizontal stretch factor
             celestial: whether to use a celestial map orientation (longitude increasing to the left)
         """
         Projection.__init__(self, center_longitude, reference_scale, celestial)
-        self.lateral_scale = lateral_scale
+        self.horizontal_stretch = horizontal_stretch
 
     def project(self, skycoord):
         longitude = self.reduce_longitude(skycoord.ra.degree)
         latitude = skycoord.dec.degree
 
         x = (
-            self.lateral_scale
+            self.horizontal_stretch
             * (longitude - self.center_longitude)
             / self.reference_scale
         )
@@ -159,7 +159,8 @@ class EquidistantCylindricalProjection(Projection):
 
     def backproject(self, point):
         longitude = (
-            self.center_longitude + self.reference_scale * point.x / self.lateral_scale
+            self.center_longitude
+            + self.reference_scale * point.x / self.horizontal_stretch
         )
 
         if self.celestial:
@@ -181,7 +182,7 @@ class EquidistantConicProjection(Projection):
         """Equidistant conic map projection.
 
         Args:
-            center: the central longitude for the map, in degrees
+            center: the central longitude and latitude for the map, in degrees
             standard_parallel1: the first standard parallel
             standard_parallel2: the second standard parallel
             reference_scale: degrees of latitude per unit distance on the map
