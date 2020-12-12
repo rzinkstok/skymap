@@ -1,1 +1,2 @@
-from .maparea import MapArea, MapLegend, MapAreaClipMode, MapMargins
+from .maparea import MapArea, MapLegend, MapBorders
+from .projections import EquidistantConicProjection

@@ -62,6 +62,8 @@ class AzimuthalEquidistantProjection(Projection):
     ):
         """Azimuthal equidistant map projection.
 
+        Center of projection is the pole, which gets projected to the point (0, 0).
+
         Args:
             reference_longitude: the longitude that points to the right
             reference_scale: degrees of latitude per unit distance
@@ -134,6 +136,8 @@ class EquidistantCylindricalProjection(Projection):
     ):
         """Equidistant cylindrical map projection.
 
+        Center of projection is the center longitude at zero latitude, which is projected to the point (0, 0).
+
         Args:
             center_longitude: the central longitude for the map, in degrees
             reference_scale: degrees of latitude per unit distance on the map
@@ -181,6 +185,7 @@ class EquidistantConicProjection(Projection):
     ):
         """Equidistant conic map projection.
 
+        Center of projection is center longitude at ? latitude, which is projected to the point (0, 0).
         Args:
             center: the central longitude and latitude for the map, in degrees
             standard_parallel1: the first standard parallel

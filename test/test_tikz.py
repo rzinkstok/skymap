@@ -10,6 +10,7 @@ class TikzTest(unittest.TestCase):
 
         p.draw_circle(Circle(Point(85, 128.5), 30))
         p.draw_rectangle(Rectangle(Point(55, 98.5), Point(115, 158.5)))
+        p.draw_circle(Circle(Point(85, 128.5), 95))
         t.render()
 
     def test_multiple_pictures(self):

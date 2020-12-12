@@ -1,36 +1,14 @@
-import sys
-import os
-
-# from skymap.tikz import BASEDIR, TikzFigure, DrawingArea
 from skymap.tikz import Tikz, PaperMargin, PaperSize
-from skymap.map import MapLegend, MapArea, MapMargins
-
-# from skymap.map import (
-#     EquidistantCylindricalMapArea,
-#     AzimuthalEquidistantMapArea,
-#     EquidistantConicMapArea,
-# )
-from skymap.geometry import Point, Line, Label
-
-# from skymap.gridlines import GridLineLabel
-
+from skymap.map import MapLegend, MapArea, MapBorders, EquidistantConicProjection
+from skymap.geometry import Point, Line, Label, SkyCoordDeg
 
 # OUTPUT_FOLDER = os.path.join(BASEDIR, "cambridge_star_atlas")
 
-PAPERSIZE = (304, 228)
-LEFT_MARGIN = 12
-RIGHT_MARGIN = 12
-BOTTOM_MARGIN = 14
-TOP_MARGIN = 20
-MAP_HMARGIN = 6
-MAP_VMARGIN = 5
-
-MAP_LLCORNER = Point(LEFT_MARGIN, BOTTOM_MARGIN)
-MAP_URCORNER = Point(LEFT_MARGIN + 264, PAPERSIZE[1] - TOP_MARGIN)
 
 LATITUDE_RANGE = 56
 AZIMUTHAL_MERIDIAN_OFFSETS = {15: 10, 45: 1, 90: 0}
 GALACTIC_ECLIPTIC_DASH_PATTERN = "densely dashed"
+LEGEND_WIDTH = 16
 
 
 class CambridgeStarAtlasPage(Tikz):
@@ -63,24 +41,33 @@ class CambridgeStarAtlasLegend(MapLegend):
 
 
 class CambridgeStarAtlasMap(MapArea):
-    def __init__(self, tikz, p1, p2, chart_number):
-
+    def __init__(self, tikz, chart_number):
         # Determine these using the chart number
-        projection = None
-        center_longitude = None
-        center_latitude = None
-        origin = None
+        p1 = tikz.llcorner
+        p2 = tikz.urcorner - Point(LEGEND_WIDTH, 0)
+        center_longitude = 210
+        center_latitude = 45
+        borders = MapBorders(True, True, 6, 5)
+        reference_scale = 56 / (p2.y - p1.y - 2 * borders.vmargin)
+        projection = EquidistantConicProjection(
+            center=SkyCoordDeg(center_longitude, center_latitude),
+            standard_parallel1=30,
+            standard_parallel2=60,
+            reference_scale=reference_scale,
+            celestial=True,
+        )
 
         MapArea.__init__(
             self,
             tikz,
             p1,
             p2,
+            borders,
             projection,
             center_longitude,
             center_latitude,
-            origin,
-            MapMargins(6, 5),
+            None,
+            None,
         )
 
 

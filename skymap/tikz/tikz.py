@@ -59,6 +59,10 @@ class Tikz(object):
         self.lrcorner = Point(self.papersize.width - self.margins.r, self.margins.b)
         self.center = 0.5 * (self.llcorner + self.urcorner)
 
+        # Usable size
+        self.width = self.papersize.width - self.margins.l - self.margins.r
+        self.height = self.papersize.height - self.margins.b - self.margins.t
+
         self.texfile_name = "{0}.tex".format(self.name)
         self.delayed = []
         self.pictures = []

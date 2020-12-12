@@ -26,7 +26,7 @@ class TikzPicture(object):
         self.p2 = Point(max(p1.x, p2.x), max(p1.y, p2.y))
 
         if origin is None:
-            self.set_origin(p1)
+            self.set_origin(0.5 * (p1 + p2))
         else:
             self.set_origin(origin)
 
