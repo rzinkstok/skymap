@@ -1,5 +1,11 @@
 from skymap.tikz import Tikz, PaperMargin, PaperSize
-from skymap.map import MapLegend, MapArea, MapBorders, EquidistantConicProjection
+from skymap.map import (
+    MapLegend,
+    MapArea,
+    MapBorderConfig,
+    CoordinateGridConfig,
+    EquidistantConicProjection,
+)
 from skymap.geometry import Point, Line, Label, SkyCoordDeg
 
 # OUTPUT_FOLDER = os.path.join(BASEDIR, "cambridge_star_atlas")
@@ -40,21 +46,48 @@ class CambridgeStarAtlasLegend(MapLegend):
         )
 
 
+class ChartConfig(object):
+    def __init__(self, center_longitude, center_latitude):
+        self.center_longitude = center_longitude
+        self.center_latitude = center_latitude
+
+
 class CambridgeStarAtlasMap(MapArea):
     def __init__(self, tikz, chart_number):
         # Determine these using the chart number
+        chart_configs = {
+            2: ChartConfig(30, 45),
+            3: ChartConfig(90, 45),
+            5: ChartConfig(210, 45),
+            14: ChartConfig(30, -45),
+            15: ChartConfig(90, -45),
+            17: ChartConfig(210, -45),
+        }
+
+        chart_config = chart_configs[chart_number]
         p1 = tikz.llcorner
         p2 = tikz.urcorner - Point(LEGEND_WIDTH, 0)
-        center_longitude = 210
-        center_latitude = 45
-        borders = MapBorders(True, True, 6, 5)
-        reference_scale = 56 / (p2.y - p1.y - 2 * borders.vmargin)
+        center_longitude = chart_config.center_longitude
+        center_latitude = chart_config.center_latitude
+
+        border_config = MapBorderConfig(True, True, 0.25, 0.5, 6, 5)
+        coordinate_grid_config = CoordinateGridConfig()
+
+        reference_scale = 56 / (p2.y - p1.y - 2 * border_config.vmargin)
+
+        standard_parallel1 = 30
+        standard_parallel2 = 60
+        if center_latitude < 0:
+            standard_parallel1, standard_parallel2 = (
+                -standard_parallel2,
+                -standard_parallel1,
+            )
+
         projection = EquidistantConicProjection(
-            center=SkyCoordDeg(center_longitude, center_latitude),
-            standard_parallel1=30,
-            standard_parallel2=60,
+            SkyCoordDeg(center_longitude, center_latitude),
+            standard_parallel1,
+            standard_parallel2,
             reference_scale=reference_scale,
-            celestial=True,
         )
 
         MapArea.__init__(
@@ -62,7 +95,8 @@ class CambridgeStarAtlasMap(MapArea):
             tikz,
             p1,
             p2,
-            borders,
+            border_config,
+            coordinate_grid_config,
             projection,
             center_longitude,
             center_latitude,

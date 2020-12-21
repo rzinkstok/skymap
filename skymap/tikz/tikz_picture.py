@@ -1,9 +1,128 @@
+import math
 from contextlib import contextmanager
-from skymap.geometry import Point, Rectangle
+from skymap.geometry import Point, Line, Rectangle, Circle, Arc
 
 
 class DrawError(Exception):
     pass
+
+
+class TikzPictureClipper(object):
+    def __init__(self, borderdict):
+        self.borderdict = borderdict
+        self.minx, self.miny = self.borderdict["bottom"].p1
+        self.maxx, self.maxy = self.borderdict["top"].p1
+
+    def point_inside(self, p):
+        """Check whether the given point lies within the map area"""
+        if p.x < self.minx or p.x > self.maxx or p.y < self.miny or p.y > self.maxy:
+            return False
+        else:
+            return True
+
+    def circle_inside(self, circle):
+        """Check whether the given circle lies fully inside the map area"""
+        if not self.point_inside(circle.center):
+            return False
+
+        for b in self.borderdict.values:
+            if b.distance_point(circle.center) > circle.radius:
+                return False
+
+        return True
+
+    def line_intersect_borders(self, line):
+        crossings = []
+        labelpositions = []
+
+        for bordername, border in self.borderdict.items():
+            c = border.inclusive_intersect_line(line)
+            if len(c) == 1:
+                if c[0] not in crossings:
+                    crossings.append(c[0])
+                    labelpositions.append(bordername)
+
+        return list(zip(crossings, labelpositions))
+
+    def clip_line(self, line):
+        intersections = self.line_intersect_borders(line)
+
+        if not intersections:
+            if self.point_inside(line.p1):
+                return line, (None, None)
+            else:
+                return None, None
+
+        if len(intersections) == 1:
+            if self.point_inside(line.p1):
+                p2, border2 = intersections[0]
+                p1, border1 = line.p1, None
+            else:
+                p1, border1 = intersections[0]
+                p2, border2 = line.p2, None
+        else:
+            p1, border1 = intersections[0]
+            p2, border2 = intersections[1]
+
+        line = Line(p1, p2)
+        return [line], [(border1, border2)], [(line.angle + 180, line.angle)]
+
+    def circle_intersect_borders(self, circle):
+        crossings = []
+        borders = []
+        angles = []
+        center = circle.center
+
+        for bordername, border in self.borderdict.items():
+            ccs = circle.inclusive_intersect_line(border)
+            for c in ccs:
+                if c not in crossings:
+                    crossings.append(c)
+                    borders.append(bordername)
+                    angle = math.degrees(math.atan2(c.y - center.y, c.x - center.x))
+                    angles.append(angle)
+
+        ordered_crossings = sorted(zip(angles, crossings, borders))
+
+        return ordered_crossings
+
+    def clip_circle(self, circle):
+        intersections = self.circle_intersect_borders(circle)
+        if not intersections:
+            # Only option to check is whether the circle lies fully inside
+            if self.circle_inside(circle):
+                return [circle], [], []
+            else:
+                return [], [], []
+        else:
+            arcs = []
+            borders = []
+            angles = []
+            for i in range(len(intersections)):
+                a1, c1, b1 = intersections[i - 1]
+                a2, c2, b2 = intersections[i]
+                if a1 > a2:
+                    a2 += 360.0
+                avg_angle = math.radians(0.5 * (a1 + a2))
+                avg_point = circle.center + Point(
+                    circle.radius * math.cos(avg_angle),
+                    circle.radius * math.sin(avg_angle),
+                )
+
+                if self.point_inside(avg_point):
+                    arcs.append(Arc(circle.center, circle.radius, a1, a2))
+                    borders.append((b1, b2))
+                    angles.append((a1 - 90, a2 + 90))
+
+            return arcs, borders, angles
+
+    def clip(self, item):
+        if isinstance(item, Line):
+            return self.clip_line(item)
+        elif isinstance(item, Circle):
+            return self.clip_circle(item)
+        else:
+            raise NotImplementedError
 
 
 class TikzPicture(object):
@@ -20,7 +139,7 @@ class TikzPicture(object):
         boxed (bool): whether to draw a box around the picture
     """
 
-    def __init__(self, tikz, p1, p2, origin=None, boxed=True):
+    def __init__(self, tikz, p1, p2, origin=None, boxed=True, box_linewidth=0.5):
         # Make sure the p1 is lower left and p2 is upper right
         self.p1 = Point(min(p1.x, p2.x), min(p1.y, p2.y))
         self.p2 = Point(max(p1.x, p2.x), max(p1.y, p2.y))
@@ -30,7 +149,28 @@ class TikzPicture(object):
         else:
             self.set_origin(origin)
 
+        # Calculate the picture coordinates of the corners
+        self.llcorner = Point(self.minx, self.miny)
+        self.lrcorner = Point(self.maxx, self.miny)
+        self.urcorner = Point(self.maxx, self.maxy)
+        self.ulcorner = Point(self.minx, self.maxy)
+
+        # Construct the borders of the picture
+        self.bottom_border = Line(self.llcorner, self.lrcorner)
+        self.right_border = Line(self.lrcorner, self.urcorner)
+        self.top_border = Line(self.urcorner, self.ulcorner)
+        self.left_border = Line(self.ulcorner, self.llcorner)
+        self.borderdict = {
+            "left": self.left_border,
+            "top": self.top_border,
+            "right": self.right_border,
+            "bottom": self.bottom_border,
+        }
+
+        self.clipper = TikzPictureClipper(self.borderdict)
+
         self.boxed = boxed
+        self.box_linewidth = box_linewidth
 
         self.width = p2.x - p1.x
         self.height = p2.y - p1.y
@@ -62,6 +202,12 @@ class TikzPicture(object):
         self.bounding_box = Rectangle(
             Point(self.minx, self.miny), Point(self.maxx, self.maxy)
         )
+
+    def _picture_to_paper(self, p):
+        return self.origin + p
+
+    def _paper_to_picture(self, p):
+        return p - self.origin
 
     def open(self):
         """Open the picture for writing."""
@@ -327,7 +473,7 @@ class TikzPicture(object):
         self.open()
         self.draw_polygon(arc.interpolated_points(), delay_write=delay_write)
 
-    def draw_bounding_box(self, linewidth=0.5):
+    def draw_bounding_box(self):
         """Draw a bounding box around the picture.
 
         Args:
@@ -335,11 +481,11 @@ class TikzPicture(object):
         """
         self.open()
         old_linewidth = self.linewidth
-        self.linewidth = linewidth
+        self.linewidth = self.box_linewidth
         self.draw_rectangle(self.bounding_box)
         self.linewidth = old_linewidth
 
-    def draw_label(self, label, fill=None, delay_write=False):
+    def draw_label(self, label, delay_write=False):
         """Draw the given label.
 
         Args:
@@ -359,8 +505,8 @@ class TikzPicture(object):
         else:
             text = label.text
 
-        if fill:
-            labelfill = f", fill={fill}"
+        if label.fill:
+            labelfill = f", fill={label.fill}"
         else:
             labelfill = ""
 

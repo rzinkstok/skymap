@@ -285,7 +285,7 @@ class GeneticLabeler(BaseGeneticLabeler):
         self.items = []
         self.items.extend(label_candidates)
         self.items.extend(self.points)
-        self.items.extend(self.bounding_box.borders)
+        self.items.extend(self.bounding_box.border_config)
 
         self.idx = Index()
         for i, item in enumerate(self.items):
@@ -317,7 +317,7 @@ class CachedGeneticLabeler(BaseGeneticLabeler):
         items = []
         items.extend(label_candidates)
         items.extend(self.points)
-        items.extend(self.bounding_box.borders)
+        items.extend(self.bounding_box.border_config)
 
         idx = Index()
         for i, item in enumerate(items):

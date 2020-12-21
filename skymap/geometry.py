@@ -42,6 +42,13 @@ class SkyCoordDeg(SkyCoord):
 
 
 def rotation_matrix(axis, angle):
+    """Returns the 3x3 rotation matrix for the given angle and axis.
+
+    Args:
+        axis: the vector around which to rotate
+        angle (float): the angle over which to rotate in radians
+    """
+
     sina = math.sin(angle)
     cosa = math.cos(angle)
     direction = axis / np.linalg.norm(axis)
@@ -123,13 +130,12 @@ class Point(object):
         b: the optional y coordinate
     """
 
-    def __init__(self, a, b=None, radius=0):
+    def __init__(self, a, b=None):
         if b is None:
             self.x, self.y = a
         else:
             self.x = a
             self.y = b
-        self.radius = radius
 
     def __str__(self):
         return "Point({0}, {1})".format(self.x, self.y)
@@ -199,7 +205,7 @@ class Point(object):
 
     @property
     def coordinates(self):
-        """Convert the point to a TikZ coordinate string."""
+        """Returns the TikZ coordinate string for the point."""
         x = self.x
         y = self.y
         if abs(x) < 1e-4:
@@ -265,18 +271,33 @@ class Line(object):
             return [p]
         return []
 
-    def point_on_line_segment(self, p):
+    def point_on_line_segment(self, point):
         """Check whether the given point lies on the line segment.
 
         Args:
-            p (skymap.geometry.Point): the point to check
+            point (skymap.geometry.Point): the point to check
         """
-        point_vector = p - self.p1
+        point_vector = point - self.p1
         ip = point_vector.x * self.vector.x + point_vector.y * self.vector.y
         comp = ip / self.length
         if comp >= 0 and comp <= self.length:
             return True
         return False
+
+    def distance_point(self, point):
+        """Returns the perpendicular distance between the given point and the line.
+
+        Args:
+            point (skymap.geometry.Point): the point to calculate the distance for
+        """
+        numerator = math.fabs(
+            (self.p2.x - self.p1.x) * (self.p1.y - point.y)
+            - (self.p1.x - point.x) * (self.p2.y - self.p1.y)
+        )
+        denominator = math.sqrt(
+            (self.p2.x - self.p1.x) ** 2 + (self.p2.y - self.p1.y) ** 2
+        )
+        return numerator / denominator
 
     @property
     def angle(self):
@@ -315,13 +336,13 @@ class Polygon(object):
         if closed:
             self.close()
 
-    def add_point(self, p):
+    def add_point(self, point):
         """Add a point to the polygon's point list.
 
         Args:
-            p (skymap.geometry.Point): the point to add
+            point (skymap.geometry.Point): the point to add
         """
-        self.points.append(p)
+        self.points.append(point)
         if len(self.points) > 1:
             self.lines.append(Line(self.points[-2], self.points[-1]))
 
@@ -333,6 +354,7 @@ class Polygon(object):
 
     @property
     def path(self):
+        """Returns the TikZ path string for the polygon."""
         if not self.points:
             return ""
         s = f"{self.points[0].coordinates}"
@@ -363,6 +385,7 @@ class Circle(object):
 
     def intersect_line(self, line):
         """Calculates the points of intersection of the given line with the circle.
+
         Returns a list containing zero or two intersection points: a line touching the
         circle is not counted as intersecting.
 
@@ -445,7 +468,7 @@ class Arc(Circle):
         )
 
     def interpolated_points(self, npoints=100):
-        """A sequence of points approximating the arc.
+        """Calculates a sequence of points approximating the arc.
 
         Args:
             npoints (int): the number of interpolated points
@@ -522,6 +545,7 @@ class Rectangle(object):
 
     def overlap(self, other):
         """Calculates the overlap with other objects.
+
         Currently only Rectangle and Circle are implemented.
 
         Args:
@@ -583,8 +607,28 @@ class Rectangle(object):
 
 
 class Label(object):
+    """A text label on the 2D plane.
+
+    Args:
+        point (skymap.geometry.Point): the anchor point for the label
+        text (string): the text of the label
+        fontsize (string): the LaTeX fontsize to use
+        bold (bool): whether to use a bold font for the label
+        position (string): the position of the label relative to the anchor point
+        distance (float): the distance from the anchor point to place the label
+        angle (float): the rotation of the label, in degrees
+    """
+
     def __init__(
-        self, point, text, fontsize, bold=False, position="above", distance=0, angle=0
+        self,
+        point,
+        text,
+        fontsize,
+        bold=False,
+        position="above",
+        distance=0,
+        angle=0,
+        fill=None,
     ):
         self.point = point
         self.text = text
@@ -593,6 +637,7 @@ class Label(object):
         self.fontsize = fontsize
         self.angle = angle
         self.distance = distance
+        self.fill = fill
 
 
 def ensure_angle_range(angle, center=180.0):

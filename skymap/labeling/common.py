@@ -74,7 +74,7 @@ def evaluate_labels(labels, points, bounding_box):
     items = []
     items.extend(labels)
     items.extend(points)
-    items.extend(bounding_box.borders)
+    items.extend(bounding_box.border_config)
 
     t1 = time.clock()
     idx = Index()
@@ -111,7 +111,7 @@ def local_search(points, bounding_box, iterations):
     items = []
     items.extend([p.label for p in labeled_points])
     items.extend(points)
-    items.extend(bounding_box.borders)
+    items.extend(bounding_box.border_config)
 
     idx = Index()
     for i, item in enumerate(items):

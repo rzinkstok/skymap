@@ -11,7 +11,11 @@ class Projection(object):
     """Abstract class for projections.
 
     Projections should provide a project method, converting a sky coordinate to a map coordinate,
-    and a backproject method for the reverse transformation."""
+    and a backproject method for the reverse transformation.
+
+    The projection equations are taken from:
+    Map Projections - A Working Manual, John P Snyder (U.S. Geological Survey Professional Paper 1395 (1987).
+    """
 
     def __init__(self, center_longitude, reference_scale=10, celestial=True):
         """Initialize the projection.
@@ -27,15 +31,25 @@ class Projection(object):
 
     def project(self, skycoord):
         """Project the given sky coordinates on the map."""
-        pass
+        raise NotImplementedError
 
     def backproject(self, point):
         """Convert the given location on the map to a sky coordinate."""
-        pass
+        raise NotImplementedError
 
     def reduce_longitude(self, longitude):
-        """Return the longitude is within +/- 180 degrees from the center longitude."""
+        """Return the longitude within +/- 180 degrees from the center longitude."""
         return ensure_angle_range(longitude, self.center_longitude)
+
+    def meridian(self, longitude, min_latitude, max_latitude):
+        p1 = self.project(SkyCoordDeg(longitude, min_latitude))
+        p2 = self.project(SkyCoordDeg(longitude, max_latitude))
+        return Line(p1, p2)
+
+    def parallel(self, latitude, min_longitude, max_longitude):
+        p1 = self.project(SkyCoordDeg(min_longitude, latitude))
+        p2 = self.project(SkyCoordDeg(max_longitude, latitude))
+        return Line(p1, p2)
 
 
 class UnitProjection(Projection):
@@ -129,6 +143,10 @@ class AzimuthalEquidistantProjection(Projection):
         latitude = -rho * self.reference_scale + self.origin_latitude
         return SkyCoordDeg(longitude, latitude)
 
+    def parallel(self, latitude, min_longitude, max_longitude):
+        p = self.project(SkyCoordDeg(0, latitude))
+        return Circle(self.origin, self.origin.distance(p))
+
 
 class EquidistantCylindricalProjection(Projection):
     def __init__(
@@ -186,6 +204,7 @@ class EquidistantConicProjection(Projection):
         """Equidistant conic map projection.
 
         Center of projection is center longitude at ? latitude, which is projected to the point (0, 0).
+
         Args:
             center: the central longitude and latitude for the map, in degrees
             standard_parallel1: the first standard parallel
@@ -210,7 +229,22 @@ class EquidistantConicProjection(Projection):
         self.rho_0 = (self.G - math.radians(self.center_latitude)) / math.radians(
             self.reference_scale
         )
-        # self.parallel_circle_center = SphericalPoint(0, math.degrees(self.G))
+
+        self._calculate_parallel_circle_center()
+
+    def _calculate_parallel_circle_center(self):
+        """Calculates the center of the parallel circles."""
+        s0 = SkyCoordDeg(self.center_longitude, 0)
+        s1 = SkyCoordDeg(self.center_longitude, math.fabs(math.degrees(self.G)) - 90)
+        s3 = SkyCoordDeg(self.center_longitude, numpy.sign(self.center_latitude) * 90)
+
+        p0 = self.project(s0)
+        p1 = self.project(s1)
+        p3 = self.project(s3)
+
+        delta = numpy.sign(self.center_latitude) * (p1.y - p0.y)
+
+        self.parallel_circle_center = Point(0, p3.y + delta)
 
     @property
     def center(self):
@@ -239,7 +273,10 @@ class EquidistantConicProjection(Projection):
             * sign_n
             * math.sqrt(point.x ** 2 + (self.rho_0 - point.y) ** 2)
         )
-        theta = math.degrees(math.atan2(point.x, self.rho_0 - point.y))
+
+        theta = math.degrees(
+            math.atan2(sign_n * point.x, sign_n * (self.rho_0 - point.y))
+        )
 
         if self.celestial:
             theta *= -1
@@ -248,3 +285,8 @@ class EquidistantConicProjection(Projection):
         latitude = math.degrees(self.G - rho)
 
         return SkyCoordDeg(longitude, latitude)
+
+    def parallel(self, latitude, min_longitude, max_longitude):
+        p = self.project(SkyCoordDeg(self.center_longitude, latitude))
+        radius = p.distance(self.parallel_circle_center)
+        return Circle(self.parallel_circle_center, radius)

@@ -14,6 +14,7 @@ Contents
 
    modules/tikz
    modules/geometry
+   modules/map
    modules/database
 
 

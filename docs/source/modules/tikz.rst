@@ -6,10 +6,10 @@ TikZ is a LaTeX package for generating images. This module provides an interface
 Basic structure
 ===============
 
-A TikZ document can be created using the :class:`skymap.tikz.tikz.Tikz` class. This class
+A TikZ document can be created using the :class:`skymap.tikz.Tikz` class. This class
 handles all the boilerplate stuff needed for a LaTeX TikZ document. In order to actually
-draw stuff, a :class:`skymap.tikz.tikz.TikzPicture` object must be used. The first argument
-of the constructor is the Tikz document the picture is to be added to. The :class:`skymap.tikz.tikz.TikzPicture`
+draw stuff, a :class:`skymap.tikz.TikzPicture` object must be used. The first argument
+of the constructor is the Tikz document the picture is to be added to. The :class:`skymap.tikz.TikzPicture`
 object has methods for drawing objects, as well as methods for altering the drawing style.
 
 Examples
@@ -43,5 +43,6 @@ Contents
 
    tikz/tikz
    tikz/papersize
+   tikz/fontsize
    tikz/tikz_picture
 
