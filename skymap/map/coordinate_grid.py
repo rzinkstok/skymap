@@ -6,6 +6,8 @@ from skymap.tikz import TikzPictureClipper
 
 
 class GridLineConfig(object):
+    """Config for either the meridians or the parallels in the map"""
+
     def __init__(self):
         # Meridian/parallel specific
         self.tick_interval = None
@@ -137,7 +139,7 @@ class GridLine(object):
             elif border == "center":
                 delta = Point(math.cos(a), math.sin(a))
             else:
-                raise ValueError("Invalid border: {}".format(border))
+                raise ValueError(f"Invalid border: {border}")
         else:
             delta = Point(math.cos(a), math.sin(a))
         return delta
@@ -253,7 +255,7 @@ class GridLine(object):
             elif border == "bottom":
                 pos = "below"
             else:
-                raise ValueError("Invalid border: {}".format(border))
+                raise ValueError(f"Invalid border: {border}")
 
         return Label(
             point,
@@ -365,7 +367,7 @@ class CoordinateGridFactory(object):
         interval = config.tick_interval
         current_longitude = math.ceil(self.min_longitude / interval) * interval
         while current_longitude < self.max_longitude:
-            print(f"Meridian at {current_longitude}")
+            # print(f"Meridian at {current_longitude}")
             if self.latitude_range_func:
                 min_latitude, max_latitude = self.latitude_range_func(
                     current_longitude, self.min_latitude, self.max_latitude
@@ -388,19 +390,18 @@ class CoordinateGridFactory(object):
         config = self.config.parallel_config
         interval = config.tick_interval
         current_latitude = math.ceil(self.min_latitude / interval) * interval
-        if current_latitude == -90:
-            current_latitude += interval
 
         center_meridian = self.projection.meridian(
             self.projection.center_longitude, self.min_latitude, self.max_latitude
         )
-        if self.projection.center_latitude < 0:
+
+        if hasattr(self.projection, "north") and not self.projection.north:
             center_angle = center_meridian.angle + 90
         else:
             center_angle = center_meridian.angle - 90
 
-        while current_latitude < self.max_latitude:
-            print(f"Parallel at {current_latitude}")
+        while current_latitude <= self.max_latitude:
+            # print(f"Parallel at {current_latitude}")
             parallel = self.projection.parallel(
                 current_latitude, self.min_longitude, self.max_longitude
             )

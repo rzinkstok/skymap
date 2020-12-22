@@ -27,7 +27,7 @@ class TikzPictureClipper(object):
             return False
 
         for b in self.borderdict.values():
-            if b.distance_point(circle.center) <= circle.radius:
+            if circle.radius > b.distance_point(circle.center) + 1e-6:
                 print(
                     f"Circle radius ({circle.radius}) larger than distance to border ({b.distance_point(circle.center)})"
                 )
@@ -268,7 +268,7 @@ class TikzPicture(object):
             path = self.bounding_box.path
         self.comment("Clipping")
         self.texstring += "\\begin{scope}\n"
-        self.texstring += "\\clip {};\n".format(path)
+        self.texstring += f"\\clip {path};\n"
         yield
         self.comment("End clipping")
         self.texstring += "\\end{scope}\n"
@@ -290,7 +290,7 @@ class TikzPicture(object):
         if abs(y) < 1e-4:
             y = 0.0
 
-        return "({0}mm,{1}mm)".format(x, y)
+        return f"({x}mm,{y}mm)"
 
     def path(self, points, cycle=True):
         """Builds a Tikz path from the given list of points.
@@ -318,7 +318,7 @@ class TikzPicture(object):
         else:
             s = ""
         if comment:
-            s += "% {0}\n".format(comment)
+            s += f"% {comment}\n"
         self.texstring += s
 
     # Draw options
@@ -356,7 +356,7 @@ class TikzPicture(object):
     def draw_options(self):
         """Returns the draw options currently set as a TikZ string."""
         options = "["
-        options += "line width={}pt,".format(self.linewidth)
+        options += f"line width={self.linewidth}pt,"
         options += self.color
         if self._dotted:
             options += ",dotted"
@@ -380,7 +380,7 @@ class TikzPicture(object):
         p1 = self.point_to_coordinates(line.p1)
         p2 = self.point_to_coordinates(line.p2)
         opts = self.draw_options()
-        self.texstring += "\\draw {} {}--{};\n".format(opts, p1, p2)
+        self.texstring += f"\\draw {opts} {p1}--{p2};\n"
 
     def draw_path(self, path, delay_write=False):
         """Draw the given path.
@@ -391,7 +391,7 @@ class TikzPicture(object):
         """
         self.open()
         opts = self.draw_options()
-        self.texstring += "\\draw {} {};\n".format(opts, path)
+        self.texstring += f"\\draw {opts} {path};\n"
 
     def draw_polygon(self, points, cycle=False, delay_write=False):
         """Draw a polygon connecting the given points.
@@ -403,7 +403,7 @@ class TikzPicture(object):
         """
         self.open()
         opts = self.draw_options()
-        cmd = "\\draw {}".format(opts)
+        cmd = f"\\draw {opts}"
         for p in points:
             cmd += self.point_to_coordinates(p)
             cmd += "--"
@@ -426,7 +426,7 @@ class TikzPicture(object):
         p1 = self.point_to_coordinates(rectangle.p1)
         p2 = self.point_to_coordinates(rectangle.p2)
         opts = self.draw_options()
-        self.texstring += "\\draw {} {} rectangle {};\n".format(opts, p1, p2)
+        self.texstring += f"\\draw {opts} {p1} rectangle {p2};\n"
 
     def draw_circle(self, circle, delay_write=False):
         """Draw the given circle.
@@ -440,7 +440,7 @@ class TikzPicture(object):
             raise DrawError
         c = self.point_to_coordinates(circle.center)
         opts = self.draw_options()
-        self.texstring += "\\draw {} {} circle ({}mm);\n".format(opts, c, circle.radius)
+        self.texstring += f"\\draw {opts} {c} circle ({circle.radius}mm);\n"
 
     def draw_arc(self, arc, delay_write=False):
         """Draw the given arc.
@@ -460,12 +460,10 @@ class TikzPicture(object):
         if arc.radius > 2000:
             self.draw_interpolated_arc(arc, delay_write)
             return
-        c = "([shift=({}:{}mm)]".format(arc.start_angle, arc.radius)
+        c = f"([shift=({arc.start_angle}:{arc.radius}mm)]"
         c += self.point_to_coordinates(arc.center)[1:]
         opts = self.draw_options()
-        self.texstring += "\\draw {} {} arc ({}:{}:{}mm);\n".format(
-            opts, c, arc.start_angle, arc.stop_angle, arc.radius
-        )
+        self.texstring += f"\\draw {opts} {c} arc ({arc.start_angle}:{arc.stop_angle}:{arc.radius}mm);\n"
 
     def draw_interpolated_arc(self, arc, delay_write=False):
         """Draw the given arc as a polygon using interpolated points.

@@ -7,7 +7,7 @@ from skymap.atlas.cambridge_star_atlas import (
 
 
 class MapInterfaceTest(unittest.TestCase):
-    def xtest_interface_conic(self):
+    def test_interface_conic(self):
         chart_number = 2
         c = CambridgeStarAtlasPage("map_test1")
         CambridgeStarAtlasLegend(c, chart_number)
@@ -20,22 +20,28 @@ class MapInterfaceTest(unittest.TestCase):
         CambridgeStarAtlasMap(c, chart_number)
         c.render()
 
-    def xtest_interface_cylindrical(self):
+    def test_interface_cylindrical(self):
         chart_number = 8
         c = CambridgeStarAtlasPage("map_test3")
         CambridgeStarAtlasLegend(c, chart_number)
         CambridgeStarAtlasMap(c, chart_number)
         c.render()
 
-    def test_interface_azimuthal(self):
-        chart_number = 1
+        chart_number = 13
         c = CambridgeStarAtlasPage("map_test4")
         CambridgeStarAtlasLegend(c, chart_number)
         CambridgeStarAtlasMap(c, chart_number)
         c.render()
 
-        chart_number = 20
+    def test_interface_azimuthal(self):
+        chart_number = 1
         c = CambridgeStarAtlasPage("map_test5")
+        CambridgeStarAtlasLegend(c, chart_number)
+        CambridgeStarAtlasMap(c, chart_number)
+        c.render()
+
+        chart_number = 20
+        c = CambridgeStarAtlasPage("map_test6")
         CambridgeStarAtlasLegend(c, chart_number)
         CambridgeStarAtlasMap(c, chart_number)
         c.render()

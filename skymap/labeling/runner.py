@@ -58,7 +58,7 @@ if __name__ == "__main__":
         x = mapwidth * random.random()
         y = mapheight * random.random()
         if random.random() < float(nlabels) / npoints:
-            text = "Label for point {}".format(i)
+            text = f"Label for point {i}"
             p = Point(x, y, 1, text, 0)
         else:
             p = Point(x, y, 1)

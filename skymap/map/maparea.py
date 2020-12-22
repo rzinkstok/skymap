@@ -1,6 +1,14 @@
 import math
 from skymap.tikz import TikzPicture
-from skymap.geometry import Point, Line, Circle, Arc, Rectangle, Label
+from skymap.geometry import (
+    Point,
+    Line,
+    Circle,
+    Arc,
+    Rectangle,
+    Label,
+    ensure_angle_range,
+)
 from skymap.map import CoordinateGridFactory, AzimuthalEquidistantProjection
 
 
@@ -47,27 +55,6 @@ class MapArea(TikzPicture):
     The boundary can be provided with ticks and/or labels.
 
     The whole map including ticks and labels can be enclosed in a box.
-
-    Input to the class:
-    - p1, p2
-    - border: MapBorders object
-    - center longitude, center latitude
-    - clipping path points (only for sky clipping path)
-    - projection
-    - ...
-
-
-
-    Objects to place:
-      - Box
-      - Border
-      - Ticks and numbers
-      - Meridians and parallels
-      - Ecliptic, galactic equator
-      - Constellation boundaries
-      - Stars
-      - Galaxies
-      - Other objects
     """
 
     def __init__(
@@ -173,6 +160,7 @@ class MapArea(TikzPicture):
 
         if not self.clip_points:
             # Clip points are map corners in paper coordinates: determine lat/long from those
+            # TODO: incorrect longitudes
             pts = [
                 # Backproject all four map corner points
                 self._map_to_sky(self.llcorner),
@@ -198,18 +186,25 @@ class MapArea(TikzPicture):
         latitudes.append(self.center_latitude)
 
         # Make sure the longitudes do not include a discontinuity
-        longitudes = [
-            l if math.fabs(l - self.center_longitude) < 180 else l - 360
-            for l in longitudes
-        ]
+        continuous_longitudes = []
+        for l in longitudes:
+            if l - self.center_longitude > 180:
+                continuous_longitudes.append(l - 360)
+            elif l - self.center_longitude < -180:
+                continuous_longitudes.append(l + 360)
+            else:
+                continuous_longitudes.append(l)
 
-        if isinstance(self.projection, AzimuthalEquidistantProjection):
-            longitudes.extend([0, 360])
-
-        self.min_longitude = min(longitudes)
-        self.max_longitude = max(longitudes)
+        self.min_longitude = min(continuous_longitudes)
+        self.max_longitude = max(continuous_longitudes)
         self.min_latitude = min(latitudes)
         self.max_latitude = max(latitudes)
+
+        # For azimuthal projections, make sure all longitudes are included
+        if isinstance(self.projection, AzimuthalEquidistantProjection):
+            self.min_longitude = 0
+            self.max_longitude = 360
+
         print("Grid range")
         print(self.min_longitude, self.max_longitude)
         print(self.min_latitude, self.max_latitude)

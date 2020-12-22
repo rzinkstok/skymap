@@ -67,7 +67,7 @@ def create_table(db):
 
     db.commit_query(q)
     t2 = time.time()
-    print("{:.1f} s".format(t2 - t1))
+    print(f"{t2-t1:.1f} s")
 
 
 def hipparcos_single(db):
@@ -123,7 +123,7 @@ def hipparcos_single(db):
     """
     db.commit_query(q)
     t2 = time.time()
-    print("{:.1f} s".format(t2 - t1))
+    print(f"{t2-t1:.1f} s")
 
 
 def hipparcos_multiple(db):
@@ -183,7 +183,7 @@ def hipparcos_multiple(db):
     """
     db.commit_query(q)
     t2 = time.time()
-    print("{:.1f} s".format(t2 - t1))
+    print(f"{t2-t1:.1f} s")
 
 
 def tycho2(db):
@@ -227,7 +227,7 @@ def tycho2(db):
     """
     db.commit_query(q)
     t2 = time.time()
-    print("{:.1f} s".format(t2 - t1))
+    print(f"{t2-t1:.1f} s")
 
 
 def add_indices(db):
@@ -249,7 +249,7 @@ def add_indices(db):
     db.add_index("skymap_stars", "HD2")
     db.add_index("skymap_stars", "HR")
     t2 = time.time()
-    print("{:.1f} s".format(t2 - t1))
+    print(f"{t2-t1:.1f} s")
 
 
 def add_cross_index(db):
@@ -272,7 +272,7 @@ def add_cross_index(db):
             """
     db.commit_query(q)
     t2 = time.time()
-    print("{:.1f} s".format(t2 - t1))
+    print(f"{t2-t1:.1f} s")
 
 
 def add_bright_star_catalog(db):
@@ -293,7 +293,7 @@ def add_bright_star_catalog(db):
     """
     db.commit_query(q)
     t2 = time.time()
-    print("{:.1f} s".format(t2 - t1))
+    print(f"{t2-t1:.1f} s")
 
 
 def add_proper_names(db):
@@ -340,18 +340,16 @@ def add_proper_names(db):
         proper_name = tds[0].get_text().strip()
 
         # Find the brightes star with the given identifier
-        q = """SELECT id FROM skymap_stars WHERE {} = {}""".format(columns[0], value)
+        q = f"""SELECT id FROM skymap_stars WHERE {columns[0]} = {value}"""
         for c in columns[1:]:
-            q += """ OR {}={}""".format(c, value)
+            q += f""" OR {c}={value}"""
         q += """ ORDER BY hp_magnitude ASC LIMIT 1"""
         row = db.query_one(q)
         if row is None:
             continue
 
         # Update the database record
-        q = """UPDATE skymap_stars SET proper_name="{}" WHERE id={}""".format(
-            proper_name, row["id"]
-        )
+        q = f"""UPDATE skymap_stars SET proper_name="{proper_name}" WHERE id={row["id"]}"""
         db.commit_query(q)
 
     # Add some special cases
@@ -359,25 +357,21 @@ def add_proper_names(db):
         24186: "Kapteyn's Star",
         49908: "Groombridge 1618",
         57939: "Groombridge 1830",
-        105090: "Lacaille 8760",
-        114046: "Lacaille 9352",
+        105_090: "Lacaille 8760",
+        114_046: "Lacaille 9352",
         54035: "Lalande 21185",
-        114622: "Bradley 3077",
+        114_622: "Bradley 3077",
     }
 
     for hip, proper_name in special_cases.items():
         rid = db.query_one(
-            """SELECT id FROM skymap_stars WHERE hip={} ORDER BY hp_magnitude ASC LIMIT 1""".format(
-                hip
-            )
+            f"""SELECT id FROM skymap_stars WHERE hip={hip} ORDER BY hp_magnitude ASC LIMIT 1"""
         )["id"]
-        q = """UPDATE skymap_stars SET proper_name="{}" WHERE id={}""".format(
-            proper_name, rid
-        )
+        q = f"""UPDATE skymap_stars SET proper_name="{proper_name}" WHERE id={rid}"""
         db.commit_query(q)
 
     t2 = time.time()
-    print("{:.1f} s".format(t2 - t1))
+    print(f"{t2-t1:.1f} s")
 
 
 def build_stellar_database():

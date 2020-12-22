@@ -4,8 +4,8 @@
 def magnitude_to_size(m, start=0, stop=10, mm_per_degree=1):
     # Based on the Uranometria 2000.0 scale (1.85 cm per degree of declination
     x = 10.0 * (m - start) / (stop - start)
-    s = -1.86483053 + (4.35447935 + 1.86483053) / pow(
-        (1 + pow((x / 19.06110112), 1.30821934)), 3.25679589
+    s = -1.864_830_53 + (4.354_479_35 + 1.864_830_53) / pow(
+        (1 + pow((x / 19.061_101_12), 1.308_219_34)), 3.256_795_89
     )
     return mm_per_degree * s / 18.5
 
@@ -77,11 +77,7 @@ if __name__ == "__main__":
     for x, y in zip(magnitude, size):
         fval = f(x, *popt)
         stderr += pow(fval - y, 2)
-        print(
-            "X: {0:.2f} Y: {1:.2f} F: {2:.2f} Delta: {3:.6f}".format(
-                x, y, fval, fval - y
-            )
-        )
+        print(f"X: {x:.2f} Y: {y:.2f} F: {fval:.2f} Delta: {fval-y:.6f}")
 
     print()
     print(math.sqrt(stderr))

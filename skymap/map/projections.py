@@ -91,18 +91,14 @@ class AzimuthalEquidistantProjection(Projection):
         if self.north:
             if self.reference_scale >= 90:
                 raise ProjectionError(
-                    "Invalid reference scale {} for north pole".format(
-                        self.reference_scale
-                    )
+                    f"Invalid reference scale {self.reference_scale} for north pole"
                 )
             self.origin_latitude = 90
         else:
             self.reference_scale *= -1
             if self.reference_scale <= -90:
                 raise ProjectionError(
-                    "Invalid reference scale {} for south pole".format(
-                        self.reference_scale
-                    )
+                    f"Invalid reference scale {self.reference_scale} for south pole"
                 )
             self.origin_latitude = -90
 
@@ -168,6 +164,7 @@ class EquidistantCylindricalProjection(Projection):
         """
         Projection.__init__(self, center_longitude, reference_scale, celestial)
         self.horizontal_stretch = horizontal_stretch
+        self.center_latitude = 0
 
     def project(self, skycoord):
         longitude = self.reduce_longitude(skycoord.ra.degree)

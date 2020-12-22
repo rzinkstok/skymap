@@ -63,7 +63,7 @@ class Tikz(object):
         self.width = self.papersize.width - self.margins.l - self.margins.r
         self.height = self.papersize.height - self.margins.b - self.margins.t
 
-        self.texfile_name = "{0}.tex".format(self.name)
+        self.texfile_name = f"{self.name}.tex"
         self.delayed = []
         self.pictures = []
 
@@ -86,7 +86,7 @@ class Tikz(object):
 
         self.pictures.append(picture)
 
-    def render(self, filepath=None, open_pdf=True, extra_context=None, verbose=False):
+    def render(self, filepath=None, open_pdf=False, extra_context=None, verbose=False):
         """Render the current document as a PDF file.
 
         Args:
@@ -177,9 +177,7 @@ class Tikz(object):
             folder = os.path.dirname(filepath)
             if folder and not os.path.exists(folder):
                 os.makedirs(folder)
-            shutil.move(
-                os.path.join(TEX_OUTPUT_FOLDER, "{0}.pdf".format(self.name)), filepath
-            )
+            shutil.move(os.path.join(TEX_OUTPUT_FOLDER, f"{self.name}.pdf"), filepath)
             if open_pdf:
                 subprocess.Popen(["open", filepath]).wait()
 

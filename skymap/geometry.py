@@ -138,7 +138,7 @@ class Point(object):
             self.y = b
 
     def __str__(self):
-        return "Point({0}, {1})".format(self.x, self.y)
+        return f"Point({self.x}, {self.y})"
 
     def __repr__(self):
         return self.__str__()
@@ -213,7 +213,7 @@ class Point(object):
         if abs(y) < 1e-4:
             y = 0.0
 
-        return "({0}mm,{1}mm)".format(x, y)
+        return f"({x}mm,{y}mm)"
 
 
 class Line(object):
@@ -233,7 +233,7 @@ class Line(object):
         self.length = self.p1.distance(self.p2)
 
     def __str__(self):
-        return "Line({}, {})".format(self.p1, self.p2)
+        return f"Line({self.p1}, {self.p2})"
 
     def intersect_line(self, other):
         """Return the intersection between the given line and this line. Returns None for parallel lines.
@@ -308,12 +308,12 @@ class Line(object):
     @property
     def path(self):
         """Returns the TikZ path string for the line."""
-        return "{}--{}".format(self.p1.coordinates, self.p2.coordinates)
+        return f"{self.p1.coordinates}--{self.p2.coordinates}"
 
     @property
     def reverse_path(self):
         """Returns the TikZ path string for the inverse line."""
-        return "{}--{}".format(self.p2.coordinates, self.p1.coordinates)
+        return f"{self.p2.coordinates}--{self.p1.coordinates}"
 
 
 class Polygon(object):
@@ -378,7 +378,7 @@ class Circle(object):
         self.radius = radius
 
     def __str__(self):
-        return "Circle({0}, {1})".format(self.center, self.radius)
+        return f"Circle({self.center}, {self.radius})"
 
     def __repr__(self):
         return self.__str__()
@@ -463,9 +463,7 @@ class Arc(Circle):
         self.p2 = self.center + self.radius * Point(math.cos(sar), math.sin(sar))
 
     def __str__(self):
-        return "Arc({}, {}, start={}, stop={})".format(
-            self.center, self.radius, self.start_angle, self.stop_angle
-        )
+        return f"Arc({self.center}, {self.radius}, start={self.start_angle}, stop={self.stop_angle})"
 
     def interpolated_points(self, npoints=100):
         """Calculates a sequence of points approximating the arc.
@@ -493,9 +491,9 @@ class Arc(Circle):
                 start = self.start_angle
                 stop = self.stop_angle
 
-            path = "([shift=({}:{}mm)]".format(start, self.radius)
+            path = f"([shift=({start}:{self.radius}mm)]"
             path += self.center.coordinates[1:]
-            path += " arc ({}:{}:{}mm)".format(start, stop, self.radius)
+            path += f" arc ({start}:{stop}:{self.radius}mm)"
         else:
             path = ""
             if reverse:
@@ -531,7 +529,7 @@ class Rectangle(object):
         self.p2 = Point(max(p1.x, p2.x), max(p1.y, p2.y))
 
     def __str__(self):
-        return "Rectangle({}, {})".format(self.p1, self.p2)
+        return f"Rectangle({self.p1}, {self.p2})"
 
     @property
     def center(self):
@@ -582,9 +580,7 @@ class Rectangle(object):
                 return 0
             return w * h
 
-        raise NotImplementedError(
-            "Cannot calculate the overlap for {}".format(other.__class__)
-        )
+        raise NotImplementedError(f"Cannot calculate the overlap for {other.__class__}")
 
     @property
     def points(self):
