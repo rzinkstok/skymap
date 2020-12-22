@@ -5,6 +5,8 @@ from skymap.map import (
     MapBorderConfig,
     CoordinateGridConfig,
     EquidistantConicProjection,
+    EquidistantCylindricalProjection,
+    AzimuthalEquidistantProjection,
 )
 from skymap.geometry import Point, Line, Label, SkyCoordDeg
 
@@ -15,6 +17,17 @@ LATITUDE_RANGE = 56
 AZIMUTHAL_MERIDIAN_OFFSETS = {15: 10, 45: 1, 90: 0}
 GALACTIC_ECLIPTIC_DASH_PATTERN = "densely dashed"
 LEGEND_WIDTH = 16
+
+
+def azimuthal_latitude_range(longitude):
+    d = {15: 10, 45: 1, 90: 0}
+    offset = 0
+    for l in sorted(d.keys(), reverse=True):
+        if longitude % l == 0:
+            offset = d[l]
+            break
+
+    return 90 - offset
 
 
 class CambridgeStarAtlasPage(Tikz):
@@ -56,12 +69,15 @@ class CambridgeStarAtlasMap(MapArea):
     def __init__(self, tikz, chart_number):
         # Determine these using the chart number
         chart_configs = {
+            1: ChartConfig(90, 90),
             2: ChartConfig(30, 45),
             3: ChartConfig(90, 45),
             5: ChartConfig(210, 45),
+            8: ChartConfig(30, 0),
             14: ChartConfig(30, -45),
             15: ChartConfig(90, -45),
             17: ChartConfig(210, -45),
+            20: ChartConfig(0, -90),
         }
 
         chart_config = chart_configs[chart_number]
@@ -72,23 +88,52 @@ class CambridgeStarAtlasMap(MapArea):
 
         border_config = MapBorderConfig(True, True, 0.25, 0.5, 6, 5)
         coordinate_grid_config = CoordinateGridConfig()
-
         reference_scale = 56 / (p2.y - p1.y - 2 * border_config.vmargin)
+        latitude_range_func = None
 
-        standard_parallel1 = 30
-        standard_parallel2 = 60
-        if center_latitude < 0:
-            standard_parallel1, standard_parallel2 = (
-                -standard_parallel2,
-                -standard_parallel1,
+        if center_latitude == 0:
+            projection = EquidistantCylindricalProjection(
+                center_longitude,
+                reference_scale=reference_scale,
+                horizontal_stretch=0.958_695,
+                celestial=True,
             )
 
-        projection = EquidistantConicProjection(
-            SkyCoordDeg(center_longitude, center_latitude),
-            standard_parallel1,
-            standard_parallel2,
-            reference_scale=reference_scale,
-        )
+        elif center_latitude == 90 or center_latitude == -90:
+            projection = AzimuthalEquidistantProjection(
+                reference_scale=reference_scale,
+                celestial=True,
+                north=center_latitude > 0,
+            )
+            coordinate_grid_config.parallel_tick_borders = ["center"]
+            coordinate_grid_config.meridian_tick_borders = [
+                "left",
+                "bottom",
+                "right",
+                "top",
+            ]
+            coordinate_grid_config.parallel_center_labels = True
+            coordinate_grid_config.parallel_marked_tick_interval = 10
+            coordinate_grid_config.fixed_tick_reach = False
+            coordinate_grid_config.parallel_fontsize = "tiny"
+            latitude_range_func = self.latitude_range_func
+
+        else:
+            standard_parallel1 = 30
+            standard_parallel2 = 60
+            if center_latitude < 0:
+                standard_parallel1, standard_parallel2 = (
+                    -standard_parallel2,
+                    -standard_parallel1,
+                )
+
+            projection = EquidistantConicProjection(
+                SkyCoordDeg(center_longitude, center_latitude),
+                standard_parallel1,
+                standard_parallel2,
+                reference_scale=reference_scale,
+                celestial=True,
+            )
 
         MapArea.__init__(
             self,
@@ -102,7 +147,23 @@ class CambridgeStarAtlasMap(MapArea):
             center_latitude,
             None,
             None,
+            latitude_range_func,
         )
+
+    def latitude_range_func(self, longitude, min_latitude, max_latitude):
+        d = {15: 10, 45: 1, 90: 0}
+        offset = 0
+        avg_latitude = 0.5 * (min_latitude + max_latitude)
+
+        for l in sorted(d.keys(), reverse=True):
+            if longitude % l == 0:
+                offset = d[l]
+                break
+
+        if avg_latitude < 0:
+            return min_latitude + offset, max_latitude
+        else:
+            return min_latitude, max_latitude - offset
 
 
 # def figure(fn):

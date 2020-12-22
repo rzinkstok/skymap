@@ -1,7 +1,8 @@
 import math
 from astropy.coordinates import Longitude
 import astropy.units as u
-from skymap.geometry import Point, Line, Label
+from skymap.geometry import Point, Line, Label, SkyCoordDeg
+from skymap.tikz import TikzPictureClipper
 
 
 class GridLineConfig(object):
@@ -20,6 +21,7 @@ class GridLineConfig(object):
         self.unmarked_ticksize = None
         self.fixed_tick_reach = False
         self.label_distance = None
+        self.center_labels = False
 
 
 class CoordinateGridConfig(object):
@@ -36,7 +38,7 @@ class CoordinateGridConfig(object):
         self.parallel_tick_interval = 1
         self.parallel_marked_tick_interval = 5
         self.parallel_line_interval = 10
-        self.parallel_tick_borders = ["left", "right"]
+        self.parallel_tick_borders = ["left", "right", "center"]
 
         # Tick size
         self.marked_ticksize = 1
@@ -49,10 +51,12 @@ class CoordinateGridConfig(object):
         self.rotate_meridian_labels = False
         self.meridian_labeltextfunc = None
         self.meridian_fontsize = "scriptsize"
+        self.meridian_center_labels = False
 
         self.rotate_parallel_labels = True
         self.parallel_labeltextfunc = None
         self.parallel_fontsize = "tiny"
+        self.parallel_center_labels = False
 
     @property
     def meridian_config(self):
@@ -64,6 +68,7 @@ class CoordinateGridConfig(object):
         mc.rotate_labels = self.rotate_meridian_labels
         mc.labeltextfunc = self.meridian_labeltextfunc
         mc.fontsize = self.meridian_fontsize
+        mc.center_labels = self.meridian_center_labels
         mc.marked_ticksize = self.marked_ticksize
         mc.unmarked_ticksize = self.unmarked_ticksize
         mc.fixed_tick_reach = self.fixed_tick_reach
@@ -80,6 +85,7 @@ class CoordinateGridConfig(object):
         pc.rotate_labels = self.rotate_parallel_labels
         pc.labeltextfunc = self.parallel_labeltextfunc
         pc.fontsize = self.parallel_fontsize
+        pc.center_labels = self.parallel_center_labels
         pc.marked_ticksize = self.marked_ticksize
         pc.unmarked_ticksize = self.unmarked_ticksize
         pc.fixed_tick_reach = self.fixed_tick_reach
@@ -88,15 +94,27 @@ class CoordinateGridConfig(object):
 
 
 class GridLine(object):
-    def __init__(self, coordinate, curve, borders, tickangles, config):
+    def __init__(
+        self,
+        coordinate,
+        curve,
+        borders,
+        tickangles,
+        config,
+        center_point=None,
+        center_tickangle=None,
+    ):
         self.coordinate = coordinate
         self._curve = curve
         self.border1, self.border2 = borders
         self.tickangle1, self.tickangle2 = tickangles
         self.labelpos1 = None
         self.labelpos2 = None
+        self.center_point = center_point
+        self.center_tickangle = center_tickangle
 
         self.config = config
+
         self.labeltextfunc = None
 
     @property
@@ -116,6 +134,8 @@ class GridLine(object):
                 delta = Point(math.tan(math.pi / 2 - a), 1)
             elif border == "bottom":
                 delta = Point(math.tan(a - 3 * math.pi / 2), -1)
+            elif border == "center":
+                delta = Point(math.cos(a), math.sin(a))
             else:
                 raise ValueError("Invalid border: {}".format(border))
         else:
@@ -158,9 +178,17 @@ class GridLine(object):
         return self.tick(self._curve.p2, self.tickangle2, self.border2)
 
     @property
-    def label1(self):
-        if self._curve.p1 is None or self.border1 is None or self.tickangle1 is None:
+    def centertick(self):
+        if "center" not in self.config.tick_borders or self.center_point is None:
             return None
+        if self.coordinate % self.config.line_interval == 0:
+            return None
+        return self.tick(self.center_point, self.center_tickangle, "center")
+
+    @property
+    def label1(self):
+        # if self._curve.p1 is None or self.border1 is None or self.tickangle1 is None:
+        #    return None
         if self.border1 not in self.config.tick_borders:
             return None
 
@@ -178,8 +206,8 @@ class GridLine(object):
 
     @property
     def label2(self):
-        if self._curve.p2 is None or self.border2 is None or self.tickangle2 is None:
-            return None
+        # if self._curve.p2 is None or self.border2 is None or self.tickangle2 is None:
+        #    return None
         if self.border2 not in self.config.tick_borders:
             return None
 
@@ -193,6 +221,20 @@ class GridLine(object):
             return None
         point = self._curve.p2 + self.config.label_distance * delta
         return self.label(point, self.border2, angle, self.labelpos2)
+
+    @property
+    def centerlabel(self):
+        if "center" not in self.config.tick_borders or self.center_point is None:
+            return None
+        if not self.config.center_labels:
+            return None
+
+        delta = self.tickdelta(self.center_tickangle, "center")
+        if delta.norm > 4:
+            return None
+
+        point = self.center_point + 0.375 * self.config.label_distance * delta
+        return self.label(point, "center", 0, "above")
 
     def label(self, point, border, angle, pos):
         if self.coordinate % self.config.marked_tick_interval != 0:
@@ -228,8 +270,26 @@ class GridLine(object):
 
 
 class Meridian(GridLine):
-    def __init__(self, longitude, curve, borders, tickangles, config):
-        GridLine.__init__(self, longitude, curve, borders, tickangles, config)
+    def __init__(
+        self,
+        longitude,
+        curve,
+        borders,
+        tickangles,
+        config,
+        center_point=None,
+        center_tickangle=None,
+    ):
+        GridLine.__init__(
+            self,
+            longitude,
+            curve,
+            borders,
+            tickangles,
+            config,
+            center_point,
+            center_tickangle,
+        )
         self.longitude = self.coordinate
 
     @property
@@ -247,8 +307,26 @@ class Meridian(GridLine):
 
 
 class Parallel(GridLine):
-    def __init__(self, latitude, curve, borders, tickangles, config):
-        GridLine.__init__(self, latitude, curve, borders, tickangles, config)
+    def __init__(
+        self,
+        latitude,
+        curve,
+        borders,
+        tickangles,
+        config,
+        center_point=None,
+        center_tickangle=None,
+    ):
+        GridLine.__init__(
+            self,
+            latitude,
+            curve,
+            borders,
+            tickangles,
+            config,
+            center_point,
+            center_tickangle,
+        )
         self.latitude = self.coordinate
 
     @property
@@ -271,6 +349,7 @@ class CoordinateGridFactory(object):
         clipper,
         longitude_range,
         latitude_range,
+        latitude_range_func=None,
     ):
         self.config = coordinate_grid_config
         self.projection = projection
@@ -278,35 +357,65 @@ class CoordinateGridFactory(object):
         self.clipper = clipper
         self.min_longitude, self.max_longitude = longitude_range
         self.min_latitude, self.max_latitude = latitude_range
+        self.latitude_range_func = latitude_range_func
 
     @property
     def meridians(self):
-        interval = self.config.meridian_tick_interval
+        config = self.config.meridian_config
+        interval = config.tick_interval
         current_longitude = math.ceil(self.min_longitude / interval) * interval
         while current_longitude < self.max_longitude:
             print(f"Meridian at {current_longitude}")
+            if self.latitude_range_func:
+                min_latitude, max_latitude = self.latitude_range_func(
+                    current_longitude, self.min_latitude, self.max_latitude
+                )
+            else:
+                min_latitude, max_latitude = self.min_latitude, self.max_latitude
+
             meridian = self.projection.meridian(
-                current_longitude, self.min_latitude, self.max_latitude
+                current_longitude, min_latitude, max_latitude
             )
 
             meridian_parts, borders, angles = self.clipper.clip(meridian)
             for m, b, a in zip(meridian_parts, borders, angles):
-                yield Meridian(current_longitude, m, b, a, self.config.meridian_config)
+                yield Meridian(current_longitude, m, b, a, config)
 
             current_longitude += interval
 
     @property
     def parallels(self):
-        interval = self.config.parallel_tick_interval
+        config = self.config.parallel_config
+        interval = config.tick_interval
         current_latitude = math.ceil(self.min_latitude / interval) * interval
+        if current_latitude == -90:
+            current_latitude += interval
+
+        center_meridian = self.projection.meridian(
+            self.projection.center_longitude, self.min_latitude, self.max_latitude
+        )
+        if self.projection.center_latitude < 0:
+            center_angle = center_meridian.angle + 90
+        else:
+            center_angle = center_meridian.angle - 90
+
         while current_latitude < self.max_latitude:
             print(f"Parallel at {current_latitude}")
             parallel = self.projection.parallel(
                 current_latitude, self.min_longitude, self.max_longitude
             )
 
+            center_point = self.projection.project(
+                SkyCoordDeg(self.projection.center_longitude, current_latitude)
+            )
+            clipper = TikzPictureClipper(self.borderdict)
+            if not clipper.point_inside(center_point):
+                center_point = None
+
             parallel_parts, borders, angles = self.clipper.clip(parallel)
             for p, b, a in zip(parallel_parts, borders, angles):
-                yield Parallel(current_latitude, p, b, a, self.config.parallel_config)
+                yield Parallel(
+                    current_latitude, p, b, a, config, center_point, center_angle
+                )
 
             current_latitude += interval

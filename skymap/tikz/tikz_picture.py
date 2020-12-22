@@ -23,10 +23,14 @@ class TikzPictureClipper(object):
     def circle_inside(self, circle):
         """Check whether the given circle lies fully inside the map area"""
         if not self.point_inside(circle.center):
+            print("Circle center outside")
             return False
 
-        for b in self.borderdict.values:
-            if b.distance_point(circle.center) > circle.radius:
+        for b in self.borderdict.values():
+            if b.distance_point(circle.center) <= circle.radius:
+                print(
+                    f"Circle radius ({circle.radius}) larger than distance to border ({b.distance_point(circle.center)})"
+                )
                 return False
 
         return True
@@ -49,9 +53,9 @@ class TikzPictureClipper(object):
 
         if not intersections:
             if self.point_inside(line.p1):
-                return line, (None, None)
+                return [line], [(None, None)], [(None, None)]
             else:
-                return None, None
+                return [None], [], []
 
         if len(intersections) == 1:
             if self.point_inside(line.p1):
@@ -91,7 +95,7 @@ class TikzPictureClipper(object):
         if not intersections:
             # Only option to check is whether the circle lies fully inside
             if self.circle_inside(circle):
-                return [circle], [], []
+                return [circle], [(None, None)], [(None, None)]
             else:
                 return [], [], []
         else:

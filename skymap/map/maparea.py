@@ -1,7 +1,7 @@
 import math
 from skymap.tikz import TikzPicture
 from skymap.geometry import Point, Line, Circle, Arc, Rectangle, Label
-from skymap.map import CoordinateGridFactory
+from skymap.map import CoordinateGridFactory, AzimuthalEquidistantProjection
 
 
 class MapLegend(TikzPicture):
@@ -82,6 +82,7 @@ class MapArea(TikzPicture):
         center_latitude,
         origin,
         clip_points=None,
+        latitude_range_func=None,
     ):
         """
 
@@ -140,6 +141,7 @@ class MapArea(TikzPicture):
         self.clip_points = clip_points
 
         self._longitude_latitude_boundaries()
+        self.latitude_range_func = latitude_range_func
 
         self.draw()
 
@@ -186,28 +188,31 @@ class MapArea(TikzPicture):
             longitudes = [s.ra.degree for s in pts]
             latitudes = [s.dec.degree for s in pts]
 
-            # Make sure the longitudes do not include a discontinuity
-            longitudes = [
-                l if math.fabs(l - self.center_longitude) < 180 else l - 360
-                for l in longitudes
-            ]
-
-            self.min_longitude = min(longitudes)
-            self.max_longitude = max(longitudes)
-            self.min_latitude = min(latitudes)
-            self.max_latitude = max(latitudes)
-
         else:
             # Clip points are sky coordinates
-            self.min_longitude, _, _, self.max_longitude = sorted(
-                [s.ra.degree for s in self.clip_points]
-            )
-            self.min_latitude, _, _, self.max_latitude = sorted(
-                [s.dec.degree for s in self.clip_points]
-            )
+            longitudes = [s.ra.degree for s in self.clip_points]
+            latitudes = [s.dec.degree for s in self.clip_points]
 
-        print(f"Longitude range: {self.min_longitude} - {self.max_longitude}")
-        print(f"Latitude range: {self.min_latitude} - {self.max_latitude}")
+        # Make sure the center longitudes and latitudes are included
+        longitudes.append(self.center_longitude)
+        latitudes.append(self.center_latitude)
+
+        # Make sure the longitudes do not include a discontinuity
+        longitudes = [
+            l if math.fabs(l - self.center_longitude) < 180 else l - 360
+            for l in longitudes
+        ]
+
+        if isinstance(self.projection, AzimuthalEquidistantProjection):
+            longitudes.extend([0, 360])
+
+        self.min_longitude = min(longitudes)
+        self.max_longitude = max(longitudes)
+        self.min_latitude = min(latitudes)
+        self.max_latitude = max(latitudes)
+        print("Grid range")
+        print(self.min_longitude, self.max_longitude)
+        print(self.min_latitude, self.max_latitude)
 
     def draw_grid_element(self, item):
         if item is None:
@@ -231,6 +236,7 @@ class MapArea(TikzPicture):
             self.clipper,
             (self.min_longitude, self.max_longitude),
             (self.min_latitude, self.max_latitude),
+            self.latitude_range_func,
         )
 
         old_linewidth = self.linewidth
@@ -247,7 +253,9 @@ class MapArea(TikzPicture):
             self.draw_grid_element(p.curve)
             self.draw_grid_element(p.tick1)
             self.draw_grid_element(p.tick2)
+            self.draw_grid_element(p.centertick)
             self.draw_grid_element(p.label1)
             self.draw_grid_element(p.label2)
+            self.draw_grid_element(p.centerlabel)
 
         self.linewidth = old_linewidth

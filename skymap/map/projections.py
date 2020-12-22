@@ -47,8 +47,8 @@ class Projection(object):
         return Line(p1, p2)
 
     def parallel(self, latitude, min_longitude, max_longitude):
-        p1 = self.project(SkyCoordDeg(min_longitude, latitude))
-        p2 = self.project(SkyCoordDeg(max_longitude, latitude))
+        p1 = self.project(SkyCoordDeg(min_longitude - 0.1, latitude))
+        p2 = self.project(SkyCoordDeg(max_longitude + 0.1, latitude))
         return Line(p1, p2)
 
 
@@ -117,6 +117,10 @@ class AzimuthalEquidistantProjection(Projection):
         self.center_longitude = value
 
     @property
+    def center_latitude(self):
+        return self.origin_latitude
+
+    @property
     def reverse_polar_direction(self):
         """Whether increasing longitude is clockwise or anticlockwise."""
         return self.north == self.celestial
@@ -130,11 +134,11 @@ class AzimuthalEquidistantProjection(Projection):
         if self.reverse_polar_direction:
             theta *= -1
 
-        return Point(rho * math.sin(theta), -rho * math.cos(theta))
+        return Point(rho * math.cos(theta), rho * math.sin(theta))
 
     def backproject(self, point):
         rho = self.origin.distance(point)
-        theta = ensure_angle_range(math.degrees(math.atan2(point.y, point.x))) + 90
+        theta = ensure_angle_range(math.degrees(math.atan2(point.y, point.x)))
 
         if self.reverse_polar_direction:
             theta *= -1
@@ -180,13 +184,15 @@ class EquidistantCylindricalProjection(Projection):
         return Point(x, y)
 
     def backproject(self, point):
+        if self.celestial:
+            x = -point.x
+        else:
+            x = point.x
+
         longitude = (
-            self.center_longitude
-            + self.reference_scale * point.x / self.horizontal_stretch
+            self.center_longitude + self.reference_scale * x / self.horizontal_stretch
         )
 
-        if self.celestial:
-            longitude *= -1
         latitude = point.y * self.reference_scale
 
         return SkyCoordDeg(longitude, latitude)

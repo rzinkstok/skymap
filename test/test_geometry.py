@@ -51,6 +51,14 @@ class PointTest(unittest.TestCase):
                 self.assertEqual(p3.y, p1.y - p2.y)
 
 
+class LineTest(unittest.TestCase):
+    def test_distance_point(self):
+        p1 = Point(1, 0)
+        p2 = Point(0, 1)
+        l = Line(p1, p2)
+        self.assertAlmostEqual(l.distance_point(Point(0, 0)), 0.5 * math.sqrt(2), 10)
+
+
 class RotationTest(unittest.TestCase):
     def test_rotation(self):
         r = rotation_matrix((1, 0, 0), np.pi / 2)
