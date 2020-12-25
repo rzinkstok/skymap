@@ -1,217 +1,146 @@
-import sys
 import os
-from skymap.tikz import BASEDIR, TikzFigure, DrawingArea
-from skymap.map import EquidistantCylindricalMapArea, AzimuthalEquidistantMapArea, EquidistantConicMapArea
-from skymap.geometry import Point, Line, SphericalPoint
-from skymap.gridlines import GridLineLabel
+from skymap.tikz import Tikz, PaperMargin, PaperSize, PDF_FOLDER
+from skymap.map import (
+    MapLegend,
+    MapArea,
+    MapConfig,
+    CoordinateGridConfig,
+    EquidistantCylindricalProjection,
+    EquidistantConicProjection,
+)
+from skymap.geometry import Point, Rectangle, Label
 
 
-OUTPUT_FOLDER = os.path.join(BASEDIR, "skyatlas2000")
-
-PAPERSIZE = (465, 343)
-LEFT_MARGIN = 17
-RIGHT_MARGIN = 17
-BOTTOM_MARGIN = 8
-TOP_MARGIN = 10
-MAP_HMARGIN = 7
-MAP_VMARGIN = 7
-
-MAP_LLCORNER = Point(LEFT_MARGIN, BOTTOM_MARGIN)
-MAP_URCORNER = Point(PAPERSIZE[0]-RIGHT_MARGIN, BOTTOM_MARGIN + 299)
-
+OUTPUT_FOLDER = os.path.join(PDF_FOLDER, "skyatlas2000")
 LATITUDE_RANGE = 40
-CONIC_MERIDIAN_OFFSETS = {15: 10, 30: 2}
-CONSTELLATION_DASH_PATTERN = 'densely dotted'
-ECLIPTIC_DASH_PATTERN = 'densely dashed'
-GALACTIC_DASH_PATTERN = 'densely dash dot'
+CONSTELLATION_DASH_PATTERN = "densely dotted"
+ECLIPTIC_DASH_PATTERN = "densely dashed"
+GALACTIC_DASH_PATTERN = "densely dash dot"
 
 
-def figure(fn):
-    return TikzFigure(fn, papersize=PAPERSIZE,
-                      left_margin=LEFT_MARGIN, right_margin=RIGHT_MARGIN,
-                      bottom_margin=BOTTOM_MARGIN, top_margin=TOP_MARGIN,
-                      fontsize=10)
+class SkyAtlas2000Page(Tikz):
+    def __init__(self, name="none"):
+        Tikz.__init__(
+            self,
+            name=name,
+            papersize=PaperSize(width=465, height=343),
+            margins=PaperMargin(left=17, bottom=8, right=17, top=10),
+            normalsize=10,
+        )
 
 
-def legend(figure, chart_number):
-    p1 = figure.ulcorner + Point(0, -22)
-    p2 = figure.ulcorner + Point(23, 0)
-    l = DrawingArea(p1, p2, p1)
-    figure.add(l)
+class SkyAtlas2000Legend(MapLegend):
+    def __init__(self, tikz, chart_number):
+        self.chart_number = chart_number
+        MapLegend.__init__(
+            self, tikz, tikz.ulcorner + Point(25, -22), tikz.urcorner + Point(-25, 0)
+        )
 
-    p1 = figure.ulcorner + Point(25, -22)
-    p2 = figure.urcorner + Point(-25, 0)
-    l = DrawingArea(p1, p2, p1)
-    figure.add(l)
+    def draw(self):
+        # Draw the corner boxes
+        self.draw_rectangle(
+            Rectangle(self.llcorner + Point(-25, 0), self.llcorner + Point(-2, 22))
+        )
+        self.draw_rectangle(
+            Rectangle(self.lrcorner + Point(2, 0), self.lrcorner + Point(25, 22))
+        )
+        p = self.lrcorner + Point(13.5, 16)
+        self.draw_label(Label(p, text="CHART NUMBER", fontsize="footnotesize"))
+        p = self.lrcorner + Point(13.5, 0)
+        self.draw_label(
+            Label(p, text=f"\\textbf{{{self.chart_number}}}", fontsize="HUGE")
+        )
 
-    p1 = figure.urcorner + Point(-23, -22)
-    p2 = figure.urcorner
-    l = DrawingArea(p1, p2, p1)
-    figure.add(l)
-    p = Point(11.5, 16)
-    l.draw_label(GridLineLabel(p, "CHART NUMBER", 90, "footnotesize"))
-    p = Point(11.4, 0)
-    l.draw_label(GridLineLabel(p, "\\textbf{{{}}}".format(chart_number), 90, "HUGE"))
+
+def latitude_range_func(longitude, min_latitude, max_latitude):
+    """Used for azimuthal maps"""
+    offsets = {15: 10, 30: 2}
+    offset = 0
+    avg_latitude = 0.5 * (min_latitude + max_latitude)
+
+    for l in sorted(offsets.keys(), reverse=True):
+        if longitude % l == 0:
+            offset = offsets[l]
+            break
+
+    if avg_latitude < 0:
+        return min_latitude + offset, max_latitude
+    else:
+        return min_latitude, max_latitude - offset
 
 
 if __name__ == "__main__":
-    if not os.path.exists(OUTPUT_FOLDER):
-        os.makedirs(OUTPUT_FOLDER)
+    p = SkyAtlas2000Page()
+    cc = CoordinateGridConfig()
+    cc.rotate_parallel_labels = False
+    cc.parallel_fontsize = "scriptsize"
+    mc = MapConfig()
+    mc.llcorner = p.llcorner
+    mc.urcorner = p.lrcorner + Point(0, 299)
+    mc.origin = None
+    mc.draw_inner_border = True
+    mc.draw_outer_border = True
+    mc.inner_border_linewidth = 0.25
+    mc.outer_border_linewidth = 0.5
+    mc.border_vmargin = 7
+    mc.border_hmargin = 7
+    mc.latitude_range = LATITUDE_RANGE
+    mc.horizontal_stretch = 1.0
+    mc.coordinate_grid_config = cc
 
-    # North pole
-    for i in range(3):
-        center_longitude = 90 + 0.8485 + i * 120
-        chart_number = i + 1
-        fn = "{:02}".format(chart_number)
-        f = figure(fn)
-        center_latitude = 70
-        map_origin = Point(MAP_LLCORNER.x + MAP_HMARGIN + 132, 0.5 * (MAP_LLCORNER.y + MAP_URCORNER.y) + 0.01)
-        m = EquidistantConicMapArea(MAP_LLCORNER, MAP_URCORNER, hmargin=MAP_HMARGIN, vmargin=MAP_VMARGIN, origin=map_origin, center=(center_longitude, center_latitude), standard_parallel1=55, standard_parallel2=90, latitude_range=LATITUDE_RANGE, celestial=True)
-        f.add(m)
+    for chart_number in range(1, 27):
+        name = f"{chart_number:02d}"
+        p = p.new(name)
+        SkyAtlas2000Legend(p, chart_number)
 
-        m.gridline_factory.parallel_fontsize = "tiny"
+        if chart_number < 4:
+            mc.center_longitude = 90 + 0.8485 + (chart_number - 1) * 120
+            mc.center_latitude = 70
+            mc.projection_class = EquidistantConicProjection
+            mc.latitude_range_func = latitude_range_func
+            mc.standard_parallel1 = 55
+            mc.standard_parallel2 = 90
+            mc.coordinate_grid_config.meridian_tick_borders = [
+                "left",
+                "bottom",
+                "right",
+            ]
+            mc.coordinate_grid_config.parallel_tick_borders = ["top"]
+            mc.origin = mc.map_llcorner + Point(132, 0.5 * mc.map_height)
 
-        # Set the ticks on the correct axes
-        m.meridian_ticks['left'] = True
-        m.meridian_ticks['right'] = True
-        m.meridian_ticks['bottom'] = True
-        m.meridian_ticks['top'] = False
-        m.parallel_ticks['left'] = False
-        m.parallel_ticks['right'] = False
-        m.parallel_ticks['bottom'] = False
-        m.parallel_ticks['top'] = True
-        m.rotate_parallel_labels = False
+        elif chart_number < 10:
+            mc.center_longitude = 30 + (chart_number - 4) * 60
+            mc.center_latitude = 37
+            mc.latitude_range_func = None
+            mc.standard_parallel1 = 25
+            mc.standard_parallel2 = 47
+            mc.coordinate_grid_config.meridian_tick_borders = ["bottom", "top"]
+            mc.coordinate_grid_config.parallel_tick_borders = ["left", "right"]
+            mc.origin = None
 
-        # Draw the grid
-        m.draw_meridians(origin_offsets=CONIC_MERIDIAN_OFFSETS)
-        m.draw_parallels()
+        elif chart_number < 18:
+            mc.center_longitude = 30 + (chart_number - 10) * 45
+            mc.center_latitude = 0
+            mc.projection_class = EquidistantCylindricalProjection
+            mc.horizontal_stretch = 0.9754
 
-        # Draw the +90 degrees parallel tick
-        p1 = Point(0, 0.5*(MAP_URCORNER.y - MAP_LLCORNER.y - 2*MAP_VMARGIN))
-        p2 = p1 + Point(0, m.gridline_factory.marked_ticksize)
-        p3 = p1 + Point(0, m.gridline_factory.label_distance)
-        m.draw_line(Line(p1, p2), linewidth=m.gridline_factory.gridline_thickness)
-        m.draw_label(GridLineLabel(p3, "+90\\textdegree", 90, "tiny"))
+        elif chart_number < 24:
+            mc.center_longitude = 30 + (chart_number - 18) * 60
+            mc.center_latitude = -37
+            mc.standard_parallel1 = -47
+            mc.standard_parallel2 = -25
+            mc.projection_class = EquidistantConicProjection
+            mc.horizontal_stretch = 1.0
 
-        with m.clip(m.clipping_path):
-            m.draw_constellations(dashed=CONSTELLATION_DASH_PATTERN)
-        m.draw_ecliptic(tickinterval=5, dashed=ECLIPTIC_DASH_PATTERN)
-        m.draw_galactic(tickinterval=5, dashed=GALACTIC_DASH_PATTERN)
+        elif chart_number < 27:
+            mc.center_longitude = 90 + 0.8485 + (chart_number - 24) * 120
+            mc.center_latitude = -70
+            mc.standard_parallel1 = -90
+            mc.standard_parallel2 = -55
+            mc.latitude_range_func = latitude_range_func
+            mc.coordinate_grid_config.meridian_tick_borders = ["left", "top", "right"]
+            mc.coordinate_grid_config.parallel_tick_borders = ["bottom"]
+            mc.origin = mc.map_llcorner + Point(mc.map_width - 132, 0.5 * mc.map_height)
 
-        # Legend
-        legend(f, chart_number)
-        f.render(os.path.join(OUTPUT_FOLDER, "{:02}.pdf".format(chart_number)), open=False)
-
-    # North conic maps
-    for i in range(6):
-        center_longitude = 30 + i * 60
-        chart_number = i + 4
-        fn = "{:02}".format(chart_number)
-        f = figure(fn)
-        m = EquidistantConicMapArea(MAP_LLCORNER, MAP_URCORNER, hmargin=MAP_HMARGIN, vmargin=MAP_VMARGIN,
-                                    center=(center_longitude, 37), standard_parallel1=25, standard_parallel2=47,
-                                    latitude_range=LATITUDE_RANGE, celestial=True)
-        f.add(m)
-        m.gridline_factory.parallel_marked_tick_interval = 5
-        m.gridline_factory.parallel_fontsize = "tiny"
-        m.gridline_factory.rotate_parallel_labels = True
-        m.draw_meridians()
-        m.draw_parallels()
-        with m.clip(m.clipping_path):
-            m.draw_constellations(dashed=CONSTELLATION_DASH_PATTERN)
-        m.draw_ecliptic(tickinterval=5, dashed=ECLIPTIC_DASH_PATTERN)
-        m.draw_galactic(tickinterval=5, dashed=GALACTIC_DASH_PATTERN)
-
-        # Legend
-        legend(f, chart_number)
-        f.render(os.path.join(OUTPUT_FOLDER, "{:02}.pdf".format(chart_number)), open=False)
-
-    # Equatorial maps
-    for i in range(8):
-        chart_number = i + 10
-        center_longitude = 30 + i * 45
-        fn = "{:02}".format(chart_number)
-        f = figure(fn)
-        m = EquidistantCylindricalMapArea(MAP_LLCORNER, MAP_URCORNER, hmargin=MAP_HMARGIN, vmargin=MAP_VMARGIN,
-                                          center_longitude=center_longitude, standard_parallel=14,
-                                          latitude_range=LATITUDE_RANGE, lateral_scale=0.9754, celestial=True)
-        f.add(m)
-        m.gridline_factory.parallel_marked_tick_interval = 5
-        m.gridline_factory.parallel_fontsize = "tiny"
-        m.draw_meridians()
-        m.draw_parallels()
-        with m.clip(m.clipping_path):
-            m.draw_constellations(dashed=CONSTELLATION_DASH_PATTERN)
-        m.draw_ecliptic(tickinterval=5, dashed=ECLIPTIC_DASH_PATTERN)
-        m.draw_galactic(tickinterval=5, dashed=GALACTIC_DASH_PATTERN)
-
-        # Legend
-        legend(f, chart_number)
-        f.render(os.path.join(OUTPUT_FOLDER, "{:02}.pdf".format(chart_number)), open=False)
-
-    # South conic maps
-    for i in range(6):
-        center_longitude = 30 + i * 60
-        chart_number = i + 18
-        fn = "{:02}".format(chart_number)
-        f = figure(fn)
-        m = EquidistantConicMapArea(MAP_LLCORNER, MAP_URCORNER, hmargin=MAP_HMARGIN, vmargin=MAP_VMARGIN,
-                                    center=(center_longitude, -37), standard_parallel1=-47, standard_parallel2=-25,
-                                    latitude_range=LATITUDE_RANGE, celestial=True)
-        f.add(m)
-        m.gridline_factory.parallel_marked_tick_interval = 5
-        m.gridline_factory.rotate_parallel_labels = True
-        m.gridline_factory.parallel_fontsize = "tiny"
-        m.draw_meridians()
-        m.draw_parallels()
-        with m.clip(m.clipping_path):
-            m.draw_constellations(dashed=CONSTELLATION_DASH_PATTERN)
-        m.draw_ecliptic(tickinterval=5, dashed=ECLIPTIC_DASH_PATTERN)
-        m.draw_galactic(tickinterval=5, dashed=GALACTIC_DASH_PATTERN)
-
-        # Legend
-        legend(f, chart_number)
-        f.render(os.path.join(OUTPUT_FOLDER, "{:02}.pdf".format(chart_number)), open=False)
-
-    # South pole
-    for i in range(3):
-        center_longitude = 30 - 0.8485 + i * 120
-        chart_number = i + 24
-        fn = "{:02}".format(chart_number)
-        f = figure(fn)
-        center_latitude = -70
-        map_origin = Point(MAP_URCORNER.x - MAP_HMARGIN - 132, 0.5 * (MAP_LLCORNER.y + MAP_URCORNER.y) - 0.01)
-        m = EquidistantConicMapArea(MAP_LLCORNER, MAP_URCORNER, hmargin=MAP_HMARGIN, vmargin=MAP_VMARGIN, origin=map_origin, center=(center_longitude, center_latitude), standard_parallel1=-90, standard_parallel2=-55, latitude_range=LATITUDE_RANGE, celestial=True)
-        f.add(m)
-
-        m.gridline_factory.parallel_fontsize = "tiny"
-        # Set the ticks on the correct axes
-        m.meridian_ticks['left'] = True
-        m.meridian_ticks['right'] = True
-        m.meridian_ticks['bottom'] = False
-        m.meridian_ticks['top'] = True
-        m.parallel_ticks['left'] = False
-        m.parallel_ticks['right'] = False
-        m.parallel_ticks['bottom'] = True
-        m.parallel_ticks['top'] = False
-        m.rotate_parallel_labels = False
-
-        # Draw the grid
-        m.draw_meridians(origin_offsets=CONIC_MERIDIAN_OFFSETS)
-        m.draw_parallels()
-
-        # Draw the -90 degrees parallel tick
-        p1 = Point(0, -0.5*(MAP_URCORNER.y - MAP_LLCORNER.y - 2*MAP_VMARGIN))
-        p2 = p1 + Point(0, -m.gridline_factory.marked_ticksize)
-        p3 = p1 + Point(0, -m.gridline_factory.label_distance)
-        m.draw_line(Line(p1, p2), linewidth=m.gridline_factory.gridline_thickness)
-        m.draw_label(GridLineLabel(p3, "--90\\textdegree", 270, "tiny"))
-
-        with m.clip(m.clipping_path):
-            m.draw_constellations(dashed=CONSTELLATION_DASH_PATTERN)
-        m.draw_ecliptic(tickinterval=5, dashed=ECLIPTIC_DASH_PATTERN)
-        m.draw_galactic(tickinterval=5, dashed=GALACTIC_DASH_PATTERN)
-
-        # Legend
-        legend(f, chart_number)
-        f.render(os.path.join(OUTPUT_FOLDER, "{:02}.pdf".format(chart_number)), open=False)
+        MapArea(p, mc)
+        p.render(os.path.join(OUTPUT_FOLDER, f"{name}.pdf"))

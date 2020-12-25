@@ -4,4 +4,4 @@ from .projections import (
     EquidistantCylindricalProjection,
     AzimuthalEquidistantProjection,
 )
-from .maparea import MapArea, MapLegend, MapBorderConfig
+from .maparea import MapArea, MapLegend, MapConfig

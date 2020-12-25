@@ -1,14 +1,5 @@
-import math
 from skymap.tikz import TikzPicture
-from skymap.geometry import (
-    Point,
-    Line,
-    Circle,
-    Arc,
-    Rectangle,
-    Label,
-    ensure_angle_range,
-)
+from skymap.geometry import Point, Line, Circle, Arc, Rectangle, Label
 from skymap.map import CoordinateGridFactory, AzimuthalEquidistantProjection
 
 
@@ -21,22 +12,62 @@ class MapLegend(TikzPicture):
         pass
 
 
-class MapBorderConfig(object):
-    def __init__(
-        self,
-        draw_inner=True,
-        draw_outer=False,
-        inner_linewidth=0.25,
-        outer_linewidth=0.5,
-        hmargin=0,
-        vmargin=0,
-    ):
-        self.draw_inner = draw_inner
-        self.draw_outer = draw_outer
-        self.outer_linewidth = outer_linewidth
-        self.inner_linewidth = inner_linewidth
-        self.hmargin = hmargin
-        self.vmargin = vmargin
+class MapConfig(object):
+    def __init__(self):
+        # Variable for each map
+        self.center_longitude = None
+        self.center_latitude = None
+
+        # Variable
+        self.latitude_range_func = None
+        self.coordinate_grid_config = None
+        self.projection_class = None
+        self.standard_parallel1 = None
+        self.standard_parallel2 = None
+        self.horizontal_stretch = None
+        self.origin = None
+
+        # Fixed for atlas
+        self.llcorner = None
+        self.urcorner = None
+        self.draw_inner_border = None
+        self.draw_outer_border = None
+        self.inner_border_linewidth = None
+        self.outer_border_linewidth = None
+        self.border_vmargin = None
+        self.border_hmargin = None
+        self.latitude_range = None
+
+    @property
+    def map_width(self):
+        return self.urcorner.x - self.llcorner.x - 2 * self.border_hmargin
+
+    @property
+    def map_height(self):
+        return self.urcorner.y - self.llcorner.y - 2 * self.border_vmargin
+
+    @property
+    def map_llcorner(self):
+        return self.llcorner + Point(self.border_hmargin, self.border_vmargin)
+
+    @property
+    def map_urcorner(self):
+        return self.urcorner - Point(self.border_hmargin, self.border_vmargin)
+
+    @property
+    def reference_scale(self):
+        return self.latitude_range / self.map_height
+
+    @property
+    def projection(self):
+        return self.projection_class(
+            center_longitude=self.center_longitude,
+            center_latitude=self.center_latitude,
+            standard_parallel1=self.standard_parallel1,
+            standard_parallel2=self.standard_parallel2,
+            reference_scale=self.reference_scale,
+            celestial=True,
+        )
 
 
 class MapArea(TikzPicture):
@@ -57,46 +88,25 @@ class MapArea(TikzPicture):
     The whole map including ticks and labels can be enclosed in a box.
     """
 
-    def __init__(
-        self,
-        tikz,
-        p1,
-        p2,
-        border_config,
-        coordinate_grid_config,
-        projection,
-        center_longitude,
-        center_latitude,
-        origin,
-        clip_points=None,
-        latitude_range_func=None,
-    ):
+    def __init__(self, tikz, config, clip_points=None):
         """
 
         Args:
             tikz: the tikz page to add the maparea to
-            p1: the paper coordinates of the lower left corner
-            p2: the paper coordinates of the upper right corner
-            border_config: the MapBorderConfig object
-            coordinate_grid_config: the CoordinateGridConfig indicating all info on the meridians and parallels
-            projection: the map projection to use
-            center_longitude:
-            center_latitude:
-            origin: the paper coordinates of the map origin, where the center longitude and latitude are mapped to
+            config: the MapConfig object specifying the map
             clip_points:
         """
-        self.border_config = border_config
-        self.coordinate_grid_config = coordinate_grid_config
-        self.projection = projection
+        self.config = config
+        self.projection = self.config.projection
 
         # Calculate the paper coordinates of the map corners
-        minx, maxx = sorted((p1.x, p2.x))
-        miny, maxy = sorted((p1.y, p2.y))
+        minx, maxx = sorted((config.llcorner.x, config.urcorner.x))
+        miny, maxy = sorted((config.llcorner.y, config.urcorner.y))
         llcorner = Point(minx, miny) + Point(
-            self.border_config.hmargin, self.border_config.vmargin
+            self.config.border_hmargin, self.config.border_vmargin
         )
         urcorner = Point(maxx, maxy) - Point(
-            self.border_config.hmargin, self.border_config.vmargin
+            self.config.border_hmargin, self.config.border_vmargin
         )
 
         # Initialize the picture from the inner map corners
@@ -105,37 +115,37 @@ class MapArea(TikzPicture):
             tikz,
             llcorner,
             urcorner,
-            origin=origin,
-            boxed=self.border_config.draw_inner,
-            box_linewidth=self.border_config.inner_linewidth,
+            origin=config.origin,
+            boxed=self.config.draw_inner_border,
+            box_linewidth=self.config.inner_border_linewidth,
         )
 
         # Calculate the map coordinates of the outer border corners
         self.outer_llcorner = Point(
-            self.minx - self.border_config.hmargin,
-            self.miny - self.border_config.vmargin,
+            self.minx - self.config.border_hmargin,
+            self.miny - self.config.border_vmargin,
         )
         self.outer_urcorner = Point(
-            self.maxx + self.border_config.hmargin,
-            self.maxy + self.border_config.vmargin,
+            self.maxx + self.config.border_hmargin,
+            self.maxy + self.config.border_vmargin,
         )
-        self.outer_border = self.border_config.draw_outer
+        self.outer_border = self.config.draw_outer_border
 
         # The center longitude and latitude
-        self.center_longitude = center_longitude
-        self.center_latitude = center_latitude
+        self.center_longitude = config.center_longitude
+        self.center_latitude = config.center_latitude
 
         self.clip_points = clip_points
 
         self._longitude_latitude_boundaries()
-        self.latitude_range_func = latitude_range_func
+        self.latitude_range_func = config.latitude_range_func
 
         self.draw()
 
     def draw(self):
         if self.outer_border:
             old_linewidth = self.linewidth
-            self.linewidth = self.border_config.outer_linewidth
+            self.linewidth = self.config.outer_border_linewidth
             self.draw_rectangle(Rectangle(self.outer_llcorner, self.outer_urcorner))
             self.linewidth = old_linewidth
 
@@ -160,7 +170,6 @@ class MapArea(TikzPicture):
 
         if not self.clip_points:
             # Clip points are map corners in paper coordinates: determine lat/long from those
-            # TODO: incorrect longitudes
             pts = [
                 # Backproject all four map corner points
                 self._map_to_sky(self.llcorner),
@@ -225,7 +234,7 @@ class MapArea(TikzPicture):
 
     def draw_grid(self):
         factory = CoordinateGridFactory(
-            self.coordinate_grid_config,
+            self.config.coordinate_grid_config,
             self.projection,
             self.borderdict,
             self.clipper,
@@ -235,7 +244,7 @@ class MapArea(TikzPicture):
         )
 
         old_linewidth = self.linewidth
-        self.linewidth = self.coordinate_grid_config.linewidth
+        self.linewidth = self.config.coordinate_grid_config.linewidth
 
         for m in factory.meridians:
             self.draw_grid_element(m.curve)

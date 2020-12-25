@@ -13,9 +13,9 @@ import io
 from skymap.geometry import Point
 from skymap.tikz import PaperSize, FontSize, PaperMargin
 
-
 BASEDIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 TEX_OUTPUT_FOLDER = os.path.join(BASEDIR, "temp")
+PDF_FOLDER = os.path.join(BASEDIR, "pdf")
 JINJA_TEMPLATE_FOLDER = os.path.join(BASEDIR, "skymap", "tikz", "templates")
 if platform.system() == "Darwin":
     os.environ["PATH"] = "/Library/TeX/texbin:" + os.environ["PATH"]
@@ -34,7 +34,7 @@ class Tikz(object):
 
     def __init__(
         self,
-        name,
+        name="none",
         papersize=PaperSize(),
         margins=PaperMargin(),
         normalsize=11,
@@ -46,6 +46,7 @@ class Tikz(object):
         self.name = name
         self.papersize = papersize
         self.margins = margins
+        self.normalsize = normalsize
         self.fontsizes = FontSize(normalsize)
         self.template = template or "tikz_base.j2"
 
@@ -85,6 +86,9 @@ class Tikz(object):
             self.pictures[-1].close()
 
         self.pictures.append(picture)
+
+    def new(self, name):
+        return Tikz(name, self.papersize, self.margins, self.normalsize, self.template)
 
     def render(self, filepath=None, open_pdf=False, extra_context=None, verbose=False):
         """Render the current document as a PDF file.

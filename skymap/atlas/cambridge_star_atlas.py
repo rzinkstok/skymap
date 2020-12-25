@@ -1,26 +1,25 @@
 import os
-from skymap.tikz import Tikz, PaperMargin, PaperSize
+from skymap.tikz import Tikz, PaperMargin, PaperSize, PDF_FOLDER
 from skymap.map import (
     MapLegend,
     MapArea,
-    MapBorderConfig,
+    MapConfig,
     CoordinateGridConfig,
     EquidistantConicProjection,
     EquidistantCylindricalProjection,
     AzimuthalEquidistantProjection,
 )
-from skymap.geometry import Point, Line, Label, SkyCoordDeg
+from skymap.geometry import Point, Line, Label
 
 
-BASEDIR = os.path.dirname(os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
-OUTPUT_FOLDER = os.path.join(BASEDIR, "pdf", "cambridge_star_atlas")
+OUTPUT_FOLDER = os.path.join(PDF_FOLDER, "cambridge_star_atlas")
 LATITUDE_RANGE = 56
 GALACTIC_ECLIPTIC_DASH_PATTERN = "densely dashed"
 LEGEND_WIDTH = 16
 
 
 class CambridgeStarAtlasPage(Tikz):
-    def __init__(self, name):
+    def __init__(self, name="none"):
         Tikz.__init__(
             self,
             name=name,
@@ -49,134 +48,103 @@ class CambridgeStarAtlasLegend(MapLegend):
         )
 
 
-class ChartConfig(object):
-    def __init__(self, center_longitude, center_latitude):
-        self.center_longitude = center_longitude
-        self.center_latitude = center_latitude
+def latitude_range_func(longitude, min_latitude, max_latitude):
+    """Used for azimuthal maps"""
+    offsets = {15: 10, 45: 1, 90: 0}
+    offset = 0
+    avg_latitude = 0.5 * (min_latitude + max_latitude)
 
+    for l in sorted(offsets.keys(), reverse=True):
+        if longitude % l == 0:
+            offset = offsets[l]
+            break
 
-class CambridgeStarAtlasMap(MapArea):
-    def __init__(self, tikz, chart_number):
-        p1 = tikz.llcorner
-        p2 = tikz.urcorner - Point(LEGEND_WIDTH, 0)
-
-        chart_config = self.get_chart_config(chart_number)
-        center_longitude = chart_config.center_longitude
-        center_latitude = chart_config.center_latitude
-
-        border_config = MapBorderConfig(True, True, 0.25, 0.5, 6, 5)
-        reference_scale = LATITUDE_RANGE / (p2.y - p1.y - 2 * border_config.vmargin)
-
-        coordinate_grid_config = self.get_coordinate_grid_config(center_latitude)
-
-        latitude_range_func = None
-        if center_latitude == 90 or center_latitude == -90:
-            latitude_range_func = self.latitude_range_func
-
-        projection = self.get_projection(
-            center_longitude, center_latitude, reference_scale
-        )
-
-        MapArea.__init__(
-            self,
-            tikz,
-            p1,
-            p2,
-            border_config,
-            coordinate_grid_config,
-            projection,
-            center_longitude,
-            center_latitude,
-            None,
-            None,
-            latitude_range_func,
-        )
-
-    def get_chart_config(self, chart_number):
-        if chart_number < 1:
-            raise ValueError
-        if chart_number == 1:
-            return ChartConfig(0, 90)
-        if chart_number == 20:
-            return ChartConfig(0, -90)
-        if chart_number < 8:
-            return ChartConfig(30 + (chart_number - 2) * 60, 45)
-        if chart_number < 14:
-            return ChartConfig(30 + (chart_number - 8) * 60, 0)
-        if chart_number < 20:
-            return ChartConfig(30 + (chart_number - 14) * 60, -45)
-        else:
-            raise ValueError
-
-    def get_projection(self, center_longitude, center_latitude, reference_scale):
-        if center_latitude == 0:
-            return EquidistantCylindricalProjection(
-                center_longitude,
-                reference_scale=reference_scale,
-                horizontal_stretch=0.958_695,
-                celestial=True,
-            )
-        elif center_latitude == 90 or center_latitude == -90:
-            return AzimuthalEquidistantProjection(
-                reference_longitude=center_longitude,
-                reference_scale=reference_scale,
-                celestial=True,
-                north=center_latitude > 0,
-            )
-        else:
-            if center_latitude > 0:
-                standard_parallel1 = 30
-                standard_parallel2 = 60
-            else:
-                standard_parallel1 = -60
-                standard_parallel2 = -30
-
-            return EquidistantConicProjection(
-                SkyCoordDeg(center_longitude, center_latitude),
-                standard_parallel1,
-                standard_parallel2,
-                reference_scale=reference_scale,
-                celestial=True,
-            )
-
-    def get_coordinate_grid_config(self, center_latitude):
-        coordinate_grid_config = CoordinateGridConfig()
-        if center_latitude == 90 or center_latitude == -90:
-            coordinate_grid_config.parallel_tick_borders = ["center"]
-            coordinate_grid_config.meridian_tick_borders = [
-                "left",
-                "bottom",
-                "right",
-                "top",
-            ]
-            coordinate_grid_config.parallel_center_labels = True
-            coordinate_grid_config.parallel_marked_tick_interval = 10
-            coordinate_grid_config.fixed_tick_reach = False
-            coordinate_grid_config.parallel_fontsize = "tiny"
-
-        return coordinate_grid_config
-
-    def latitude_range_func(self, longitude, min_latitude, max_latitude):
-        """Used for azimuthal maps"""
-        d = {15: 10, 45: 1, 90: 0}
-        offset = 0
-        avg_latitude = 0.5 * (min_latitude + max_latitude)
-
-        for l in sorted(d.keys(), reverse=True):
-            if longitude % l == 0:
-                offset = d[l]
-                break
-
-        if avg_latitude < 0:
-            return min_latitude + offset, max_latitude
-        else:
-            return min_latitude, max_latitude - offset
+    if avg_latitude < 0:
+        return min_latitude + offset, max_latitude
+    else:
+        return min_latitude, max_latitude - offset
 
 
 if __name__ == "__main__":
+    p = CambridgeStarAtlasPage()
+    cc = CoordinateGridConfig()
+    mc = MapConfig()
+    mc.llcorner = p.llcorner
+    mc.urcorner = p.urcorner - Point(LEGEND_WIDTH, 0)
+    mc.origin = None
+    mc.draw_inner_border = True
+    mc.draw_outer_border = True
+    mc.inner_border_linewidth = 0.25
+    mc.outer_border_linewidth = 0.5
+    mc.border_vmargin = 5
+    mc.border_hmargin = 6
+    mc.latitude_range = LATITUDE_RANGE
+    mc.horizontal_stretch = 1.0
+    mc.coordinate_grid_config = cc
+
     for chart_number in range(1, 21):
         name = f"{chart_number:02d}"
-        c = CambridgeStarAtlasPage(name)
-        CambridgeStarAtlasLegend(c, chart_number)
-        CambridgeStarAtlasMap(c, chart_number)
-        c.render(os.path.join(OUTPUT_FOLDER, f"{name}.pdf"))
+        p = p.new(name)
+        CambridgeStarAtlasLegend(p, chart_number)
+
+        if chart_number < 2:
+            mc.center_longitude = 0
+            mc.center_latitude = 90
+            mc.projection_class = AzimuthalEquidistantProjection
+            mc.latitude_range_func = latitude_range_func
+            mc.coordinate_grid_config.meridian_tick_borders = [
+                "left",
+                "right",
+                "top",
+                "bottom",
+            ]
+            mc.coordinate_grid_config.parallel_tick_borders = ["center"]
+            mc.coordinate_grid_config.parallel_center_labels = True
+            mc.coordinate_grid_config.parallel_marked_tick_interval = 10
+
+        elif chart_number < 8:
+            mc.center_longitude = 30 + (chart_number - 2) * 60
+            mc.center_latitude = 45
+            mc.projection_class = EquidistantConicProjection
+            mc.standard_parallel1 = 30
+            mc.standard_parallel2 = 60
+            mc.coordinate_grid_config.meridian_tick_borders = ["top", "bottom"]
+            mc.coordinate_grid_config.parallel_tick_borders = [
+                "left",
+                "center",
+                "right",
+            ]
+            mc.coordinate_grid_config.parallel_center_labels = False
+            mc.coordinate_grid_config.parallel_marked_tick_interval = 5
+            mc.coordinate_grid_config.fixed_tick_reach = True
+            mc.latitude_range_func = None
+
+        elif chart_number < 14:
+            mc.center_longitude = 30 + (chart_number - 8) * 60
+            mc.center_latitude = 0
+            mc.projection_class = EquidistantCylindricalProjection
+
+        elif chart_number < 20:
+            mc.center_longitude = 30 + (chart_number - 14) * 60
+            mc.center_latitude = -45
+            mc.projection_class = EquidistantConicProjection
+            mc.standard_parallel1 = -60
+            mc.standard_parallel2 = -30
+
+        elif chart_number < 21:
+            mc.center_longitude = 0
+            mc.center_latitude = -90
+            mc.projection_class = AzimuthalEquidistantProjection
+            mc.latitude_range_func = latitude_range_func
+            mc.coordinate_grid_config.meridian_tick_borders = [
+                "left",
+                "right",
+                "top",
+                "bottom",
+            ]
+            mc.coordinate_grid_config.parallel_tick_borders = ["center"]
+            mc.coordinate_grid_config.parallel_center_labels = True
+            mc.coordinate_grid_config.parallel_marked_tick_interval = 10
+
+        MapArea(p, mc)
+        p.render(os.path.join(OUTPUT_FOLDER, f"{name}.pdf"))

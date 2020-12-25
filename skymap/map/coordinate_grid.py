@@ -2,7 +2,7 @@ import math
 from astropy.coordinates import Longitude
 import astropy.units as u
 from skymap.geometry import Point, Line, Label, SkyCoordDeg
-from skymap.tikz import TikzPictureClipper
+from skymap.tikz import TikzPictureClipper, FontSize
 
 
 class GridLineConfig(object):
@@ -48,7 +48,7 @@ class CoordinateGridConfig(object):
         self.fixed_tick_reach = True
 
         # Labels
-        self.label_distance = 2 * self.marked_ticksize
+        self.label_distance = 1.5 * self.marked_ticksize
 
         self.rotate_meridian_labels = False
         self.meridian_labeltextfunc = None
@@ -303,8 +303,9 @@ class Meridian(GridLine):
         if m == 0:
             text = f"\\textbf{{{int(h)}}}\\raisebox{{0.3em}}{{\\tiny h}}"
         else:
-            text = f"{int(m)}\\raisebox{{0.3em}}{{\\nano m}}"
-            self.config.fontsize = "tiny"
+            sfont = FontSize().smaller(self.config.fontsize)
+            xsfont = FontSize().smaller(self.config.fontsize, 2)
+            text = f"\\{sfont} {int(m)}\\raisebox{{0.3em}}{{\\{xsfont} m}}"
         return text
 
 

@@ -20,7 +20,7 @@ class FontSize(OrderedDict):
         sizefunc (str): the type of generator function for the fontsize series
     """
 
-    SIZENAMES = (
+    FONTSIZES = (
         "nano",
         "miniscule",
         "tiny",
@@ -39,14 +39,14 @@ class FontSize(OrderedDict):
     def __init__(self, normalsize=11, sizefunc="exp"):
         OrderedDict.__init__(self)
         self.normalsize = normalsize
-        self.normalindex = self.SIZENAMES.index("normalsize")
+        self.normalindex = self.FONTSIZES.index("normalsize")
 
         try:
             self.sizefunc = getattr(self, "_" + sizefunc)
         except TypeError:
             self.sizefunc = sizefunc
 
-        for index, sn in enumerate(self.SIZENAMES):
+        for index, sn in enumerate(self.FONTSIZES):
             self[sn] = self.sizefunc(index - self.normalindex)
 
     def _exp(self, index):
@@ -60,6 +60,12 @@ class FontSize(OrderedDict):
         if index >= 0:
             return self._exp(index)
         return self._lin(index)
+
+    def larger(self, size, steps=1):
+        return self.FONTSIZES[self.FONTSIZES.index(size) + steps]
+
+    def smaller(self, size, steps=1):
+        return self.FONTSIZES[self.FONTSIZES.index(size) - steps]
 
 
 if __name__ == "__main__":
