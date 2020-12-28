@@ -215,6 +215,11 @@ class Point(object):
 
         return f"({x}mm,{y}mm)"
 
+    @property
+    def angle(self):
+        """Return the angle of the line from the origin to the point."""
+        return math.degrees(math.atan2(self.y, self.x))
+
 
 class Line(object):
     """A straight line in 2D between two points.
@@ -280,7 +285,7 @@ class Line(object):
         point_vector = point - self.p1
         ip = point_vector.x * self.vector.x + point_vector.y * self.vector.y
         comp = ip / self.length
-        if comp >= 0 and comp <= self.length:
+        if 0 <= comp <= self.length:
             return True
         return False
 
@@ -314,6 +319,9 @@ class Line(object):
     def reverse_path(self):
         """Returns the TikZ path string for the inverse line."""
         return f"{self.p2.coordinates}--{self.p1.coordinates}"
+
+    def reverse(self):
+        return Line(self.p2, self.p1)
 
 
 class Polygon(object):
@@ -455,8 +463,6 @@ class Arc(Circle):
         Circle.__init__(self, center, radius)
         self.start_angle = start_angle
         self.stop_angle = stop_angle
-        self.start_mp = 8 * start_angle / 360.0
-        self.stop_mp = 8 * stop_angle / 360.0
         sar = math.radians(self.start_angle)
         self.p1 = self.center + self.radius * Point(math.cos(sar), math.sin(sar))
         sar = math.radians(self.stop_angle)
@@ -514,6 +520,16 @@ class Arc(Circle):
     def reverse_path(self):
         """Returns the TikZ path string for the reverse arc."""
         return self._path(reverse=True)
+
+    def reverse(self):
+        return Arc(self.center, self.radius, self.stop_angle, self.start_angle)
+
+    @property
+    def point_halfway(self):
+        half_angle = 0.5 * (self.start_angle + self.stop_angle)
+        return self.center + self.radius * Point(
+            math.cos(half_angle), math.sin(half_angle)
+        )
 
 
 class Rectangle(object):

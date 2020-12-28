@@ -12,7 +12,7 @@ from skymap.geometry import Point, Rectangle, Label
 
 
 OUTPUT_FOLDER = os.path.join(PDF_FOLDER, "skyatlas2000")
-LATITUDE_RANGE = 40
+LATITUDE_RANGE = 40.001
 CONSTELLATION_DASH_PATTERN = "densely dotted"
 ECLIPTIC_DASH_PATTERN = "densely dashed"
 GALACTIC_DASH_PATTERN = "densely dash dot"
@@ -70,6 +70,9 @@ def latitude_range_func(longitude, min_latitude, max_latitude):
 
 
 if __name__ == "__main__":
+    if not os.path.exists(OUTPUT_FOLDER):
+        os.makedirs(OUTPUT_FOLDER)
+
     p = SkyAtlas2000Page()
     cc = CoordinateGridConfig()
     cc.rotate_parallel_labels = False
@@ -87,6 +90,7 @@ if __name__ == "__main__":
     mc.latitude_range = LATITUDE_RANGE
     mc.horizontal_stretch = 1.0
     mc.coordinate_grid_config = cc
+    mc.clip_at_border = True
 
     for chart_number in range(1, 27):
         name = f"{chart_number:02d}"
@@ -94,6 +98,7 @@ if __name__ == "__main__":
         SkyAtlas2000Legend(p, chart_number)
 
         if chart_number < 4:
+            # North pole conics
             mc.center_longitude = 90 + 0.8485 + (chart_number - 1) * 120
             mc.center_latitude = 70
             mc.projection_class = EquidistantConicProjection
@@ -107,8 +112,10 @@ if __name__ == "__main__":
             ]
             mc.coordinate_grid_config.parallel_tick_borders = ["top"]
             mc.origin = mc.map_llcorner + Point(132, 0.5 * mc.map_height)
+            mc.coordinate_grid_config.polar_tick = True
 
         elif chart_number < 10:
+            # North conics
             mc.center_longitude = 30 + (chart_number - 4) * 60
             mc.center_latitude = 37
             mc.latitude_range_func = None
@@ -117,14 +124,17 @@ if __name__ == "__main__":
             mc.coordinate_grid_config.meridian_tick_borders = ["bottom", "top"]
             mc.coordinate_grid_config.parallel_tick_borders = ["left", "right"]
             mc.origin = None
+            mc.coordinate_grid_config.polar_tick = False
 
         elif chart_number < 18:
+            # Equatorials
             mc.center_longitude = 30 + (chart_number - 10) * 45
             mc.center_latitude = 0
             mc.projection_class = EquidistantCylindricalProjection
-            mc.horizontal_stretch = 0.9754
+            mc.horizontal_stretch = mc.reference_scale / (60.001 / mc.map_width)
 
         elif chart_number < 24:
+            # South conics
             mc.center_longitude = 30 + (chart_number - 18) * 60
             mc.center_latitude = -37
             mc.standard_parallel1 = -47
@@ -133,6 +143,7 @@ if __name__ == "__main__":
             mc.horizontal_stretch = 1.0
 
         elif chart_number < 27:
+            # South pole conics
             mc.center_longitude = 90 + 0.8485 + (chart_number - 24) * 120
             mc.center_latitude = -70
             mc.standard_parallel1 = -90

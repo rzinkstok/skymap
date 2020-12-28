@@ -1,6 +1,6 @@
 import unittest
 from skymap.tikz import Tikz, TikzPicture
-from skymap.geometry import Point, Circle, Rectangle
+from skymap.geometry import Point, Circle, Arc, Rectangle
 
 
 class TikzTest(unittest.TestCase):
@@ -46,4 +46,13 @@ class TikzTest(unittest.TestCase):
             p5 = p2.rotate(90, p3)
             p.draw_polygon([p2, p4, p5, p3])
 
+        t.render()
+
+    def test_arc(self):
+        t = Tikz("tikz_test4")
+        with TikzPicture(t, Point(20, 20), Point(190, 277)) as p:
+            p.draw_arc(Arc(Point(0, 0), 50, 0, 45))
+            p.draw_arc(Arc(Point(0, 0), 46, -45, 45))
+            p.draw_arc(Arc(Point(0, 0), 42, 270, 45))
+            p.draw_arc(Arc(Point(0, 0), 38, 45, 270))
         t.render()

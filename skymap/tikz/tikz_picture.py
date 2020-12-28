@@ -50,26 +50,33 @@ class TikzPictureClipper(object):
 
     def clip_line(self, line):
         intersections = self.line_intersect_borders(line)
-
         if not intersections:
-            if self.point_inside(line.p1):
-                return [line], [(None, None)], [(None, None)]
+            if self.point_inside(0.5 * (line.p1 + line.p2)):
+                return [line], [(None, None)]
             else:
-                return [None], [], []
+                return [None], []
 
         if len(intersections) == 1:
-            if self.point_inside(line.p1):
-                p2, border2 = intersections[0]
+            if self.point_inside(0.5 * (line.p1 + intersections[0][0])):
                 p1, border1 = line.p1, None
-            else:
+                p2, border2 = intersections[0]
+            elif self.point_inside(0.5 * (line.p2 + intersections[0][0])):
                 p1, border1 = intersections[0]
                 p2, border2 = line.p2, None
+            else:
+                raise RuntimeError("Inconsistent intersection")
         else:
-            p1, border1 = intersections[0]
-            p2, border2 = intersections[1]
+            d1 = line.p1.distance(intersections[0][0])
+            d2 = line.p2.distance(intersections[0][0])
+            if d1 < d2:
+                p1, border1 = intersections[0]
+                p2, border2 = intersections[1]
+            else:
+                p1, border1 = intersections[1]
+                p2, border2 = intersections[0]
 
         line = Line(p1, p2)
-        return [line], [(border1, border2)], [(line.angle + 180, line.angle)]
+        return [line], [(border1, border2)]
 
     def circle_intersect_borders(self, circle):
         crossings = []
@@ -95,9 +102,9 @@ class TikzPictureClipper(object):
         if not intersections:
             # Only option to check is whether the circle lies fully inside
             if self.circle_inside(circle):
-                return [circle], [(None, None)], [(None, None)]
+                return [circle], [(None, None)]
             else:
-                return [], [], []
+                return [], []
         else:
             arcs = []
             borders = []
@@ -118,7 +125,7 @@ class TikzPictureClipper(object):
                     borders.append((b1, b2))
                     angles.append((a1 - 90, a2 + 90))
 
-            return arcs, borders, angles
+            return arcs, borders
 
     def clip(self, item):
         if isinstance(item, Line):
@@ -264,6 +271,7 @@ class TikzPicture(object):
         Args:
             path (str): the clipping path to use
         """
+        self.open()
         if path is None:
             path = self.bounding_box.path
         self.comment("Clipping")
@@ -499,7 +507,7 @@ class TikzPicture(object):
 
         p = self.point_to_coordinates(label.point)
 
-        textheight = f"\\{label.fontsize}textheight"
+        textheight = f"1.3 * \\{label.fontsize}textheight"
         textdepth = f"\\{label.fontsize}textdepth"
 
         if label.bold:
@@ -515,6 +523,7 @@ class TikzPicture(object):
         node_options = f"{label.position}={label.distance}mm, rotate={label.angle}, text={self.color}, text height={textheight} mm, text depth={textdepth} mm{labelfill}"
         node_text = f"\\{label.fontsize} {text}"
 
+        self.fill_circle(Circle(label.point, 0.25))
         self.texstring += f"\\draw {p} node[{node_options}] {{{node_text}}};\n"
 
     def fill_circle(self, circle, delay_write=False):

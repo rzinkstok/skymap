@@ -238,6 +238,7 @@ class EquidistantConicProjection(Projection):
         standard_parallel1,
         standard_parallel2,
         reference_scale=50,
+        horizontal_stretch=1.0,
         celestial=False,
     ):
         """Equidistant conic map projection.
@@ -258,6 +259,7 @@ class EquidistantConicProjection(Projection):
             standard_parallel1,
             standard_parallel2,
             reference_scale,
+            horizontal_stretch,
             celestial,
         )
 
@@ -281,25 +283,23 @@ class EquidistantConicProjection(Projection):
     def _calculate_parallel_circle_center(self):
         """Calculates the center of the parallel circles."""
         s0 = SkyCoordDeg(self.center_longitude, 0)
-        s1 = SkyCoordDeg(self.center_longitude, math.fabs(math.degrees(self.G)) - 90)
         s3 = SkyCoordDeg(self.center_longitude, numpy.sign(self.center_latitude) * 90)
 
         p0 = self.project(s0)
-        p1 = self.project(s1)
+        p1 = self.project(
+            longitude=self.center_longitude,
+            latitude=math.fabs(math.degrees(self.G)) - 90,
+        )
         p3 = self.project(s3)
 
         delta = numpy.sign(self.center_latitude) * (p1.y - p0.y)
 
         self.parallel_circle_center = Point(0, p3.y + delta)
 
-    # @property
-    # def center(self):
-    #     """The center of the projection."""
-    #     return SkyCoordDeg(self.center_longitude, self.center_latitude)
-
-    def project(self, skycoord):
-        longitude = self.reduce_longitude(skycoord.ra.degree)
-        latitude = skycoord.dec.degree
+    def project(self, skycoord=None, longitude=None, latitude=None):
+        if skycoord is not None:
+            longitude = self.reduce_longitude(skycoord.ra.degree)
+            latitude = skycoord.dec.degree
 
         rho = (self.G - math.radians(latitude)) / math.radians(self.reference_scale)
         theta = math.radians(self.n * (longitude - self.center_longitude))

@@ -15,8 +15,13 @@ class MapLegend(TikzPicture):
 class MapConfig(object):
     def __init__(self):
         # Variable for each map
-        self.center_longitude = None
-        self.center_latitude = None
+        self._center_longitude = None
+        self._center_latitude = None
+        self.min_longitude = None
+        self.max_longitude = None
+        self.min_latitude = None
+        self.max_latitude = None
+        self.clipbox = None
 
         # Variable
         self.latitude_range_func = None
@@ -36,7 +41,28 @@ class MapConfig(object):
         self.outer_border_linewidth = None
         self.border_vmargin = None
         self.border_hmargin = None
+        self.clip_at_border = None
         self.latitude_range = None
+
+    @property
+    def center_longitude(self):
+        return self._center_longitude
+
+    @center_longitude.setter
+    def center_longitude(self, val):
+        if self.coordinate_grid_config is not None:
+            self.coordinate_grid_config.center_longitude = val
+        self._center_longitude = val
+
+    @property
+    def center_latitude(self):
+        return self._center_latitude
+
+    @center_latitude.setter
+    def center_latitude(self, val):
+        if self.coordinate_grid_config is not None:
+            self.coordinate_grid_config.center_latitude = val
+        self._center_latitude = val
 
     @property
     def map_width(self):
@@ -66,6 +92,7 @@ class MapConfig(object):
             standard_parallel1=self.standard_parallel1,
             standard_parallel2=self.standard_parallel2,
             reference_scale=self.reference_scale,
+            horizontal_stretch=self.horizontal_stretch,
             celestial=True,
         )
 
@@ -149,7 +176,11 @@ class MapArea(TikzPicture):
             self.draw_rectangle(Rectangle(self.outer_llcorner, self.outer_urcorner))
             self.linewidth = old_linewidth
 
-        self.draw_grid()
+        if self.config.clipbox is not None:
+            with self.clip(self.config.clipbox.path):
+                self.draw_grid()
+        else:
+            self.draw_grid()
 
     def _sky_to_map(self, s):
         return self.projection.project(s)
@@ -168,7 +199,7 @@ class MapArea(TikzPicture):
         """
         # The origin corresponds to center longitude and latitude
 
-        if not self.clip_points:
+        if self.config.clip_at_border:
             # Clip points are map corners in paper coordinates: determine lat/long from those
             pts = [
                 # Backproject all four map corner points
@@ -187,8 +218,8 @@ class MapArea(TikzPicture):
 
         else:
             # Clip points are sky coordinates
-            longitudes = [s.ra.degree for s in self.clip_points]
-            latitudes = [s.dec.degree for s in self.clip_points]
+            longitudes = [self.config.min_longitude, self.config.max_longitude]
+            latitudes = [self.config.min_latitude, self.config.max_latitude]
 
         # Make sure the center longitudes and latitudes are included
         longitudes.append(self.center_longitude)
@@ -215,8 +246,8 @@ class MapArea(TikzPicture):
             self.max_longitude = 360
 
         print("Grid range")
-        print(self.min_longitude, self.max_longitude)
-        print(self.min_latitude, self.max_latitude)
+        print(f"Longitude: {self.min_longitude} to {self.max_longitude}")
+        print(f"Latitude: {self.min_latitude} to {self.max_latitude}")
 
     def draw_grid_element(self, item):
         if item is None:
@@ -237,6 +268,7 @@ class MapArea(TikzPicture):
             self.config.coordinate_grid_config,
             self.projection,
             self.borderdict,
+            self.config.clip_at_border,
             self.clipper,
             (self.min_longitude, self.max_longitude),
             (self.min_latitude, self.max_latitude),
@@ -257,9 +289,12 @@ class MapArea(TikzPicture):
             self.draw_grid_element(p.curve)
             self.draw_grid_element(p.tick1)
             self.draw_grid_element(p.tick2)
-            self.draw_grid_element(p.centertick)
+            self.draw_grid_element(p.internal_tick)
             self.draw_grid_element(p.label1)
             self.draw_grid_element(p.label2)
-            self.draw_grid_element(p.centerlabel)
+            self.draw_grid_element(p.internal_label)
+
+        self.draw_grid_element(factory.polar_tick)
+        self.draw_grid_element(factory.polar_label)
 
         self.linewidth = old_linewidth

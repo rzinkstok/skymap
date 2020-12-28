@@ -81,6 +81,7 @@ if __name__ == "__main__":
     mc.latitude_range = LATITUDE_RANGE
     mc.horizontal_stretch = 1.0
     mc.coordinate_grid_config = cc
+    mc.clip_at_border = True
 
     for chart_number in range(1, 21):
         name = f"{chart_number:02d}"
@@ -88,6 +89,7 @@ if __name__ == "__main__":
         CambridgeStarAtlasLegend(p, chart_number)
 
         if chart_number < 2:
+            # North pole azimuthal
             mc.center_longitude = 0
             mc.center_latitude = 90
             mc.projection_class = AzimuthalEquidistantProjection
@@ -98,33 +100,46 @@ if __name__ == "__main__":
                 "top",
                 "bottom",
             ]
-            mc.coordinate_grid_config.parallel_tick_borders = ["center"]
-            mc.coordinate_grid_config.parallel_center_labels = True
+            mc.coordinate_grid_config.parallel_tick_borders = ["internal"]
+            mc.coordinate_grid_config.parallel_internal_labels = True
             mc.coordinate_grid_config.parallel_marked_tick_interval = 10
 
         elif chart_number < 8:
+            # North conics
             mc.center_longitude = 30 + (chart_number - 2) * 60
             mc.center_latitude = 45
             mc.projection_class = EquidistantConicProjection
             mc.standard_parallel1 = 30
             mc.standard_parallel2 = 60
-            mc.coordinate_grid_config.meridian_tick_borders = ["top", "bottom"]
+            mc.coordinate_grid_config.meridian_tick_borders = ["bottom", "top"]
             mc.coordinate_grid_config.parallel_tick_borders = [
-                "left",
-                "center",
                 "right",
+                "internal",
+                "left",
             ]
-            mc.coordinate_grid_config.parallel_center_labels = False
+            mc.coordinate_grid_config.parallel_internal_labels = False
             mc.coordinate_grid_config.parallel_marked_tick_interval = 5
             mc.coordinate_grid_config.fixed_tick_reach = True
             mc.latitude_range_func = None
 
         elif chart_number < 14:
+            # Equatorial
             mc.center_longitude = 30 + (chart_number - 8) * 60
             mc.center_latitude = 0
             mc.projection_class = EquidistantCylindricalProjection
+            mc.coordinate_grid_config.meridian_tick_borders = ["bottom", "top"]
+            mc.coordinate_grid_config.parallel_tick_borders = [
+                "right",
+                "internal",
+                "left",
+            ]
+            mc.coordinate_grid_config.parallel_internal_labels = False
+            mc.coordinate_grid_config.parallel_marked_tick_interval = 5
+            mc.coordinate_grid_config.fixed_tick_reach = True
+            mc.latitude_range_func = None
 
         elif chart_number < 20:
+            # South conics
             mc.center_longitude = 30 + (chart_number - 14) * 60
             mc.center_latitude = -45
             mc.projection_class = EquidistantConicProjection
@@ -132,6 +147,7 @@ if __name__ == "__main__":
             mc.standard_parallel2 = -30
 
         elif chart_number < 21:
+            # South pole azimuthal
             mc.center_longitude = 0
             mc.center_latitude = -90
             mc.projection_class = AzimuthalEquidistantProjection
@@ -142,8 +158,8 @@ if __name__ == "__main__":
                 "top",
                 "bottom",
             ]
-            mc.coordinate_grid_config.parallel_tick_borders = ["center"]
-            mc.coordinate_grid_config.parallel_center_labels = True
+            mc.coordinate_grid_config.parallel_tick_borders = ["internal"]
+            mc.coordinate_grid_config.parallel_internal_labels = True
             mc.coordinate_grid_config.parallel_marked_tick_interval = 10
 
         MapArea(p, mc)
