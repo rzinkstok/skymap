@@ -66,8 +66,20 @@ def latitude_range_func(longitude, min_latitude, max_latitude):
 
 
 if __name__ == "__main__":
+    if not os.path.exists(OUTPUT_FOLDER):
+        os.makedirs(OUTPUT_FOLDER)
+
     p = CambridgeStarAtlasPage()
+
     cc = CoordinateGridConfig()
+    cc.rotate_parallel_labels = True
+    cc.rotate_poles = False
+    cc.pole_marker_size = 2.5
+    cc.galactic_pen_style = "densely dashed"
+    cc.galactic_tick_interval = 10
+    cc.ecliptic_pen_style = "densely dashed"
+    cc.ecliptic_tick_interval = 10
+
     mc = MapConfig()
     mc.llcorner = p.llcorner
     mc.urcorner = p.urcorner - Point(LEGEND_WIDTH, 0)
@@ -85,6 +97,8 @@ if __name__ == "__main__":
 
     for chart_number in range(1, 21):
         name = f"{chart_number:02d}"
+        print()
+        print(f"Chart {name}")
         p = p.new(name)
         CambridgeStarAtlasLegend(p, chart_number)
 

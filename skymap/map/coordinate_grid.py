@@ -1,16 +1,30 @@
 import math
+import numpy
+
 from astropy.coordinates import Longitude
 import astropy.units as u
+
 from skymap.geometry import (
     Point,
     Line,
     Label,
     Circle,
     Arc,
+    Polygon,
     SkyCoordDeg,
     ensure_angle_range,
 )
-from skymap.tikz import TikzPictureClipper, FontSize
+from skymap.tikz import FontSize
+
+
+GALACTIC_EQUATOR = [
+    SkyCoordDeg(longitude, 0, frame="galactic").icrs
+    for longitude in numpy.arange(0, 360.1, 0.05)
+]
+ECLIPTIC_EQUATOR = [
+    SkyCoordDeg(longitude, 0, frame="barycentricmeanecliptic").icrs
+    for longitude in numpy.arange(0, 360.1, 0.05)
+]
 
 
 class GridLineConfig(object):
@@ -79,7 +93,13 @@ class CoordinateGridConfig(object):
         # Poles
         self.polar_tick = False
         self.rotate_poles = True
-        self.pole_marker_size = 1
+        self.pole_marker_size = 2.5
+
+        # Coordinate systems
+        self.galactic_pen_style = "dashed"
+        self.galactic_tick_interval = 10
+        self.ecliptic_pen_style = "dashed"
+        self.ecliptic_tick_interval = 10
 
     @property
     def meridian_config(self):
@@ -441,6 +461,13 @@ class Parallel(GridLine):
         return self.label(point, self.labelangle2, self.labelpos2)
 
 
+class EquatorialMeridian(object):
+    def __init__(self, longitude, tick, label):
+        self.longitude = longitude
+        self.tick = tick
+        self.label = label
+
+
 class CoordinateGridFactory(object):
     def __init__(
         self,
@@ -461,6 +488,17 @@ class CoordinateGridFactory(object):
         self.min_longitude, self.max_longitude = longitude_range
         self.min_latitude, self.max_latitude = latitude_range
         self.latitude_range_func = latitude_range_func
+
+    def inside_coordinate_range(self, sp):
+        ra = ensure_angle_range(
+            sp.ra.degree, 0.5 * (self.min_longitude + self.max_longitude)
+        )
+        dec = ensure_angle_range(
+            sp.dec.degree, 0.5 * (self.min_latitude + self.max_latitude)
+        )
+        longitude_inside = self.min_longitude <= ra <= self.max_longitude
+        latitude_inside = self.min_latitude <= dec <= self.max_latitude
+        return longitude_inside and latitude_inside
 
     @property
     def meridians(self):
@@ -497,8 +535,6 @@ class CoordinateGridFactory(object):
         current_latitude = math.ceil(self.min_latitude / interval) * interval
 
         # Internal ticks and labels
-        clipper = TikzPictureClipper(self.borderdict)
-
         internal_longitude = self.config.center_longitude
         if self.config.internal_label_longitude is not None:
             internal_longitude = self.config.internal_label_longitude
@@ -519,7 +555,7 @@ class CoordinateGridFactory(object):
             internal_point = self.projection.project(
                 SkyCoordDeg(internal_longitude, current_latitude)
             )
-            if not clipper.point_inside(internal_point):
+            if not self.clipper.point_inside(internal_point):
                 internal_point = None
 
             if self.clip_at_border:
@@ -599,3 +635,140 @@ class CoordinateGridFactory(object):
             position=pos,
             fill="white",
         )
+
+    def equator(self, points):
+        lats = [p.dec.degree for p in points]
+        max_lat = max(lats)
+        min_lat = min(lats)
+
+        if self.min_latitude > max_lat or self.max_latitude < min_lat:
+            return None
+
+        points_to_draw = []
+        inside = False
+        second_half = None
+        for i in range(len(points)):
+            sp = points[i]
+
+            if self.clip_at_border:
+                # Check projected point
+                p = self.projection.project(sp)
+                pinside = self.clipper.point_inside(p)
+                if pinside:
+                    points_to_draw.append(p)
+            else:
+                # Check sky coordinates
+                pinside = self.inside_coordinate_range(sp)
+                if pinside:
+                    p = self.projection.project(sp)
+                    points_to_draw.append(p)
+
+            if inside and not pinside:
+                # Gap! save the location
+                second_half = len(points_to_draw)
+            inside = pinside
+
+        if second_half is not None:
+            points_to_draw = points_to_draw[second_half:] + points_to_draw[:second_half]
+
+        if points_to_draw:
+            # Add border points
+            if self.clip_at_border:
+                p1 = points_to_draw[0] - 5 * (points_to_draw[1] - points_to_draw[0])
+                p2 = points_to_draw[0]
+                intersections1 = self.clipper.line_intersect_borders(Line(p1, p2))
+
+                p1 = points_to_draw[-1] + 5 * (points_to_draw[-1] - points_to_draw[-2])
+                p2 = points_to_draw[-1]
+                intersections2 = self.clipper.line_intersect_borders(Line(p1, p2))
+
+                bp1 = intersections1[0][0]
+                bp2 = intersections2[0][0]
+
+                points_to_draw = [bp1] + points_to_draw + [bp2]
+            else:
+                pass
+
+            return Polygon(points_to_draw, closed=False)
+        else:
+            return None
+
+    @property
+    def galactic_equator(self):
+        return self.equator(GALACTIC_EQUATOR)
+
+    @property
+    def ecliptic_equator(self):
+        return self.equator(ECLIPTIC_EQUATOR)
+
+    def equatorial_meridian(self, tick_interval, frame):
+        if tick_interval is not None:
+            for i in range(int(360 / int(tick_interval))):
+                l = i * tick_interval
+                sp = SkyCoordDeg(l, 0, frame=frame).icrs
+                if self.clip_at_border:
+                    p = self.projection.project(sp)
+                    if not self.clipper.point_inside(p):
+                        continue
+                else:
+                    if not self.inside_coordinate_range(sp):
+                        continue
+                    p = self.projection.project(sp)
+
+                v = self.projection.project(SkyCoordDeg(l + 1, 0, frame=frame).icrs) - p
+                v = v.rotate(90) / v.norm
+                tp1 = p + 0.5 * v
+                tp2 = p - 0.5 * v
+                lp = p + 0.4 * v
+                tick = Line(tp1, tp2)
+                label = Label(
+                    lp,
+                    text=f"\\textit{{{l}\\textdegree}}",
+                    fontsize="miniscule",
+                    angle=tick.angle - 90,
+                    position="below",
+                    fill="white",
+                )
+                yield EquatorialMeridian(l, tick, label)
+
+    @property
+    def galactic_meridians(self):
+        return self.equatorial_meridian(self.config.galactic_tick_interval, "galactic")
+
+    @property
+    def ecliptic_meridians(self):
+        return self.equatorial_meridian(
+            self.config.ecliptic_tick_interval, "barycentricmeanecliptic"
+        )
+
+    def pole_markers(self, frame):
+        for latitude in [-90, 90]:
+            sp = SkyCoordDeg(0, latitude, frame=frame).icrs
+            p = self.projection.project(sp)
+            if self.config.rotate_poles:
+                delta1 = (
+                    self.projection.project(
+                        SkyCoordDeg(sp.ra.degree + 1, sp.dec.degree)
+                    )
+                    - p
+                )
+                delta2 = (
+                    self.projection.project(
+                        SkyCoordDeg(sp.ra.degree, sp.dec.degree + 1)
+                    )
+                    - p
+                )
+            else:
+                delta1 = Point(1, 0)
+                delta2 = Point(0, 1)
+
+            delta1 *= self.config.pole_marker_size / delta1.norm
+            delta2 *= self.config.pole_marker_size / delta2.norm
+
+            if self.clipper.point_inside(p):
+                yield Line(p + delta1, p - delta1)
+                yield Line(p + delta2, p - delta2)
+
+    @property
+    def galactic_poles(self):
+        return self.pole_markers("galactic")

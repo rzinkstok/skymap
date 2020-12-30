@@ -74,9 +74,17 @@ if __name__ == "__main__":
         os.makedirs(OUTPUT_FOLDER)
 
     p = SkyAtlas2000Page()
+
     cc = CoordinateGridConfig()
     cc.rotate_parallel_labels = False
     cc.parallel_fontsize = "scriptsize"
+    cc.rotate_poles = False
+    cc.pole_marker_size = 2.5
+    cc.galactic_pen_style = "densely dash dot"
+    cc.galactic_tick_interval = 5
+    cc.ecliptic_pen_style = "densely dashed"
+    cc.ecliptic_tick_interval = 5
+
     mc = MapConfig()
     mc.llcorner = p.llcorner
     mc.urcorner = p.lrcorner + Point(0, 299)
@@ -94,6 +102,8 @@ if __name__ == "__main__":
 
     for chart_number in range(1, 27):
         name = f"{chart_number:02d}"
+        print()
+        print(f"Chart {name}")
         p = p.new(name)
         SkyAtlas2000Legend(p, chart_number)
 
@@ -152,6 +162,7 @@ if __name__ == "__main__":
             mc.coordinate_grid_config.meridian_tick_borders = ["left", "top", "right"]
             mc.coordinate_grid_config.parallel_tick_borders = ["bottom"]
             mc.origin = mc.map_llcorner + Point(mc.map_width - 132, 0.5 * mc.map_height)
+            mc.coordinate_grid_config.polar_tick = True
 
         MapArea(p, mc)
         p.render(os.path.join(OUTPUT_FOLDER, f"{name}.pdf"))

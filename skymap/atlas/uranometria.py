@@ -640,7 +640,11 @@ if __name__ == "__main__":
     cc.rotate_meridian_labels = True
     cc.meridian_labeltextfunc = azimuthal_meridian_label
     cc.rotate_poles = True
-    cc.pole_marker_size = 1
+    cc.pole_marker_size = 2.5
+    cc.galactic_pen_style = "densely dash dot"
+    cc.galactic_tick_interval = 1
+    cc.ecliptic_pen_style = "densely dashed"
+    cc.ecliptic_tick_interval = 1
 
     mc = MapConfig()
     mc.draw_inner_border = False
@@ -654,6 +658,8 @@ if __name__ == "__main__":
     for chart_number in range(1, 221):
         for subchart_number in ["A", "B"]:
             name = f"{chart_number:02d}{subchart_number}"
+            print()
+            print(f"Chart {name}")
             left = subchart_number == "A"
 
             if left:
@@ -777,8 +783,8 @@ if __name__ == "__main__":
                 continue
 
             else:
-                if chart_number not in [2, 219]:
-                    continue
+                # if chart_number not in [2, 219]:
+                #     continue
 
                 cc = conic_config(chart_number)
 

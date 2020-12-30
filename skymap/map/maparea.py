@@ -1,5 +1,5 @@
 from skymap.tikz import TikzPicture
-from skymap.geometry import Point, Line, Circle, Arc, Rectangle, Label
+from skymap.geometry import Point, Line, Circle, Arc, Rectangle, Label, Polygon
 from skymap.map import CoordinateGridFactory, AzimuthalEquidistantProjection
 
 
@@ -249,9 +249,14 @@ class MapArea(TikzPicture):
         print(f"Longitude: {self.min_longitude} to {self.max_longitude}")
         print(f"Latitude: {self.min_latitude} to {self.max_latitude}")
 
-    def draw_grid_element(self, item):
+    def draw_grid_element(self, item, pen_style=None):
         if item is None:
             return
+
+        prev_pen_style = self.pen_style
+        if pen_style is not None:
+            self.pen_style = pen_style
+
         if isinstance(item, Line):
             self.draw_line(item)
         elif isinstance(item, Arc):
@@ -260,8 +265,12 @@ class MapArea(TikzPicture):
             self.draw_circle(item)
         elif isinstance(item, Label):
             self.draw_label(item)
+        elif isinstance(item, Polygon):
+            self.draw_polygon(item)
         else:
-            raise NotImplementedError
+            raise NotImplementedError(f"Cannot draw {item}")
+
+        self.pen_style = prev_pen_style
 
     def draw_grid(self):
         factory = CoordinateGridFactory(
@@ -279,6 +288,7 @@ class MapArea(TikzPicture):
         self.linewidth = self.config.coordinate_grid_config.linewidth
 
         for m in factory.meridians:
+            self.comment(f"Meridian at {m.coordinate}")
             self.draw_grid_element(m.curve)
             self.draw_grid_element(m.tick1)
             self.draw_grid_element(m.tick2)
@@ -286,6 +296,7 @@ class MapArea(TikzPicture):
             self.draw_grid_element(m.label2)
 
         for p in factory.parallels:
+            self.comment(f"Parallel at {p.coordinate}")
             self.draw_grid_element(p.curve)
             self.draw_grid_element(p.tick1)
             self.draw_grid_element(p.tick2)
@@ -294,7 +305,34 @@ class MapArea(TikzPicture):
             self.draw_grid_element(p.label2)
             self.draw_grid_element(p.internal_label)
 
+        self.comment("Polar ticks")
         self.draw_grid_element(factory.polar_tick)
         self.draw_grid_element(factory.polar_label)
+
+        self.comment("Galactic equator")
+        self.draw_grid_element(
+            factory.galactic_equator,
+            pen_style=self.config.coordinate_grid_config.galactic_pen_style,
+        )
+
+        self.comment("Ecliptic equator")
+        self.draw_grid_element(
+            factory.ecliptic_equator,
+            pen_style=self.config.coordinate_grid_config.ecliptic_pen_style,
+        )
+
+        for p in factory.galactic_meridians:
+            self.comment(f"Galactic equator tick at {p.longitude}")
+            self.draw_grid_element(p.tick)
+            self.draw_grid_element(p.label)
+
+        self.comment(f"Galactic poles")
+        for p in factory.galactic_poles:
+            self.draw_grid_element(p)
+
+        for p in factory.ecliptic_meridians:
+            self.comment(f"Ecliptic equator tick at {p.longitude}")
+            self.draw_grid_element(p.tick)
+            self.draw_grid_element(p.label)
 
         self.linewidth = old_linewidth

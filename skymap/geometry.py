@@ -162,7 +162,7 @@ class Point(object):
     def __rmul__(self, other):
         return self.__mul__(other)
 
-    def __div__(self, other):
+    def __truediv__(self, other):
         other = float(other)
         return self.__class__(self.x / other, self.y / other)
 

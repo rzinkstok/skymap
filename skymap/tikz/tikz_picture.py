@@ -1,6 +1,6 @@
 import math
 from contextlib import contextmanager
-from skymap.geometry import Point, Line, Rectangle, Circle, Arc
+from skymap.geometry import Point, Line, Rectangle, Circle, Arc, Polygon
 
 
 class DrawError(Exception):
@@ -187,8 +187,9 @@ class TikzPicture(object):
         self.height = p2.y - p1.y
 
         self.texstring = ""
-        self._dotted = False
-        self._dashed = False
+        self.pen_style = None
+        # self._dotted = False
+        # self._dashed = False
         self.linewidth = 0.5
         self.color = "black"
         self.opened = False
@@ -332,44 +333,43 @@ class TikzPicture(object):
     # Draw options
     @property
     def dotted(self):
-        return self._dotted
-
-    @dotted.setter
-    def dotted(self, value):
-        self._dashed = not value
-        self._dotted = value
+        return self.pen_style == "dotted"
 
     @property
     def dashed(self):
-        return self._dashed
-
-    @dashed.setter
-    def dashed(self, value):
-        self._dotted = not value
-        self._dashed = value
+        return self.pen_style == "dashed"
 
     def solid_pen(self):
         """Set the pen style to solid."""
-        self.dashed = False
-        self.dotted = False
+        self.pen_style = None
 
     def dotted_pen(self):
         """Set the pen style to dotted."""
-        self.dotted = True
+        self.pen_style = "dotted"
+
+    def densely_dotted_pen(self):
+        """Set the pen style to densely dotted."""
+        self.pen_style = "densely dotted"
 
     def dashed_pen(self):
         """Set the pen style to dashed."""
-        self.dashed = True
+        self.pen_style = "dashed"
+
+    def densely_dashed_pen(self):
+        """Set the pen style to densely dashed."""
+        self.pen_style = "densely dashed"
+
+    def densely_dash_dot_pen(self):
+        """Set the pen style to densely dash dot."""
+        self.pen_style = "densely dash dot"
 
     def draw_options(self):
         """Returns the draw options currently set as a TikZ string."""
         options = "["
         options += f"line width={self.linewidth}pt,"
         options += self.color
-        if self._dotted:
-            options += ",dotted"
-        elif self._dashed:
-            options += ",dashed"
+        if self.pen_style:
+            options += f",{self.pen_style}"
         options += "]"
         return options
 
@@ -401,7 +401,7 @@ class TikzPicture(object):
         opts = self.draw_options()
         self.texstring += f"\\draw {opts} {path};\n"
 
-    def draw_polygon(self, points, cycle=False, delay_write=False):
+    def draw_polygon(self, polygon, cycle=False, delay_write=False):
         """Draw a polygon connecting the given points.
 
         Args:
@@ -412,7 +412,7 @@ class TikzPicture(object):
         self.open()
         opts = self.draw_options()
         cmd = f"\\draw {opts}"
-        for p in points:
+        for p in polygon.points:
             cmd += self.point_to_coordinates(p)
             cmd += "--"
         if cycle:
@@ -481,7 +481,7 @@ class TikzPicture(object):
             delay_write:
         """
         self.open()
-        self.draw_polygon(arc.interpolated_points(), delay_write=delay_write)
+        self.draw_polygon(Polygon(arc.interpolated_points()), delay_write=delay_write)
 
     def draw_bounding_box(self):
         """Draw a bounding box around the picture.
@@ -507,7 +507,7 @@ class TikzPicture(object):
 
         p = self.point_to_coordinates(label.point)
 
-        textheight = f"1.3 * \\{label.fontsize}textheight"
+        textheight = f"1.1 * \\{label.fontsize}textheight"
         textdepth = f"\\{label.fontsize}textdepth"
 
         if label.bold:
@@ -523,7 +523,7 @@ class TikzPicture(object):
         node_options = f"{label.position}={label.distance}mm, rotate={label.angle}, text={self.color}, text height={textheight} mm, text depth={textdepth} mm{labelfill}"
         node_text = f"\\{label.fontsize} {text}"
 
-        self.fill_circle(Circle(label.point, 0.25))
+        # self.fill_circle(Circle(label.point, 0.25))
         self.texstring += f"\\draw {p} node[{node_options}] {{{node_text}}};\n"
 
     def fill_circle(self, circle, delay_write=False):
