@@ -11,20 +11,110 @@ from skymap.geometry import (
     Circle,
     Arc,
     Polygon,
+    Clipper,
     SkyCoordDeg,
     ensure_angle_range,
 )
 from skymap.tikz import FontSize
 
 
-GALACTIC_EQUATOR = [
-    SkyCoordDeg(longitude, 0, frame="galactic").icrs
-    for longitude in numpy.arange(0, 360.1, 0.05)
-]
-ECLIPTIC_EQUATOR = [
-    SkyCoordDeg(longitude, 0, frame="barycentricmeanecliptic").icrs
-    for longitude in numpy.arange(0, 360.1, 0.05)
-]
+def equator_points(frame):
+    data = [
+        SkyCoordDeg(longitude, 0, frame=frame).icrs
+        for longitude in numpy.arange(0, 360, 1)
+    ]
+    longitudes = [x.ra.degree for x in data]
+    latitudes = [x.dec.degree for x in data]
+
+    i = longitudes.index(min(longitudes))
+    longitudes = longitudes[i:] + longitudes[:i]
+    latitudes = latitudes[i:] + latitudes[:i]
+    return longitudes, latitudes
+
+
+GALACTIC_FRAME = "galactic"
+ECLIPTIC_FRAME = "barycentricmeanecliptic"
+GALACTIC_LONGITUDES, GALACTIC_LATITUDES = equator_points(GALACTIC_FRAME)
+ECLIPTIC_LONGITUDES, ECLIPTIC_LATITUDES = equator_points(ECLIPTIC_FRAME)
+
+
+class Equator(object):
+    def __init__(self, frame):
+        if frame == GALACTIC_FRAME:
+            self.longitudes, self.latitudes = GALACTIC_LONGITUDES, GALACTIC_LATITUDES
+        elif frame == ECLIPTIC_FRAME:
+            self.longitudes, self.latitudes = ECLIPTIC_LONGITUDES, ECLIPTIC_LATITUDES
+        else:
+            raise ValueError("Invalid equator frame")
+
+    def latitude(self, longitude):
+        longitude = ensure_angle_range(longitude)
+        if longitude < self.longitudes[0]:
+            i = -1
+            long1 = self.longitudes[-1] - 360.0
+            long2 = self.longitudes[0]
+        elif longitude > self.longitudes[-1]:
+            i = -1
+            long1 = self.longitudes[-1]
+            long2 = self.longitudes[0] + 360
+        else:
+            i = [x > longitude for x in self.longitudes].index(True) - 1
+            long1 = self.longitudes[i]
+            long2 = self.longitudes[i + 1]
+        lat1 = self.latitudes[i]
+        lat2 = self.latitudes[i + 1]
+        return lat1 + (lat2 - lat1) * (longitude - long1) / (long2 - long1)
+
+    def inside_area(
+        self, min_longitude, max_longitude, min_latitude, max_latitude, n=100
+    ):
+        for i in range(n):
+            long = min_longitude + (max_longitude - min_longitude) / (n - 1)
+            lat = self.latitude(long)
+            if min_latitude <= lat <= max_latitude:
+                return True
+        return False
+
+    def points(self, min_longitude, max_longitude, min_latitude, max_latitude, n=100):
+        points = []
+        for i in range(n):
+            long = min_longitude + i * (max_longitude - min_longitude) / (n - 1)
+            lat = self.latitude(long)
+            points.append((long, lat))
+        return points
+
+    def points_inside_area(
+        self, min_longitude, max_longitude, min_latitude, max_latitude, n=100
+    ):
+        points = self.points(
+            min_longitude, max_longitude, min_latitude, max_latitude, n
+        )
+        # return points
+
+        # Find the points inside the area
+        inside = [min_latitude <= x[1] <= max_latitude for x in points]
+        try:
+            index1 = inside.index(True)
+        except ValueError:
+            return []
+        try:
+            index2 = inside.index(False, index1)
+        except ValueError:
+            index2 = len(inside)
+
+        if index1 == 0 and index2 != len(inside) and inside[-1] == True:
+            index1a = inside[index2+1:].index(True) + index2 # Not plus 1 so it contains an extra point
+        else:
+            index1a = None
+
+        # Make sure that a single point outside is included on both ends
+        index1 = max(index1 - 1, 0)
+        index2 = min(index2 + 1, len(points))
+        result = points[index1:index2]
+
+        if index1a is not None:
+            result = points[index1a:-1] + result # Skip the last point to prevent it overlapping with the first
+        return result
 
 
 class GridLineConfig(object):
@@ -485,9 +575,30 @@ class CoordinateGridFactory(object):
         self.borderdict = borderdict
         self.clip_at_border = clip_at_border
         self.clipper = clipper
+
         self.min_longitude, self.max_longitude = longitude_range
         self.min_latitude, self.max_latitude = latitude_range
         self.latitude_range_func = latitude_range_func
+
+        longlatborders = {
+            "left": Line(
+                Point(self.min_longitude, self.min_latitude),
+                Point(self.min_longitude, self.max_latitude),
+            ),
+            "right": Line(
+                Point(self.max_longitude, self.min_latitude),
+                Point(self.max_longitude, self.max_latitude),
+            ),
+            "bottom": Line(
+                Point(self.min_longitude, self.min_latitude),
+                Point(self.max_longitude, self.min_latitude),
+            ),
+            "top": Line(
+                Point(self.min_longitude, self.max_latitude),
+                Point(self.max_longitude, self.max_latitude),
+            ),
+        }
+        self.longlat_clipper = Clipper(longlatborders)
 
     def inside_coordinate_range(self, sp):
         ra = ensure_angle_range(
@@ -570,9 +681,9 @@ class CoordinateGridFactory(object):
                         config,
                     )
             else:
-                if ensure_angle_range(self.min_longitude) != ensure_angle_range(
-                    self.max_longitude
-                ):
+                if isinstance(parallel, Circle) and ensure_angle_range(
+                    self.min_longitude
+                ) != ensure_angle_range(self.max_longitude):
                     # Construct the arc from the endpoints
                     p1 = (
                         self.projection.project(
@@ -636,70 +747,28 @@ class CoordinateGridFactory(object):
             fill="white",
         )
 
-    def equator(self, points):
-        lats = [p.dec.degree for p in points]
-        max_lat = max(lats)
-        min_lat = min(lats)
-
-        if self.min_latitude > max_lat or self.max_latitude < min_lat:
-            return None
-
-        points_to_draw = []
-        inside = False
-        second_half = None
-        for i in range(len(points)):
-            sp = points[i]
-
-            if self.clip_at_border:
-                # Check projected point
-                p = self.projection.project(sp)
-                pinside = self.clipper.point_inside(p)
-                if pinside:
-                    points_to_draw.append(p)
-            else:
-                # Check sky coordinates
-                pinside = self.inside_coordinate_range(sp)
-                if pinside:
-                    p = self.projection.project(sp)
-                    points_to_draw.append(p)
-
-            if inside and not pinside:
-                # Gap! save the location
-                second_half = len(points_to_draw)
-            inside = pinside
-
-        if second_half is not None:
-            points_to_draw = points_to_draw[second_half:] + points_to_draw[:second_half]
-
-        if points_to_draw:
-            # Add border points
-            if self.clip_at_border:
-                p1 = points_to_draw[0] - 5 * (points_to_draw[1] - points_to_draw[0])
-                p2 = points_to_draw[0]
-                intersections1 = self.clipper.line_intersect_borders(Line(p1, p2))
-
-                p1 = points_to_draw[-1] + 5 * (points_to_draw[-1] - points_to_draw[-2])
-                p2 = points_to_draw[-1]
-                intersections2 = self.clipper.line_intersect_borders(Line(p1, p2))
-
-                bp1 = intersections1[0][0]
-                bp2 = intersections2[0][0]
-
-                points_to_draw = [bp1] + points_to_draw + [bp2]
-            else:
-                pass
-
-            return Polygon(points_to_draw, closed=False)
-        else:
-            return None
-
     @property
     def galactic_equator(self):
-        return self.equator(GALACTIC_EQUATOR)
+        e = Equator(GALACTIC_FRAME)
+        points = e.points_inside_area(
+            self.min_longitude, self.max_longitude, self.min_latitude, self.max_latitude
+        )
+        points = [self.projection.project(SkyCoordDeg(p[0], p[1])) for p in points]
+        if not points:
+            return None
+        return Polygon(points, closed=False)
+
 
     @property
     def ecliptic_equator(self):
-        return self.equator(ECLIPTIC_EQUATOR)
+        e = Equator(ECLIPTIC_FRAME)
+        points = e.points_inside_area(
+            self.min_longitude, self.max_longitude, self.min_latitude, self.max_latitude
+        )
+        points = [self.projection.project(SkyCoordDeg(p[0], p[1])) for p in points]
+        if not points:
+            return None
+        return Polygon(points, closed=False)
 
     def equatorial_meridian(self, tick_interval, frame):
         if tick_interval is not None:
@@ -733,12 +802,12 @@ class CoordinateGridFactory(object):
 
     @property
     def galactic_meridians(self):
-        return self.equatorial_meridian(self.config.galactic_tick_interval, "galactic")
+        return self.equatorial_meridian(self.config.galactic_tick_interval, GALACTIC_FRAME)
 
     @property
     def ecliptic_meridians(self):
         return self.equatorial_meridian(
-            self.config.ecliptic_tick_interval, "barycentricmeanecliptic"
+            self.config.ecliptic_tick_interval, ECLIPTIC_FRAME
         )
 
     def pole_markers(self, frame):
@@ -771,4 +840,4 @@ class CoordinateGridFactory(object):
 
     @property
     def galactic_poles(self):
-        return self.pole_markers("galactic")
+        return self.pole_markers(GALACTIC_FRAME)

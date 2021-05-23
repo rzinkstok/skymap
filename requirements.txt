@@ -9,3 +9,4 @@ astropy
 matplotlib
 beautifulsoup4
 astroquery
+black

@@ -1,139 +1,10 @@
 import math
 from contextlib import contextmanager
-from skymap.geometry import Point, Line, Rectangle, Circle, Arc, Polygon
+from skymap.geometry import Point, Line, Rectangle, Circle, Arc, Polygon, Clipper
 
 
 class DrawError(Exception):
     pass
-
-
-class TikzPictureClipper(object):
-    def __init__(self, borderdict):
-        self.borderdict = borderdict
-        self.minx, self.miny = self.borderdict["bottom"].p1
-        self.maxx, self.maxy = self.borderdict["top"].p1
-
-    def point_inside(self, p):
-        """Check whether the given point lies within the map area"""
-        if p.x < self.minx or p.x > self.maxx or p.y < self.miny or p.y > self.maxy:
-            return False
-        else:
-            return True
-
-    def circle_inside(self, circle):
-        """Check whether the given circle lies fully inside the map area"""
-        if not self.point_inside(circle.center):
-            print("Circle center outside")
-            return False
-
-        for b in self.borderdict.values():
-            if circle.radius > b.distance_point(circle.center) + 1e-6:
-                print(
-                    f"Circle radius ({circle.radius}) larger than distance to border ({b.distance_point(circle.center)})"
-                )
-                return False
-
-        return True
-
-    def line_intersect_borders(self, line):
-        crossings = []
-        labelpositions = []
-
-        for bordername, border in self.borderdict.items():
-            c = border.inclusive_intersect_line(line)
-            if len(c) == 1:
-                if c[0] not in crossings:
-                    crossings.append(c[0])
-                    labelpositions.append(bordername)
-
-        return list(zip(crossings, labelpositions))
-
-    def clip_line(self, line):
-        intersections = self.line_intersect_borders(line)
-        if not intersections:
-            if self.point_inside(0.5 * (line.p1 + line.p2)):
-                return [line], [(None, None)]
-            else:
-                return [None], []
-
-        if len(intersections) == 1:
-            if self.point_inside(0.5 * (line.p1 + intersections[0][0])):
-                p1, border1 = line.p1, None
-                p2, border2 = intersections[0]
-            elif self.point_inside(0.5 * (line.p2 + intersections[0][0])):
-                p1, border1 = intersections[0]
-                p2, border2 = line.p2, None
-            else:
-                raise RuntimeError("Inconsistent intersection")
-        else:
-            d1 = line.p1.distance(intersections[0][0])
-            d2 = line.p2.distance(intersections[0][0])
-            if d1 < d2:
-                p1, border1 = intersections[0]
-                p2, border2 = intersections[1]
-            else:
-                p1, border1 = intersections[1]
-                p2, border2 = intersections[0]
-
-        line = Line(p1, p2)
-        return [line], [(border1, border2)]
-
-    def circle_intersect_borders(self, circle):
-        crossings = []
-        borders = []
-        angles = []
-        center = circle.center
-
-        for bordername, border in self.borderdict.items():
-            ccs = circle.inclusive_intersect_line(border)
-            for c in ccs:
-                if c not in crossings:
-                    crossings.append(c)
-                    borders.append(bordername)
-                    angle = math.degrees(math.atan2(c.y - center.y, c.x - center.x))
-                    angles.append(angle)
-
-        ordered_crossings = sorted(zip(angles, crossings, borders))
-
-        return ordered_crossings
-
-    def clip_circle(self, circle):
-        intersections = self.circle_intersect_borders(circle)
-        if not intersections:
-            # Only option to check is whether the circle lies fully inside
-            if self.circle_inside(circle):
-                return [circle], [(None, None)]
-            else:
-                return [], []
-        else:
-            arcs = []
-            borders = []
-            angles = []
-            for i in range(len(intersections)):
-                a1, c1, b1 = intersections[i - 1]
-                a2, c2, b2 = intersections[i]
-                if a1 > a2:
-                    a2 += 360.0
-                avg_angle = math.radians(0.5 * (a1 + a2))
-                avg_point = circle.center + Point(
-                    circle.radius * math.cos(avg_angle),
-                    circle.radius * math.sin(avg_angle),
-                )
-
-                if self.point_inside(avg_point):
-                    arcs.append(Arc(circle.center, circle.radius, a1, a2))
-                    borders.append((b1, b2))
-                    angles.append((a1 - 90, a2 + 90))
-
-            return arcs, borders
-
-    def clip(self, item):
-        if isinstance(item, Line):
-            return self.clip_line(item)
-        elif isinstance(item, Circle):
-            return self.clip_circle(item)
-        else:
-            raise NotImplementedError
 
 
 class TikzPicture(object):
@@ -178,7 +49,7 @@ class TikzPicture(object):
             "bottom": self.bottom_border,
         }
 
-        self.clipper = TikzPictureClipper(self.borderdict)
+        self.clipper = Clipper(self.borderdict)
 
         self.boxed = boxed
         self.box_linewidth = box_linewidth
@@ -409,6 +280,8 @@ class TikzPicture(object):
             cycle: whether to connect the last to the first point
             delay_write:
         """
+        # for p in polygon.points:
+        #    self.draw_circle(Circle(p, 2))
         self.open()
         opts = self.draw_options()
         cmd = f"\\draw {opts}"
@@ -520,8 +393,8 @@ class TikzPicture(object):
         else:
             labelfill = ""
 
-        node_options = f"{label.position}={label.distance}mm, rotate={label.angle}, text={self.color}, text height={textheight} mm, text depth={textdepth} mm{labelfill}"
-        node_text = f"\\{label.fontsize} {text}"
+        node_options = f"{label.position}={label.distance}mm, rotate={label.angle}, text={self.color}, text height={textheight} mm, text depth={textdepth} mm, inner sep=0pt{labelfill}"
+        node_text = f"\\{label.fontsize} \\,{text}\\,"
 
         # self.fill_circle(Circle(label.point, 0.25))
         self.texstring += f"\\draw {p} node[{node_options}] {{{node_text}}};\n"

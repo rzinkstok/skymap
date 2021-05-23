@@ -177,7 +177,7 @@ class MapArea(TikzPicture):
             self.linewidth = old_linewidth
 
         if self.config.clipbox is not None:
-            with self.clip(self.config.clipbox.path):
+            with self.clip(self.config.clipbox):
                 self.draw_grid()
         else:
             self.draw_grid()
@@ -195,12 +195,12 @@ class MapArea(TikzPicture):
         return self._picture_to_paper(self._sky_to_map(s))
 
     def _longitude_latitude_boundaries(self):
-        """Determines the min/max longitude and latitude displayed in the map.
-        """
+        """Determines the min/max longitude and latitude displayed in the map."""
         # The origin corresponds to center longitude and latitude
 
         if self.config.clip_at_border:
             # Clip points are map corners in paper coordinates: determine lat/long from those
+            # TODO: This only works correctly for specific maps!
             pts = [
                 # Backproject all four map corner points
                 self._map_to_sky(self.llcorner),
@@ -310,16 +310,18 @@ class MapArea(TikzPicture):
         self.draw_grid_element(factory.polar_label)
 
         self.comment("Galactic equator")
-        self.draw_grid_element(
-            factory.galactic_equator,
-            pen_style=self.config.coordinate_grid_config.galactic_pen_style,
-        )
+        with self.clip(Rectangle(self.llcorner, self.urcorner).path):
+            self.draw_grid_element(
+                factory.galactic_equator,
+                pen_style=self.config.coordinate_grid_config.galactic_pen_style,
+            )
 
         self.comment("Ecliptic equator")
-        self.draw_grid_element(
-            factory.ecliptic_equator,
-            pen_style=self.config.coordinate_grid_config.ecliptic_pen_style,
-        )
+        with self.clip(Rectangle(self.llcorner, self.urcorner).path):
+            self.draw_grid_element(
+                factory.ecliptic_equator,
+                pen_style=self.config.coordinate_grid_config.ecliptic_pen_style,
+            )
 
         for p in factory.galactic_meridians:
             self.comment(f"Galactic equator tick at {p.longitude}")

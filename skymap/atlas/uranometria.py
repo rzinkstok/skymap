@@ -723,6 +723,7 @@ if __name__ == "__main__":
                 mc.urcorner = mc.llcorner + Point(
                     10 * MM_PER_DEGREE, mc.latitude_range * MM_PER_DEGREE
                 )
+                continue
 
             elif chart_number == 220:
                 mc.center_longitude = 90
@@ -778,14 +779,49 @@ if __name__ == "__main__":
                 mc.urcorner = mc.llcorner + Point(
                     10 * MM_PER_DEGREE, mc.latitude_range * MM_PER_DEGREE
                 )
-
-            elif chart_number > 100 and chart_number < 121:
                 continue
 
-            else:
-                # if chart_number not in [2, 219]:
-                #     continue
+            elif chart_number > 100 and chart_number < 121:
+                # Equatorial maps
+                mc.center_longitude = -18 * (chart_number - 101)
+                mc.center_latitude = 0
+                if left:
+                    mc.min_longitude = mc.center_longitude
+                    mc.max_longitude = mc.center_longitude + 10
+                else:
+                    mc.min_longitude = mc.center_longitude - 10
+                    mc.max_longitude = mc.center_longitude
+                mc.min_latitude = -6
+                mc.max_latitude = 6
+                mc.latitude_range = 12
+                mc.clipbox = None
+                mc.projection_class = EquidistantCylindricalProjection
+                mc.coordinate_grid_config.meridian_line_interval = 1
+                mc.coordinate_grid_config.meridian_unmarked_tick_interval = 1
+                mc.coordinate_grid_config.meridian_tick_interval = 1
+                mc.coordinate_grid_config.meridian_tick_borders = ["bottom", "top"]
+                mc.coordinate_grid_config.parallel_tick_borders = ["left", "right"]
+                mc.coordinate_grid_config.parallel_internal_labels = False
+                mc.coordinate_grid_config.meridian_labeltextfunc = meridian_label
+                mc.coordinate_grid_config.flip_meridian_labels = False
 
+                if left:
+                    mc.llcorner = p.llcorner + Point(0, LEGEND_HEIGHT + 22)
+                    mc.origin = mc.llcorner + Point(
+                        LEGEND_WIDTH, 0.5 * mc.latitude_range * MM_PER_DEGREE
+                    )
+                else:
+                    mc.llcorner = p.llcorner + Point(0, LEGEND_HEIGHT + 22)
+                    mc.origin = mc.llcorner + Point(
+                        0, 0.5 * mc.latitude_range * MM_PER_DEGREE
+                    )
+
+                mc.urcorner = mc.llcorner + Point(
+                    LEGEND_WIDTH, mc.latitude_range * MM_PER_DEGREE
+                )
+
+            else:
+                # Conics
                 cc = conic_config(chart_number)
 
                 mc.center_longitude = cc["longitude"]
@@ -833,6 +869,7 @@ if __name__ == "__main__":
                 mc.urcorner = mc.llcorner + Point(
                     LEGEND_WIDTH, mc.latitude_range * MM_PER_DEGREE
                 )
+                continue
 
             MapArea(p, mc, True)
             p.render(os.path.join(OUTPUT_FOLDER, f"{name}.pdf"))

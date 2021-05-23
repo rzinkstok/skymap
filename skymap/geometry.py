@@ -66,59 +66,60 @@ def rotation_matrix(axis, angle):
     return rmatrix
 
 
-def sky2cartesian(points):
-    phi = np.deg2rad(points[:, 0])
-    theta = np.pi / 2 - np.deg2rad(points[:, 1])
-    result = np.zeros((points.shape[0], 3))
-    result[:, 0] = np.sin(theta) * np.cos(phi)
-    result[:, 1] = np.sin(theta) * np.sin(phi)
-    result[:, 2] = np.cos(theta)
-    return result
+# def sky2cartesian(points):
+#     phi = np.deg2rad(points[:, 0])
+#     theta = np.pi / 2 - np.deg2rad(points[:, 1])
+#     result = np.zeros((points.shape[0], 3))
+#     result[:, 0] = np.sin(theta) * np.cos(phi)
+#     result[:, 1] = np.sin(theta) * np.sin(phi)
+#     result[:, 2] = np.cos(theta)
+#     return result
+#
+#
+# def sky2cartesian_with_parallax(points_with_parallax):
+#     """
+#
+#     Args:
+#         points_with_parallax: (ra, dec, parallax) with ra and dec in degrees and parallax in mas
+#
+#     Returns:
+#         x, y, z in parsecs
+#     """
+#     phi = np.deg2rad(points_with_parallax[:, 0])
+#     theta = np.pi / 2 - np.deg2rad(points_with_parallax[:, 1])
+#     rho = 1000.0 / points_with_parallax[:, 2]
+#     result = np.zeros((points_with_parallax.shape[0], 3))
+#     result[:, 0] = rho * np.sin(theta) * np.cos(phi)
+#     result[:, 1] = rho * np.sin(theta) * np.sin(phi)
+#     result[:, 2] = rho * np.cos(theta)
+#     return result
+#
+#
+# def cartesian2sky(points):
+#     theta = np.arccos(points[:, 2])
+#     phi = np.arctan2(points[:, 1], points[:, 0])
+#     result = np.zeros((points.shape[0], 2))
+#     result[:, 0] = np.rad2deg(phi)
+#     result[:, 1] = np.rad2deg(np.pi / 2 - theta)
+#     return result
+#
+#
+# def cartesian2sky_with_parallax(points):
+#     """Cartesian coordinates in parsecs to ra, dec, parallax."""
+#     r = np.linalg.norm(points, axis=1)
+#     theta = np.arccos(points[:, 2] / r)
+#     phi = np.arctan2(points[:, 1], points[:, 0])
+#     result = np.zeros((points.shape[0], 3))
+#     result[:, 0] = np.rad2deg(phi)
+#     result[:, 1] = np.rad2deg(np.pi / 2 - theta)
+#     result[:, 2] = 1000.0 / r
+#     return result
 
 
-def sky2cartesian_with_parallax(points_with_parallax):
-    """
-
-    Args:
-        points_with_parallax: (ra, dec, parallax) with ra and dec in degrees and parallax in mas
-
-    Returns:
-        x, y, z in parsecs
-    """
-    phi = np.deg2rad(points_with_parallax[:, 0])
-    theta = np.pi / 2 - np.deg2rad(points_with_parallax[:, 1])
-    rho = 1000.0 / points_with_parallax[:, 2]
-    result = np.zeros((points_with_parallax.shape[0], 3))
-    result[:, 0] = rho * np.sin(theta) * np.cos(phi)
-    result[:, 1] = rho * np.sin(theta) * np.sin(phi)
-    result[:, 2] = rho * np.cos(theta)
-    return result
-
-
-def cartesian2sky(points):
-    theta = np.arccos(points[:, 2])
-    phi = np.arctan2(points[:, 1], points[:, 0])
-    result = np.zeros((points.shape[0], 2))
-    result[:, 0] = np.rad2deg(phi)
-    result[:, 1] = np.rad2deg(np.pi / 2 - theta)
-    return result
-
-
-def cartesian2sky_with_parallax(points):
-    """Cartesian coordinates in parsecs to ra, dec, parallax."""
-    r = np.linalg.norm(points, axis=1)
-    theta = np.arccos(points[:, 2] / r)
-    phi = np.arctan2(points[:, 1], points[:, 0])
-    result = np.zeros((points.shape[0], 3))
-    result[:, 0] = np.rad2deg(phi)
-    result[:, 1] = np.rad2deg(np.pi / 2 - theta)
-    result[:, 2] = 1000.0 / r
-    return result
-
-
-class Drawable(object):
-    def draw(self, tikz_picture):
-        pass
+# class Drawable(object):
+#     def draw(self, tikz_picture):
+#         pass
+#
 
 
 class Point(object):
@@ -650,6 +651,171 @@ class Label(object):
         self.angle = angle
         self.distance = distance
         self.fill = fill
+
+
+class Clipper(object):
+    def __init__(self, borderdict):
+        self.borderdict = borderdict
+        self.minx, self.miny = self.borderdict["bottom"].p1
+        self.maxx, self.maxy = self.borderdict["top"].p1
+
+    def point_inside(self, p):
+        """Check whether the given point lies within the map area"""
+        if p.x < self.minx or p.x > self.maxx or p.y < self.miny or p.y > self.maxy:
+            return False
+        else:
+            return True
+
+    def circle_inside(self, circle):
+        """Check whether the given circle lies fully inside the map area"""
+        if not self.point_inside(circle.center):
+            print("Circle center outside")
+            return False
+
+        for b in self.borderdict.values():
+            if circle.radius > b.distance_point(circle.center) + 1e-6:
+                print(
+                    f"Circle radius ({circle.radius}) larger than distance to border ({b.distance_point(circle.center)})"
+                )
+                return False
+        return True
+
+    def line_intersect_borders(self, line):
+        crossings = []
+        labelpositions = []
+
+        for bordername, border in self.borderdict.items():
+            c = border.inclusive_intersect_line(line)
+            if len(c) == 1:
+                if c[0] not in crossings:
+                    crossings.append(c[0])
+                    labelpositions.append(bordername)
+
+        return list(zip(crossings, labelpositions))
+
+    def clip_line(self, line):
+        intersections = self.line_intersect_borders(line)
+        if not intersections:
+            if self.point_inside(0.5 * (line.p1 + line.p2)):
+                return [line], [(None, None)]
+            else:
+                return [None], []
+
+        if len(intersections) == 1:
+            if self.point_inside(0.5 * (line.p1 + intersections[0][0])):
+                p1, border1 = line.p1, None
+                p2, border2 = intersections[0]
+            elif self.point_inside(0.5 * (line.p2 + intersections[0][0])):
+                p1, border1 = intersections[0]
+                p2, border2 = line.p2, None
+            else:
+                raise RuntimeError("Inconsistent intersection")
+        else:
+            d1 = line.p1.distance(intersections[0][0])
+            d2 = line.p2.distance(intersections[0][0])
+            if d1 < d2:
+                p1, border1 = intersections[0]
+                p2, border2 = intersections[1]
+            else:
+                p1, border1 = intersections[1]
+                p2, border2 = intersections[0]
+
+        line = Line(p1, p2)
+        return [line], [(border1, border2)]
+
+    def circle_intersect_borders(self, circle):
+        crossings = []
+        borders = []
+        angles = []
+        center = circle.center
+
+        for bordername, border in self.borderdict.items():
+            ccs = circle.inclusive_intersect_line(border)
+            for c in ccs:
+                if c not in crossings:
+                    crossings.append(c)
+                    borders.append(bordername)
+                    angle = math.degrees(math.atan2(c.y - center.y, c.x - center.x))
+                    angles.append(angle)
+
+        ordered_crossings = sorted(zip(angles, crossings, borders))
+
+        return ordered_crossings
+
+    def clip_circle(self, circle):
+        intersections = self.circle_intersect_borders(circle)
+        if not intersections:
+            # Only option to check is whether the circle lies fully inside
+            if self.circle_inside(circle):
+                return [circle], [(None, None)]
+            else:
+                return [], []
+        else:
+            arcs = []
+            borders = []
+            angles = []
+            for i in range(len(intersections)):
+                a1, c1, b1 = intersections[i - 1]
+                a2, c2, b2 = intersections[i]
+                if a1 > a2:
+                    a2 += 360.0
+                avg_angle = math.radians(0.5 * (a1 + a2))
+                avg_point = circle.center + Point(
+                    circle.radius * math.cos(avg_angle),
+                    circle.radius * math.sin(avg_angle),
+                )
+
+                if self.point_inside(avg_point):
+                    arcs.append(Arc(circle.center, circle.radius, a1, a2))
+                    borders.append((b1, b2))
+                    angles.append((a1 - 90, a2 + 90))
+
+            return arcs, borders
+
+    def clip(self, item):
+        if isinstance(item, Line):
+            return self.clip_line(item)
+        elif isinstance(item, Circle):
+            return self.clip_circle(item)
+        else:
+            raise NotImplementedError
+
+
+class SkyClipper(object):
+    def __init__(self, min_longitude, max_longitude, min_latitude, max_latitude):
+        self.min_longitude = min_longitude
+        self.max_longitude = max_longitude
+        self.min_latitude = min_latitude
+        self.max_latitude = max_latitude
+
+        self.center_longitude = 0.5 * (self.min_longitude + self.max_longitude)
+        self.center_latitude = 0.5 * (self.min_latitude + self.max_latitude)
+
+    def point_inside(self, sp):
+        longitude = ensure_angle_range(sp.ra.degree, self.center_longitude)
+        latitude = sp.dec.degree
+        if (
+            longitude < self.min_longitude
+            or longitude > self.max_longitude
+            or latitude < self.min_latitude
+            or latitude > self.max_latitude
+        ):
+            return False
+        return True
+
+    def clip_line(self, sp1, sp2):
+        sp1_in = self.point_inside(sp1)
+        sp2_in = self.point_inside(sp2)
+        if sp1_in == sp2_in:
+            if sp1_in:
+                return sp1, sp2
+            else:
+                return None
+        else:
+            pass
+
+    def clip(self, item):
+        pass
 
 
 def ensure_angle_range(angle, center=180.0):
