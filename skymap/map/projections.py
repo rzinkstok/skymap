@@ -31,7 +31,11 @@ class Projection(object):
 
         Args:
             center_longitude: the central longitude for the map, in degrees
+            center_latitude: the central latitude for the map, in degrees
+            standard_parallel1: placeholder for conic projections
+            standard_parallel2: placeholder for conic projections
             reference_scale: degrees of latitude per unit distance on the map
+            horizontal_stretch: factor with which to expand the horizontal axis
             celestial: whether to use a celestial map orientation (longitude increasing to the left)
         """
         self.center_longitude = float(center_longitude)
@@ -64,8 +68,7 @@ class Projection(object):
 
 
 class UnitProjection(Projection):
-    """Simple linear projection.
-    """
+    """Simple linear projection."""
 
     def project(self, skycoord):
         longitude = self.reduce_longitude(skycoord.ra.degree)
@@ -103,10 +106,12 @@ class AzimuthalEquidistantProjection(Projection):
 
         Args:
             center_longitude: the longitude that points to the right
-            center_latitude: the
+            center_latitude: the latitude at the center of the map (+ or - 90 degrees)
+            standard_parallel1: not used
+            standard_parallel2: not used
             reference_scale: degrees of latitude per unit distance
+            horizontal_stretch: factor with which to expand the horizontal axis
             celestial: longitude increases clockwise around north pole
-            north: whether to plot the north pole (true) or the south pole (false)
         """
         Projection.__init__(
             self,
@@ -186,8 +191,11 @@ class EquidistantCylindricalProjection(Projection):
 
         Args:
             center_longitude: the central longitude for the map, in degrees
+            center_latitude: the central latitude for the map in degrees
+            standard_parallel1: not used
+            standard_parallel2: not used
             reference_scale: degrees of latitude per unit distance on the map
-            horizontal_stretch: the horizontal stretch factor
+            horizontal_stretch: factor with which to expand the horizontal axis
             celestial: whether to use a celestial map orientation (longitude increasing to the left)
         """
         Projection.__init__(
@@ -246,10 +254,12 @@ class EquidistantConicProjection(Projection):
         Center of projection is center longitude at ? latitude, which is projected to the point (0, 0).
 
         Args:
-            center: the central longitude and latitude for the map, in degrees
+            center_longitude: the central longitude for the map, in degrees
+            center_latitude: the central latitude for the map, in degrees
             standard_parallel1: the first standard parallel
             standard_parallel2: the second standard parallel
             reference_scale: degrees of latitude per unit distance on the map
+            horizontal_stretch: factor with which to expand the horizontal axis
             celestial: whether to use a celestial map orientation (longitude increasing to the left)
         """
         Projection.__init__(
