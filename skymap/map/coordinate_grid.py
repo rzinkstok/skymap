@@ -525,21 +525,23 @@ class Equator(object):
             min_longitude, max_longitude, min_latitude, max_latitude, n
         )
 
-        # Find the points inside the area
+        # Find the points also inside the latitude range
         inside = [min_latitude <= x[1] <= max_latitude for x in points]
+
+        # Find the indices indicating the first contiguous set of points that are fully inside
         try:
             index1 = inside.index(True)
         except ValueError:
+            # if no points lie inside, return an empty list
             return []
         try:
             index2 = inside.index(False, index1)
         except ValueError:
             index2 = len(inside)
 
-        if index1 == 0 and index2 != len(inside) and inside[-1] is True:
-            index1a = (
-                inside[index2 + 1 :].index(True) + index2
-            )  # Do not add 1 so it contains an extra point outside the map area
+        # Check if the set of contiguous points wraps around
+        if (index1 == 0) and (index2 != len(inside)) and inside[-1]:
+            index1a = inside.index(True, index2 + 1)
         else:
             index1a = None
 
@@ -548,19 +550,34 @@ class Equator(object):
         index2 = min(index2 + 1, len(points))
         result = points[index1:index2]
 
-        # Make sure the first and last point are on the edge of the map
-        x1, y1 = points[0]
-        x2, y2 = points[1]
-        r = (y2 - y1) / (x2 - x1)
-        if y1 > max_latitude:
-            points[0] = y1 - (y1 - max_latitude) * r, max_latitude
-        if y1 < min_latitude:
-            points[0] = y1 + (min_latitude - y1) * r, min_latitude
-
+        # Add the wraparound part, if present
         if index1a is not None:
             result = (
                 points[index1a:-1] + result
             )  # Skip the last point to prevent it overlapping with the first
+
+        # Make sure the first point is on the edge of the map
+        x1, y1 = result[0]
+        x2, y2 = result[1]
+        r = (x2 - x1) / (y2 - y1)
+        if y1 > max_latitude:
+            x = x1 + (max_latitude - y1) * r
+            result[0] = x, max_latitude
+        if y1 < min_latitude:
+            x = x1 + (min_latitude - y1) * r
+            result[0] = x, min_latitude
+
+        # Make sure the last point is on the edge of the map
+        x1, y1 = result[-2]
+        x2, y2 = result[-1]
+        r = (x2 - x1) / (y2 - y1)
+        if y2 > max_latitude:
+            x = x1 + (max_latitude - y1) * r
+            result[-1] = x, max_latitude
+        if y2 < min_latitude:
+            x = x1 + (min_latitude - y1) * r
+            result[-1] = x, min_latitude
+
         return result
 
 

@@ -109,7 +109,7 @@ if __name__ == "__main__":
 
         if chart_number < 4:
             # North pole conics
-            mc.center_longitude = 90 + 0.8485 + (chart_number - 1) * 120
+            mc.center_longitude = 90 + (chart_number - 1) * 120 + 0.8485
             mc.center_latitude = 70
             mc.projection_class = EquidistantConicProjection
             mc.latitude_range_func = latitude_range_func

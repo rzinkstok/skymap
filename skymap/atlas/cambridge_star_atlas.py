@@ -74,11 +74,11 @@ if __name__ == "__main__":
     cc = CoordinateGridConfig()
     cc.rotate_parallel_labels = True
     cc.rotate_poles = False
-    cc.pole_marker_size = 2.5
-    cc.galactic_pen_style = "densely dashed"
+    cc.pole_marker_size = 1.5
+    cc.galactic_pen_style = "densely dash dot"
     cc.galactic_tick_interval = 10
     cc.ecliptic_pen_style = "densely dashed"
-    cc.ecliptic_tick_interval = 10
+    cc.ecliptic_tick_interval = None
 
     mc = MapConfig()
     mc.llcorner = p.llcorner
@@ -91,7 +91,6 @@ if __name__ == "__main__":
     mc.border_vmargin = 5
     mc.border_hmargin = 6
     mc.latitude_range = LATITUDE_RANGE
-    mc.horizontal_stretch = 1.0
     mc.coordinate_grid_config = cc
     mc.clip_at_border = True
 
@@ -104,6 +103,7 @@ if __name__ == "__main__":
 
         if chart_number < 2:
             # North pole azimuthal
+            mc.horizontal_stretch = 1.0
             mc.center_longitude = 0
             mc.center_latitude = 90
             mc.projection_class = AzimuthalEquidistantProjection
@@ -120,11 +120,12 @@ if __name__ == "__main__":
 
         elif chart_number < 8:
             # North conics
+            mc.horizontal_stretch = 1.0
             mc.center_longitude = 30 + (chart_number - 2) * 60
             mc.center_latitude = 45
             mc.projection_class = EquidistantConicProjection
             mc.standard_parallel1 = 30
-            mc.standard_parallel2 = 60
+            mc.standard_parallel2 = 59
             mc.coordinate_grid_config.meridian_tick_borders = ["bottom", "top"]
             mc.coordinate_grid_config.parallel_tick_borders = [
                 "right",
@@ -138,6 +139,7 @@ if __name__ == "__main__":
 
         elif chart_number < 14:
             # Equatorial
+            mc.horizontal_stretch = mc.reference_scale / (80.001 / mc.map_width)
             mc.center_longitude = 30 + (chart_number - 8) * 60
             mc.center_latitude = 0
             mc.projection_class = EquidistantCylindricalProjection
@@ -154,14 +156,16 @@ if __name__ == "__main__":
 
         elif chart_number < 20:
             # South conics
+            mc.horizontal_stretch = 1.0
             mc.center_longitude = 30 + (chart_number - 14) * 60
             mc.center_latitude = -45
             mc.projection_class = EquidistantConicProjection
-            mc.standard_parallel1 = -60
+            mc.standard_parallel1 = -59
             mc.standard_parallel2 = -30
 
         elif chart_number < 21:
             # South pole azimuthal
+            mc.horizontal_stretch = 1.0
             mc.center_longitude = 0
             mc.center_latitude = -90
             mc.projection_class = AzimuthalEquidistantProjection
