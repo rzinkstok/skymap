@@ -18,103 +18,8 @@ from skymap.geometry import (
 from skymap.tikz import FontSize
 
 
-def equator_points(frame):
-    data = [
-        SkyCoordDeg(longitude, 0, frame=frame).icrs
-        for longitude in numpy.arange(0, 360, 1)
-    ]
-    longitudes = [x.ra.degree for x in data]
-    latitudes = [x.dec.degree for x in data]
-
-    i = longitudes.index(min(longitudes))
-    longitudes = longitudes[i:] + longitudes[:i]
-    latitudes = latitudes[i:] + latitudes[:i]
-    return longitudes, latitudes
-
-
 GALACTIC_FRAME = "galactic"
 ECLIPTIC_FRAME = "barycentricmeanecliptic"
-GALACTIC_LONGITUDES, GALACTIC_LATITUDES = equator_points(GALACTIC_FRAME)
-ECLIPTIC_LONGITUDES, ECLIPTIC_LATITUDES = equator_points(ECLIPTIC_FRAME)
-
-
-class Equator(object):
-    def __init__(self, frame):
-        if frame == GALACTIC_FRAME:
-            self.longitudes, self.latitudes = GALACTIC_LONGITUDES, GALACTIC_LATITUDES
-        elif frame == ECLIPTIC_FRAME:
-            self.longitudes, self.latitudes = ECLIPTIC_LONGITUDES, ECLIPTIC_LATITUDES
-        else:
-            raise ValueError("Invalid equator frame")
-
-    def latitude(self, longitude):
-        longitude = ensure_angle_range(longitude)
-        if longitude < self.longitudes[0]:
-            i = -1
-            long1 = self.longitudes[-1] - 360.0
-            long2 = self.longitudes[0]
-        elif longitude > self.longitudes[-1]:
-            i = -1
-            long1 = self.longitudes[-1]
-            long2 = self.longitudes[0] + 360
-        else:
-            i = [x > longitude for x in self.longitudes].index(True) - 1
-            long1 = self.longitudes[i]
-            long2 = self.longitudes[i + 1]
-        lat1 = self.latitudes[i]
-        lat2 = self.latitudes[i + 1]
-        return lat1 + (lat2 - lat1) * (longitude - long1) / (long2 - long1)
-
-    def inside_area(
-        self, min_longitude, max_longitude, min_latitude, max_latitude, n=100
-    ):
-        for i in range(n):
-            long = min_longitude + (max_longitude - min_longitude) / (n - 1)
-            lat = self.latitude(long)
-            if min_latitude <= lat <= max_latitude:
-                return True
-        return False
-
-    def points(self, min_longitude, max_longitude, min_latitude, max_latitude, n=100):
-        points = []
-        for i in range(n):
-            long = min_longitude + i * (max_longitude - min_longitude) / (n - 1)
-            lat = self.latitude(long)
-            points.append((long, lat))
-        return points
-
-    def points_inside_area(
-        self, min_longitude, max_longitude, min_latitude, max_latitude, n=100
-    ):
-        points = self.points(
-            min_longitude, max_longitude, min_latitude, max_latitude, n
-        )
-        # return points
-
-        # Find the points inside the area
-        inside = [min_latitude <= x[1] <= max_latitude for x in points]
-        try:
-            index1 = inside.index(True)
-        except ValueError:
-            return []
-        try:
-            index2 = inside.index(False, index1)
-        except ValueError:
-            index2 = len(inside)
-
-        if index1 == 0 and index2 != len(inside) and inside[-1] == True:
-            index1a = inside[index2+1:].index(True) + index2 # Not plus 1 so it contains an extra point
-        else:
-            index1a = None
-
-        # Make sure that a single point outside is included on both ends
-        index1 = max(index1 - 1, 0)
-        index2 = min(index2 + 1, len(points))
-        result = points[index1:index2]
-
-        if index1a is not None:
-            result = points[index1a:-1] + result # Skip the last point to prevent it overlapping with the first
-        return result
 
 
 class GridLineConfig(object):
@@ -551,6 +456,114 @@ class Parallel(GridLine):
         return self.label(point, self.labelangle2, self.labelpos2)
 
 
+class Equator(object):
+    LONGITUDES = {}
+    LATITUDES = {}
+    GALACTIC_LONGITUDES = None
+    GALACTIC_LATITUDES = None
+    ECLIPTIC_LONGITUDES = None
+    ECLIPTIC_LATITUDES = None
+
+    def __init__(self, frame):
+        self.frame = frame
+        if frame not in self.LONGITUDES:
+            self._generate_equator_points()
+
+    def _generate_equator_points(self):
+        data = [
+            SkyCoordDeg(longitude, 0, frame=self.frame).icrs
+            for longitude in numpy.arange(0, 360, 1)
+        ]
+        longitudes = [x.ra.degree for x in data]
+        latitudes = [x.dec.degree for x in data]
+
+        i = longitudes.index(min(longitudes))
+        self.LONGITUDES[self.frame] = longitudes[i:] + longitudes[:i]
+        self.LATITUDES[self.frame] = latitudes[i:] + latitudes[:i]
+
+    def _latitude(self, longitude):
+        longitude = ensure_angle_range(longitude)
+        if longitude < self.LONGITUDES[self.frame][0]:
+            i = -1
+            long1 = self.LONGITUDES[self.frame][-1] - 360.0
+            long2 = self.LONGITUDES[self.frame][0]
+        elif longitude > self.LONGITUDES[self.frame][-1]:
+            i = -1
+            long1 = self.LONGITUDES[self.frame][-1]
+            long2 = self.LONGITUDES[self.frame][0] + 360
+        else:
+            i = [x > longitude for x in self.LONGITUDES[self.frame]].index(True) - 1
+            long1 = self.LONGITUDES[self.frame][i]
+            long2 = self.LONGITUDES[self.frame][i + 1]
+        lat1 = self.LATITUDES[self.frame][i]
+        lat2 = self.LATITUDES[self.frame][i + 1]
+        return lat1 + (lat2 - lat1) * (longitude - long1) / (long2 - long1)
+
+    def _inside_area(
+        self, min_longitude, max_longitude, min_latitude, max_latitude, n=100
+    ):
+        for i in range(n):
+            long = min_longitude + (max_longitude - min_longitude) / (n - 1)
+            lat = self._latitude(long)
+            if min_latitude <= lat <= max_latitude:
+                return True
+        return False
+
+    def points(self, min_longitude, max_longitude, min_latitude, max_latitude, n=100):
+        points = []
+        for i in range(n):
+            long = min_longitude + i * (max_longitude - min_longitude) / (n - 1)
+            lat = self._latitude(long)
+            points.append((long, lat))
+        return points
+
+    def points_inside_area(
+        self, min_longitude, max_longitude, min_latitude, max_latitude, n=100
+    ):
+        # Get the points that are inside the longitude range
+        points = self.points(
+            min_longitude, max_longitude, min_latitude, max_latitude, n
+        )
+
+        # Find the points inside the area
+        inside = [min_latitude <= x[1] <= max_latitude for x in points]
+        try:
+            index1 = inside.index(True)
+        except ValueError:
+            return []
+        try:
+            index2 = inside.index(False, index1)
+        except ValueError:
+            index2 = len(inside)
+
+        if index1 == 0 and index2 != len(inside) and inside[-1] is True:
+            index1a = (
+                inside[index2 + 1 :].index(True) + index2
+            )  # Do not add 1 so it contains an extra point outside the map area
+        else:
+            index1a = None
+
+        # Make sure that a single point outside is included on both ends
+        index1 = max(index1 - 1, 0)
+        index2 = min(index2 + 1, len(points))
+        result = points[index1:index2]
+
+        # Make sure the first and last point are on the edge of the map
+        x1, y1 = points[0]
+        x2, y2 = points[1]
+        r = (y2 - y1) / (x2 - x1)
+        if y1 > max_latitude:
+            points[0] = y1 - (y1 - max_latitude) * r, max_latitude
+        if y1 < min_latitude:
+            points[0] = y1 + (min_latitude - y1) * r, min_latitude
+
+        if index1a is not None:
+            result = (
+                points[index1a:-1] + result
+            )  # Skip the last point to prevent it overlapping with the first
+        return result
+
+
 class EquatorialMeridian(object):
     def __init__(self, longitude, tick, label):
         self.longitude = longitude
@@ -747,28 +760,31 @@ class CoordinateGridFactory(object):
             fill="white",
         )
 
-    @property
-    def galactic_equator(self):
-        e = Equator(GALACTIC_FRAME)
+    def equator(self, frame):
+        e = Equator(frame)
         points = e.points_inside_area(
             self.min_longitude, self.max_longitude, self.min_latitude, self.max_latitude
         )
         points = [self.projection.project(SkyCoordDeg(p[0], p[1])) for p in points]
         if not points:
             return None
-        return Polygon(points, closed=False)
+        polygon = Polygon(points, closed=False)
 
+        if self.clip_at_border:
+            polys, borders = self.clipper.clip(polygon)
+            if not polys:
+                return None
+            polygon = polys[0]
+
+        return polygon
+
+    @property
+    def galactic_equator(self):
+        return self.equator(GALACTIC_FRAME)
 
     @property
     def ecliptic_equator(self):
-        e = Equator(ECLIPTIC_FRAME)
-        points = e.points_inside_area(
-            self.min_longitude, self.max_longitude, self.min_latitude, self.max_latitude
-        )
-        points = [self.projection.project(SkyCoordDeg(p[0], p[1])) for p in points]
-        if not points:
-            return None
-        return Polygon(points, closed=False)
+        return self.equator(ECLIPTIC_FRAME)
 
     def equatorial_meridian(self, tick_interval, frame):
         if tick_interval is not None:
@@ -802,7 +818,9 @@ class CoordinateGridFactory(object):
 
     @property
     def galactic_meridians(self):
-        return self.equatorial_meridian(self.config.galactic_tick_interval, GALACTIC_FRAME)
+        return self.equatorial_meridian(
+            self.config.galactic_tick_interval, GALACTIC_FRAME
+        )
 
     @property
     def ecliptic_meridians(self):

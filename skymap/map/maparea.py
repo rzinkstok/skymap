@@ -310,18 +310,16 @@ class MapArea(TikzPicture):
         self.draw_grid_element(factory.polar_label)
 
         self.comment("Galactic equator")
-        with self.clip(Rectangle(self.llcorner, self.urcorner).path):
-            self.draw_grid_element(
-                factory.galactic_equator,
-                pen_style=self.config.coordinate_grid_config.galactic_pen_style,
-            )
+        self.draw_grid_element(
+            factory.galactic_equator,
+            pen_style=self.config.coordinate_grid_config.galactic_pen_style,
+        )
 
         self.comment("Ecliptic equator")
-        with self.clip(Rectangle(self.llcorner, self.urcorner).path):
-            self.draw_grid_element(
-                factory.ecliptic_equator,
-                pen_style=self.config.coordinate_grid_config.ecliptic_pen_style,
-            )
+        self.draw_grid_element(
+            factory.ecliptic_equator,
+            pen_style=self.config.coordinate_grid_config.ecliptic_pen_style,
+        )
 
         for p in factory.galactic_meridians:
             self.comment(f"Galactic equator tick at {p.longitude}")
