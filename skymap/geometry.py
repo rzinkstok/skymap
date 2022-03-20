@@ -702,7 +702,16 @@ class Clipper(object):
                 return [None], []
 
         if len(intersections) == 1:
-            if self.point_inside(0.5 * (line.p1 + intersections[0][0])):
+            # Check whether p1 or p2 is on the border
+            if line.p1.distance(intersections[0][0]) < 1e-6:
+                # p1 is on border
+                p1, border1 = intersections[0]
+                p2, border2 = line.p2, None
+            elif line.p2.distance(intersections[0][0]) < 1e-6:
+                # p2 is on border
+                p1, border1 = line.p1, None
+                p2, border2 = intersections[0]
+            elif self.point_inside(0.5 * (line.p1 + intersections[0][0])):
                 p1, border1 = line.p1, None
                 p2, border2 = intersections[0]
             elif self.point_inside(0.5 * (line.p2 + intersections[0][0])):
@@ -720,8 +729,30 @@ class Clipper(object):
                 p1, border1 = intersections[1]
                 p2, border2 = intersections[0]
 
+        if p1 == p2:
+            return [], [None, None]
+
         line = Line(p1, p2)
         return [line], [(border1, border2)]
+
+    def clip_polygon(self, polygon):
+        new_lines = []
+        border1 = None
+        border2 = None
+
+        for l in polygon.lines:
+            lines, borders = self.clip_line(l)
+            for nl in lines:
+                if nl is not None:
+                    new_lines.append(nl)
+                    if border1 is None:
+                        border1 = borders[0][0]
+                    border2 = borders[0][1]
+        if not new_lines:
+            return [], []
+        points = [l.p1 for l in new_lines]
+        points.append(new_lines[-1].p2)
+        return [Polygon(points, closed=False)], [(border1, border2)]
 
     def circle_intersect_borders(self, circle):
         crossings = []
@@ -777,6 +808,8 @@ class Clipper(object):
             return self.clip_line(item)
         elif isinstance(item, Circle):
             return self.clip_circle(item)
+        elif isinstance(item, Polygon):
+            return self.clip_polygon(item)
         else:
             raise NotImplementedError
 

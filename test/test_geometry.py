@@ -65,10 +65,6 @@ class RotationTest(unittest.TestCase):
         p = (0, 1, 0)
         self.assertTrue(np.allclose(np.dot(r, p), (0, 0, 1)))
 
-    def test_sky2cartesian(self):
-        r = np.array(((0, 0),))
-        self.assertTrue(np.allclose(sky2cartesian(r), (1, 0, 0)))
-
 
 class RectangleTest(unittest.TestCase):
     def test_center(self):
@@ -97,3 +93,31 @@ class RectangleTest(unittest.TestCase):
         self.assertEqual(r3.overlap(c3), 0)
         self.assertEqual(r3.overlap(c4), 0)
         self.assertEqual(r3.overlap(c5), 0.44165961110999996)
+
+
+class ClipperTest(unittest.TestCase):
+    def test_clip_line(self):
+        llcorner = Point(0, 0)
+        lrcorner = Point(1, 0)
+        urcorner = Point(1, 1)
+        ulcorner = Point(0, 1)
+        bottom_border = Line(llcorner, lrcorner)
+        right_border = Line(lrcorner, urcorner)
+        top_border = Line(urcorner, ulcorner)
+        left_border = Line(ulcorner, llcorner)
+        borderdict = {
+            "left": left_border,
+            "top": top_border,
+            "right": right_border,
+            "bottom": bottom_border,
+        }
+        c = Clipper(borderdict)
+        p1 = Point(0.5, 0.5)
+        p2 = Point(1.0, 0.5)
+        res, borders = c.clip(Line(p1, p2))
+        self.assertEqual(len(res), 1)
+        self.assertEqual(res[0].p1, p1)
+        self.assertEqual(res[0].p2, Point(1.0, 0.5))
+        self.assertEqual(len(borders), 1)
+        self.assertEqual(borders[0][0], None)
+        self.assertEqual(borders[0][1], "right")
