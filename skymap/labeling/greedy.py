@@ -1,3 +1,4 @@
+import random
 from operator import attrgetter
 from skymap.labeling.common import evaluate_labels
 

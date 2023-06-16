@@ -1,10 +1,12 @@
 import math
+import random
 import time
 from rtree.index import Index
 
 
+POINT_RADIUS = 4
 AVG_POINT_PER_CHAR = 0.3
-POINTSIZE = 11
+POINTSIZE = 44
 MM_PER_POINT = 0.352_778
 AVG_CHAR_WIDTH = AVG_POINT_PER_CHAR * POINTSIZE * MM_PER_POINT
 CHAR_HEIGHT = 1.5 * MM_PER_POINT * POINTSIZE
@@ -74,22 +76,22 @@ def evaluate_labels(labels, points, bounding_box):
     items = []
     items.extend(labels)
     items.extend(points)
-    items.extend(bounding_box.border_config)
+    items.extend(bounding_box.borders)
 
-    t1 = time.clock()
+    t1 = time.perf_counter()
     idx = Index()
 
     for i, item in enumerate(items):
         item.index = i
         idx.insert(i, item.box)
 
-    t2 = time.clock()
+    t2 = time.perf_counter()
     # print(f"Index creation: {t2-t1}")
 
     # Update penalties for overlap with other objects
     penalties = [evaluate_label(l, items, idx) for l in labels]
 
-    t3 = time.clock()
+    t3 = time.perf_counter()
     # print(f"Overlap checking: {t3 - t2}")
 
     print(f"Total time: {t3 - t1}")
@@ -111,7 +113,7 @@ def local_search(points, bounding_box, iterations):
     items = []
     items.extend([p.label for p in labeled_points])
     items.extend(points)
-    items.extend(bounding_box.border_config)
+    items.extend(bounding_box.borders)
 
     idx = Index()
     for i, item in enumerate(items):
@@ -149,7 +151,7 @@ def local_search(points, bounding_box, iterations):
 
 
 class Label(object):
-    def __init__(self, point, text, position, offset, fontsize, fill, angle, color):
+    def __init__(self, point, text, position, offset, fontsize=POINTSIZE, fill="white", angle=0, color="black"):
         self.index = None
         self.point = point
         self.text = text
@@ -266,6 +268,10 @@ class LabelableObject(object):
             self.build_labels()
 
     @property
+    def has_label(self):
+        return self.text is not None
+
+    @property
     def label(self):
         if self.label_index is not None:
             return self.label_candidates[self.label_index]
@@ -356,3 +362,14 @@ class BoundingBoxBorder(object):
         if o > 0:
             return BBOX_PENALTY
         return 0
+
+
+class RandomLabeler(object):
+    def __init__(self, points, bounding_box):
+        self.points = points
+        self.bounding_box = bounding_box
+
+    def run(self):
+        for p in self.points:
+            if p.has_label:
+                random.choice(p.label_candidates).select()

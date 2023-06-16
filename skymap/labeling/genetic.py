@@ -1,6 +1,6 @@
 import random
 import numpy
-from deap import base, tools, algorithms
+from deap import base, creator, tools, algorithms
 from rtree.index import Index
 import matplotlib.pyplot as plt
 
@@ -184,7 +184,7 @@ def eaSimpleStop(
 
 
 class BaseGeneticLabeler(object):
-    def __init__(self, creator, points, bounding_box):
+    def __init__(self, points, bounding_box):
         self.points = points
         self.bounding_box = bounding_box
         self.labeled_points = [p for p in self.points if p.text]
@@ -198,8 +198,8 @@ class BaseGeneticLabeler(object):
         self.mutation_prob = 0.35
         self.crossover_prob = 0.9
 
-        # creator.create("FitnessMax", base.Fitness, weights=(1.0,))
-        # creator.create("Individual", list, fitness=creator.FitnessMax)
+        creator.create("FitnessMax", base.Fitness, weights=(1.0,))
+        creator.create("Individual", list, fitness=creator.FitnessMax)
 
         self.toolbox = base.Toolbox()
         self.toolbox.register("attr_bool", random.randint, 0, 7)
@@ -273,41 +273,41 @@ class BaseGeneticLabeler(object):
         plt.show()
 
 
-class GeneticLabeler(BaseGeneticLabeler):
-    def __init__(self, points, bounding_box):
-        BaseGeneticLabeler.__init__(self, points, bounding_box)
-        self.build_index()
-
-    def build_index(self):
-        label_candidates = []
-        for p in self.points:
-            label_candidates.extend(p.label_candidates)
-        self.items = []
-        self.items.extend(label_candidates)
-        self.items.extend(self.points)
-        self.items.extend(self.bounding_box.border_config)
-
-        self.idx = Index()
-        for i, item in enumerate(self.items):
-            item.index = i
-            self.idx.insert(i, item.box)
-
-    def evaluate_fitness(self, individual):
-        penalty = 0
-        for lpid, pos in enumerate(individual):
-            self.labeled_points[lpid].label_candidates[pos].select()
-
-        for lpid, lcid in enumerate(individual):
-            lp = self.labeled_points[lpid]
-            lc = lp.label_candidates[lcid]
-
-            penalty += evaluate_label(lc, self.items, self.idx, selected_only=True)
-        return (-penalty,)
+# class GeneticLabeler(BaseGeneticLabeler):
+#     def __init__(self, points, bounding_box):
+#         BaseGeneticLabeler.__init__(self, None, points, bounding_box)
+#         self.build_index()
+#
+#     def build_index(self):
+#         label_candidates = []
+#         for p in self.points:
+#             label_candidates.extend(p.label_candidates)
+#         self.items = []
+#         self.items.extend(label_candidates)
+#         self.items.extend(self.points)
+#         self.items.extend(self.bounding_box.border_config)
+#
+#         self.idx = Index()
+#         for i, item in enumerate(self.items):
+#             item.index = i
+#             self.idx.insert(i, item.box)
+#
+#     def evaluate_fitness(self, individual):
+#         penalty = 0
+#         for lpid, pos in enumerate(individual):
+#             self.labeled_points[lpid].label_candidates[pos].select()
+#
+#         for lpid, lcid in enumerate(individual):
+#             lp = self.labeled_points[lpid]
+#             lc = lp.label_candidates[lcid]
+#
+#             penalty += evaluate_label(lc, self.items, self.idx, selected_only=True)
+#         return (-penalty,)
 
 
 class CachedGeneticLabeler(BaseGeneticLabeler):
-    def __init__(self, creator, points, bounding_box):
-        BaseGeneticLabeler.__init__(self, creator, points, bounding_box)
+    def __init__(self, points, bounding_box):
+        BaseGeneticLabeler.__init__(self, points, bounding_box)
         self.build_cache()
 
     def build_cache(self):
@@ -317,7 +317,7 @@ class CachedGeneticLabeler(BaseGeneticLabeler):
         items = []
         items.extend(label_candidates)
         items.extend(self.points)
-        items.extend(self.bounding_box.border_config)
+        items.extend(self.bounding_box.borders)
 
         idx = Index()
         for i, item in enumerate(items):
